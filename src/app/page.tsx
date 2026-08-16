@@ -1,7 +1,13 @@
+import { SiteHeader } from '@/components/site-header';
+import { FeaturedDestinations } from '@/features/home/featured-destinations';
+import { Hero } from '@/features/home/hero';
+
 export default function HomePage() {
   return (
     <main>
-      <h1>把远方，变成一段安心抵达的旅程</h1>
+      <SiteHeader activePath="/" />
+      <Hero />
+      <FeaturedDestinations />
     </main>
   );
 }

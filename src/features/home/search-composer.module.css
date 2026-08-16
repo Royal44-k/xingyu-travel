@@ -1,0 +1,218 @@
+.composer {
+  width: min(calc(100% - 64px), 1220px);
+  color: var(--ink);
+  border-radius: 12px;
+  background: rgb(244 240 232 / 96%);
+  box-shadow: 0 24px 70px rgb(0 0 0 / 31%);
+  backdrop-filter: blur(16px);
+}
+
+.tabs {
+  position: relative;
+  display: flex;
+  gap: 42px;
+  min-height: 58px;
+  padding: 0 24px;
+  border-bottom: 1px solid rgb(16 16 15 / 12%);
+}
+
+.tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 2px;
+  color: rgb(16 16 15 / 62%);
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.tab::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  background: var(--ink);
+  transform: scaleX(0);
+  transition: transform 200ms ease;
+}
+
+.tab[aria-selected='true'] {
+  color: var(--ink);
+}
+
+.tab[aria-selected='true']::after {
+  transform: scaleX(1);
+}
+
+.tab:focus-visible,
+.submit:focus-visible,
+.fields input:focus-visible,
+.fields select:focus-visible {
+  outline: 2px solid var(--sand);
+  outline-offset: 3px;
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: minmax(215px, 1.2fr) minmax(340px, 1.65fr) minmax(150px, 0.72fr) 206px;
+  gap: 0;
+  padding: 12px 18px 16px;
+}
+
+.fields > label,
+.dates {
+  min-width: 0;
+  padding: 9px 22px;
+  border-right: 1px solid rgb(16 16 15 / 13%);
+}
+
+.fields label > span:first-child,
+.dates label > span:first-child {
+  display: block;
+  margin-bottom: 4px;
+  color: rgb(16 16 15 / 52%);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+}
+
+.controlRow {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.fields input,
+.fields select {
+  min-width: 0;
+  width: 100%;
+  padding: 2px 0;
+  color: var(--ink);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font-size: 16px;
+}
+
+.fields select {
+  appearance: none;
+  cursor: pointer;
+}
+
+.dates {
+  display: grid;
+  grid-template-columns: auto minmax(115px, 1fr) auto minmax(115px, 1fr);
+  align-items: center;
+  gap: 12px;
+}
+
+.dateDash {
+  color: rgb(16 16 15 / 38%);
+}
+
+.submit {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 68px;
+  margin-left: 12px;
+  padding: 0 28px;
+  color: var(--ivory);
+  border: 1px solid var(--ink);
+  border-radius: 4px;
+  background: var(--ink);
+  font-size: 17px;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition:
+    color 180ms ease,
+    background-color 180ms ease;
+}
+
+.submit:hover {
+  color: var(--ink);
+  background: var(--sand);
+}
+
+@media (max-width: 1050px) {
+  .fields {
+    grid-template-columns: 1fr 1.6fr 0.72fr;
+  }
+
+  .submit {
+    grid-column: 1 / -1;
+    min-height: 58px;
+    margin: 14px 0 0;
+  }
+
+  .travelersField {
+    border-right: 0 !important;
+  }
+}
+
+@media (max-width: 720px) {
+  .composer {
+    width: calc(100% - 32px);
+  }
+
+  .tabs {
+    justify-content: space-between;
+    gap: 10px;
+    min-height: 54px;
+    padding: 0 17px;
+  }
+
+  .fields {
+    display: flex;
+    flex-direction: column;
+    padding: 8px 16px 16px;
+  }
+
+  .fields > label,
+  .dates {
+    min-height: 68px;
+    padding: 10px 4px;
+    border-right: 0;
+    border-bottom: 1px solid rgb(16 16 15 / 13%);
+  }
+
+  .dates {
+    grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .fields[data-kind='ticket'] .dates {
+    grid-template-columns: auto 1fr;
+  }
+
+  .fields input,
+  .fields select {
+    font-size: 15px;
+  }
+
+  .submit {
+    min-height: 56px;
+  }
+}
+
+@media (max-width: 450px) {
+  .tab {
+    gap: 5px;
+    font-size: 14px;
+  }
+
+  .dates {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .dateDash {
+    display: none;
+  }
+
+  .dates label:last-child {
+    grid-column: 2;
+  }
+}

@@ -13,14 +13,21 @@
 
 * { box-sizing: border-box; }
 
-html { scroll-behavior: smooth; }
+html {
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+}
 
 body {
   margin: 0;
+  overflow-x: hidden;
   color: var(--ink);
   background: var(--ivory);
   font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
 }
+
+a { color: inherit; }
 
 button,
 input,
