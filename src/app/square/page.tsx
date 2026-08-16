@@ -20,7 +20,7 @@ export default function SquarePage() {
       <main className={styles.squarePage}>
         <header className={styles.hero}><p>GUIDE SQUARE</p><h1>在别人的路书里，找到自己的出发理由。</h1><span>真实的旅行片段，整理成可继续编辑的本地行程草稿。</span></header>
         <section aria-labelledby="feed-title" className={styles.feedSection}>
-          <div className={styles.feedHeading}><div><p>编辑精选</p><h2 id="feed-title">旅行者正在分享</h2></div><FeedControls interestTags={interestTags} mode={mode} onClearInterestTags={() => setInterestTags([])} onModeChange={setMode} /></div>
+          <div className={styles.feedHeading}><div><p>编辑精选</p><h2 id="feed-title">旅行者正在分享</h2></div><FeedControls interestTags={interestTags} mode={mode} onClearInterestTags={() => { setInterestTags([]); setMode('chronological'); }} onModeChange={setMode} /></div>
           <div className={styles.masonry}>{posts.map((post) => <PostCard key={post.slug} post={post} />)}</div>
         </section>
       </main>

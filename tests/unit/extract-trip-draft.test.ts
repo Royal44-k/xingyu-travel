@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { orderPosts, postsBySlug } from '@/data/posts';
+import { orderPosts, posts, postsBySlug } from '@/data/posts';
 import { extractTripDraft } from '@/domain/trips/extract-draft';
 
 describe('extractTripDraft', () => {
@@ -34,5 +34,12 @@ describe('extractTripDraft', () => {
       'dali-slow-5d',
       'guilin-river-morning',
     ]);
+  });
+
+  it('keeps every published guide convertible for each declared day', () => {
+    for (const post of posts) {
+      expect(post.itinerary).toHaveLength(post.days);
+      expect(extractTripDraft(post).items).toHaveLength(post.days);
+    }
   });
 });

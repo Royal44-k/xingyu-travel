@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { FeedControls } from '@/features/square/feed-controls';
+import SquarePage from '@/app/square/page';
 
 describe('FeedControls', () => {
   it('lets users switch off recommendations', async () => {
@@ -30,5 +31,31 @@ describe('FeedControls', () => {
     expect(screen.getByText('慢旅行')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: '清除兴趣偏好' }));
     expect(clear).toHaveBeenCalledOnce();
+  });
+
+  it('states that personalization is off when chronological mode is active, even when tags exist', async () => {
+    const user = userEvent.setup();
+    render(
+      <FeedControls
+        mode="chronological"
+        interestTags={['慢旅行']}
+        onModeChange={() => undefined}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: '按时间排序' })).toHaveAttribute('aria-pressed', 'true');
+    await user.click(screen.getByRole('button', { name: '查看兴趣偏好' }));
+    expect(screen.getByText('个性化推荐已关闭，当前按时间排序。')).toBeInTheDocument();
+  });
+
+  it('clears interests by moving the square feed into chronological mode', async () => {
+    const user = userEvent.setup();
+    render(<SquarePage />);
+
+    await user.click(screen.getByRole('button', { name: '查看兴趣偏好' }));
+    await user.click(screen.getByRole('button', { name: '清除兴趣偏好' }));
+
+    expect(screen.getByRole('button', { name: '按时间排序' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('个性化推荐已关闭，当前按时间排序。')).toBeInTheDocument();
   });
 });

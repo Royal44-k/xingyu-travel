@@ -34,7 +34,7 @@ export function FeedControls({
       <div className={styles.preferences}>
         <button aria-expanded={preferencesOpen} aria-label="查看兴趣偏好" className={styles.preferencesTrigger} onClick={() => setPreferencesOpen((open) => !open)} type="button"><FunnelSimple aria-hidden size={16} /> 兴趣偏好</button>
         {preferencesOpen && <div className={styles.preferencePanel}>
-          <p>{interestTags.length ? '推荐会参考这些演示偏好：' : '已关闭个性化推荐。'}</p>
+          <p>{personalized && interestTags.length ? '推荐会参考这些演示偏好：' : '个性化推荐已关闭，当前按时间排序。'}</p>
           {interestTags.length > 0 && <div className={styles.tagList}>{interestTags.map((tag) => <span key={tag}>{tag}</span>)}</div>}
           {onClearInterestTags && interestTags.length > 0 && (
             <button className={styles.clearButton} onClick={onClearInterestTags} type="button"><X aria-hidden size={15} /> 清除兴趣偏好</button>
