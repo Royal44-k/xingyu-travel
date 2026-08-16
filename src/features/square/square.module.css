@@ -19,6 +19,8 @@
 .clearButton { border: 0; background: transparent; cursor: pointer; color: var(--ink); }
 .modeButton { display: inline-flex; align-items: center; gap: 5px; padding: 10px 13px; font-size: 13px; }
 .modeButton[aria-pressed='true'] { background: var(--pine); color: var(--ivory); }
+.modeButton:disabled { color: rgb(16 16 15 / 36%); cursor: not-allowed; }
+.recommendationHint { width: 100%; margin: 0; color: rgb(16 16 15 / 58%); font-size: 12px; text-align: right; }
 .preferences { position: relative; }
 .preferencesTrigger { display: flex; align-items: center; gap: 6px; padding: 10px 3px; font-size: 13px; }
 .preferencePanel { position: absolute; z-index: 3; right: 0; width: 250px; margin-top: 6px; padding: 14px; border: 1px solid rgb(16 16 15 / 15%); border-radius: var(--radius-control); background: var(--ivory); box-shadow: 0 13px 30px rgb(16 16 15 / 14%); }
@@ -113,6 +115,11 @@
 .handoffPanel h1 { margin: 0; font-family: var(--font-display); font-size: clamp(30px, 4vw, 48px); font-weight: 500; line-height: 1.2; }
 .handoffPanel > span { display: block; margin: 17px 0 25px; color: rgb(16 16 15 / 65%); line-height: 1.7; }
 .handoffPanel > a { display: inline-block; padding: 11px 15px; border-radius: 8px; background: var(--pine); color: var(--ivory); text-decoration: none; }
+.handoffItems { display: grid; gap: 10px; margin: 22px 0; padding: 0; list-style: none; }
+.handoffItems li { padding-top: 10px; border-top: 1px solid rgb(16 16 15 / 13%); }
+.handoffItems strong,
+.handoffItems span { display: block; }
+.handoffItems span { margin-top: 4px; color: rgb(16 16 15 / 63%); font-size: 13px; line-height: 1.5; }
 
 button:focus-visible,
 a:focus-visible,

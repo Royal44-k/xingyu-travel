@@ -18,19 +18,21 @@ export function FeedControls({
   interestTags = [],
   onClearInterestTags,
 }: FeedControlsProps) {
-  const personalized = mode === 'recommended';
+  const canRecommend = interestTags.length > 0;
+  const personalized = mode === 'recommended' && canRecommend;
   const [preferencesOpen, setPreferencesOpen] = useState(false);
 
   return (
     <div className={styles.feedControls}>
       <div className={styles.modeButtons} aria-label="攻略排序">
-        <button aria-pressed={personalized} className={styles.modeButton} onClick={() => onModeChange('recommended')} type="button">
+        <button aria-describedby={canRecommend ? undefined : 'recommendation-disabled-description'} aria-pressed={personalized} className={styles.modeButton} disabled={!canRecommend} onClick={() => { if (canRecommend) onModeChange('recommended'); }} type="button">
           <Sparkle aria-hidden size={17} weight="fill" /> 为你推荐
         </button>
         <button aria-pressed={!personalized} className={styles.modeButton} onClick={() => onModeChange('chronological')} type="button">
           按时间排序
         </button>
       </div>
+      {!canRecommend && <p className={styles.recommendationHint} id="recommendation-disabled-description">兴趣偏好已清空；以后添加兴趣偏好后可重新开启推荐。</p>}
       <div className={styles.preferences}>
         <button aria-expanded={preferencesOpen} aria-label="查看兴趣偏好" className={styles.preferencesTrigger} onClick={() => setPreferencesOpen((open) => !open)} type="button"><FunnelSimple aria-hidden size={16} /> 兴趣偏好</button>
         {preferencesOpen && <div className={styles.preferencePanel}>

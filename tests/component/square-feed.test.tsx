@@ -56,6 +56,19 @@ describe('FeedControls', () => {
     await user.click(screen.getByRole('button', { name: '清除兴趣偏好' }));
 
     expect(screen.getByRole('button', { name: '按时间排序' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: '为你推荐' })).toBeDisabled();
     expect(screen.getByText('个性化推荐已关闭，当前按时间排序。')).toBeInTheDocument();
+  });
+
+  it('does not re-enable recommendations after all interests are cleared', async () => {
+    const user = userEvent.setup();
+    const change = vi.fn();
+    render(<FeedControls interestTags={[]} mode="chronological" onModeChange={change} />);
+
+    const recommendation = screen.getByRole('button', { name: '为你推荐' });
+    expect(recommendation).toBeDisabled();
+    expect(recommendation).toHaveAccessibleDescription('兴趣偏好已清空；以后添加兴趣偏好后可重新开启推荐。');
+    await user.click(recommendation);
+    expect(change).not.toHaveBeenCalledWith('recommended');
   });
 });
