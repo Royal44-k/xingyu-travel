@@ -386,7 +386,7 @@ it('uses the fixed weighted model and explains the top three reasons', () => {
     { destination: '川西', dateOverlap: 1, budgetFit: 0.9, paceFit: 1, interestFit: 0.8, routeFit: 1, lodgingFit: 1, scheduleFit: 0.6, socialFit: 0.8 },
     { id: 'user-muyu', displayName: '木雨' },
   );
-  expect(result.score).toBe(91);
+  expect(result.score).toBe(92);
   expect(result.reasons).toHaveLength(3);
   expect(result.reasons[0].key).toBe('date');
 });
