@@ -2,6 +2,10 @@ export const offerKinds = ['flight', 'hotel', 'train', 'car', 'ticket'] as const
 
 export type OfferKind = (typeof offerKinds)[number];
 
+export const comparisonProductKinds = ['flight', 'hotel', 'ticket'] as const;
+
+export type ComparisonProductKind = (typeof comparisonProductKinds)[number];
+
 export interface RawOffer {
   id: string;
   provider: string;
@@ -26,3 +30,11 @@ export interface NormalizedOffer extends Omit<RawOffer, 'taxes' | 'mandatoryFees
   totalPrice: number;
   priceExplanation: string;
 }
+
+export type QuoteEvent =
+  | { type: 'offer'; payload: NormalizedOffer }
+  | {
+      type: 'degraded';
+      payload: { unavailableProviders: number; message: string };
+    }
+  | { type: 'complete'; payload: { offerCount: number } };

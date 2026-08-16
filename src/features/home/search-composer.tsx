@@ -12,9 +12,10 @@ import {
 } from '@phosphor-icons/react';
 import { motion, useReducedMotion } from 'motion/react';
 import { useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
+import type { ComparisonProductKind } from '@/domain/comparison/types';
 import styles from './search-composer.module.css';
 
-export type ProductKind = 'flight' | 'hotel' | 'ticket';
+export type ProductKind = ComparisonProductKind;
 
 export type HomeSearch = {
   kind: ProductKind;

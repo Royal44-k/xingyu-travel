@@ -1,9 +1,12 @@
-import type { OfferKind } from '../comparison/types';
+import type { ComparisonProductKind } from '../comparison/types';
 
 export interface ComparisonSearchInput {
   destination: string;
-  kind?: OfferKind;
+  kind?: ComparisonProductKind;
   origin?: string;
+  from?: string;
+  to?: string;
+  travelers?: number;
 }
 
 export interface AssistantRequest {
