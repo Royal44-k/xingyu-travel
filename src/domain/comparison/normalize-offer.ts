@@ -17,13 +17,18 @@ export function normalizeOffer(raw: RawOffer): NormalizedOffer {
   assertValidPriceComponent('taxes', taxes);
   assertValidPriceComponent('mandatoryFees', mandatoryFees);
 
+  const totalPrice = raw.basePrice + taxes + mandatoryFees;
+  if (!Number.isFinite(totalPrice)) {
+    throw new RangeError('totalPrice must be a finite number');
+  }
+
   return {
     ...raw,
     taxes,
     mandatoryFees,
     demoMode: raw.demoMode ?? false,
     currency: 'CNY',
-    totalPrice: raw.basePrice + taxes + mandatoryFees,
+    totalPrice,
     priceExplanation: `基础价 ¥${raw.basePrice} · 税费 ¥${taxes} · 必付费用 ¥${mandatoryFees}`,
   };
 }

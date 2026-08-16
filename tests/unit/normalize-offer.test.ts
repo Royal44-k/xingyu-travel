@@ -71,6 +71,19 @@ describe('normalizeOffer', () => {
     expect(normalize).toThrow(RangeError);
     expect(normalize).toThrow(`${field} must be a finite non-negative number`);
   });
+
+  it('rejects a comparable total that overflows finite price components', () => {
+    const normalize = () =>
+      normalizeOffer({
+        ...validRawOffer,
+        basePrice: Number.MAX_VALUE,
+        taxes: Number.MAX_VALUE,
+        mandatoryFees: 0,
+      });
+
+    expect(normalize).toThrow(RangeError);
+    expect(normalize).toThrow('totalPrice must be a finite number');
+  });
 });
 
 describe('MockInventoryProvider', () => {
