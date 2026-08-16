@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { defaultPartnerIntent, demoPartnerCandidates, demoViewerProfile } from '@/data/partners';
 import { ChatRoom } from '@/features/chat/chat-room';
 import { PartnerMatchExperience } from '@/features/partners/match-list';
-import { usePartnerStore, usePartnerStoreHydration } from '@/stores/partner-store';
+import { createPartnerStore, usePartnerStore, usePartnerStoreHydration } from '@/stores/partner-store';
 
 beforeEach(() => {
   window.localStorage.clear();
@@ -21,9 +21,9 @@ describe('partner matching flow', () => {
     expect(screen.getByText('已完成身份状态验证 · 风险状态清晰')).toBeInTheDocument();
     expect(screen.getByText('此处仅展示验证状态，不收集证件号、照片或人脸。')).toBeInTheDocument();
 
-    const destination = screen.getByLabelText('目的地');
+    const destination = await screen.findByLabelText('目的地');
     await user.clear(destination);
-    await user.click(screen.getByRole('button', { name: '发布匹配意愿' }));
+    await user.click(await screen.findByRole('button', { name: '发布匹配意愿' }));
 
     expect(screen.getByRole('alert')).toHaveTextContent('请输入目的地');
     expect(screen.queryByText('已发布到本地演示匹配')).not.toBeInTheDocument();
@@ -33,7 +33,7 @@ describe('partner matching flow', () => {
     const user = userEvent.setup();
     render(<PartnerMatchExperience />);
 
-    await user.click(screen.getByRole('button', { name: '发布匹配意愿' }));
+    await user.click(await screen.findByRole('button', { name: '发布匹配意愿' }));
     expect(await screen.findByText('已发布到本地演示匹配')).toBeInTheDocument();
     const card = screen.getByTestId(`partner-card-${demoPartnerCandidates[0].id}`);
     expect(within(card).getByText('92')).toBeInTheDocument();
@@ -47,6 +47,30 @@ describe('partner matching flow', () => {
     await user.click(within(card).getByRole('button', { name: '模拟对方同意（沙箱）' }));
     expect(within(card).getByText('双方已同意')).toBeInTheDocument();
     expect(within(card).getByRole('link', { name: '进入聊天' })).toHaveAttribute('href', expect.stringMatching(/^\/chat\/match-/));
+  });
+
+  it('hydrates the saved intent before mounting the form and preserves unchanged values', async () => {
+    const user = userEvent.setup();
+    const savedIntent = {
+      ...defaultPartnerIntent,
+      destination: '稻城',
+      budget: 6880,
+      route: '成都—康定—稻城',
+    };
+    const source = createPartnerStore();
+    await source.persist.rehydrate();
+    source.getState().publishIntent(demoViewerProfile, savedIntent);
+
+    render(<PartnerMatchExperience />);
+
+    expect(screen.getByText('正在读取本地匹配意愿…')).toBeInTheDocument();
+    const destination = await screen.findByLabelText('目的地');
+    expect(destination).toHaveValue('稻城');
+    expect(screen.getByLabelText('旅行预算')).toHaveValue(6880);
+    expect(screen.getByLabelText('期待路线')).toHaveValue('成都—康定—稻城');
+    await user.click(screen.getByRole('button', { name: '发布匹配意愿' }));
+
+    expect(usePartnerStore.getState().intents[demoViewerProfile.id]).toEqual(savedIntent);
   });
 });
 
@@ -106,6 +130,24 @@ describe('matched chat safety flow', () => {
 
     expect(screen.getByRole('heading', { name: '聊天暂不可用' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: '返回搭子匹配' })).toHaveAttribute('href', '/partners');
+  });
+
+  it('locks a shape-valid matched chat owned by another viewer', () => {
+    const foreignProfile = { ...demoViewerProfile, id: 'foreign-viewer' };
+    const foreignStore = createPartnerStore();
+    foreignStore.getState().publishIntent(foreignProfile, defaultPartnerIntent);
+    const matchId = foreignStore.getState().requestMatch(foreignProfile, demoPartnerCandidates[0].id);
+    foreignStore.getState().simulateMutualApproval(foreignProfile, matchId);
+    usePartnerStore.setState({
+      matches: foreignStore.getState().matches,
+      visibleMatchIds: foreignStore.getState().visibleMatchIds,
+    });
+
+    render(<ChatRoom matchId={matchId} />);
+
+    expect(screen.getByRole('heading', { name: '聊天暂不可用' })).toBeInTheDocument();
+    expect(screen.queryByText('你好，我们可以先从路线节奏和住宿边界聊起。')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('消息')).not.toBeInTheDocument();
   });
 });
 

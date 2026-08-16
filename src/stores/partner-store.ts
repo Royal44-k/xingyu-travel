@@ -8,6 +8,7 @@ import {
   demoPartnerCandidates,
   filterPartnerCandidates,
   isPartnerEligible,
+  partnerIntentSchema,
   validatePartnerIntent,
   type PartnerIntent,
   type PartnerProfile,
@@ -67,24 +68,6 @@ const allowedTransitions: Readonly<Record<PartnerMatchStatus, readonly PartnerMa
   reported: [],
 };
 
-const isoDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
-  const date = new Date(`${value}T00:00:00.000Z`);
-  return !Number.isNaN(date.valueOf()) && date.toISOString().slice(0, 10) === value;
-});
-const intentSchema = z.object({
-  destination: z.string().trim().min(1).max(80),
-  startDate: isoDateSchema,
-  endDate: isoDateSchema,
-  budget: z.number().finite().positive(),
-  pace: z.string().trim().min(1).max(80),
-  interests: z.array(z.string().trim().min(1).max(80)).min(1).max(20),
-  route: z.string().trim().min(1).max(240),
-  lodgingBoundary: z.string().trim().min(1).max(240),
-  schedule: z.string().trim().min(1).max(240),
-  socialPreference: z.string().trim().min(1).max(240),
-  capacity: z.number().int().min(1).max(12),
-  certificationRequired: z.boolean(),
-}).strict().refine((intent) => intent.endDate >= intent.startDate);
 const messageSchema = z.object({
   id: z.string().min(1).max(180),
   senderId: z.string().min(1).max(120),
@@ -106,7 +89,7 @@ const matchSchema = z.object({
   demoMode: z.literal(true),
 }).strict();
 const persistedPartnerStateSchema = z.object({
-  intents: z.record(z.string(), intentSchema),
+  intents: z.record(z.string(), partnerIntentSchema),
   matches: z.record(z.string(), matchSchema),
   visibleMatchIds: z.array(z.string()),
   blockedCandidateIds: z.array(z.string()),
@@ -132,7 +115,11 @@ export function transitionPartnerMatch(status: PartnerMatchStatus, next: Partner
 }
 
 export function containsContactDetails(body: string) {
-  return /(?:\b1[3-9]\d{9}\b)|(?:[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,})|(?:(?:微信|wechat|weixin|vx|v信|wx)\s*[:：号]?\s*[a-z0-9_-]{4,})/i.test(body);
+  const formattedChinesePhone = /(?<!\d)1[3-9](?:[\s-]?\d){9}(?!\d)/;
+  const email = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i;
+  const bareHandle = /(?:^|[\s：:，,；;])@[a-z0-9_\-\u4e00-\u9fff]{2,32}(?![a-z0-9_\-\u4e00-\u9fff])/iu;
+  const contactLabel = /(?:微\s*信|加\s*[vVＶ]|[vV][xX]|[wW][xX]|wechat|weixin|v\s*信)\s*(?:号|id|[:：])?\s*[a-z0-9_-]{2,32}/iu;
+  return formattedChinesePhone.test(body) || email.test(body) || bareHandle.test(body) || contactLabel.test(body);
 }
 
 function requireEligibility(profile: PartnerProfile) {
@@ -249,7 +236,12 @@ function lockMatch(state: PartnerStoreState, profile: PartnerProfile, matchId: s
   const match = requireMatch(state, profile, matchId);
   const status = transitionPartnerMatch(match.status, next);
   return {
-    matches: { ...state.matches, [matchId]: { ...match, status } },
+    matches: { ...state.matches, [matchId]: {
+      ...match,
+      status,
+      viewerContactConsent: false,
+      candidateContactConsent: false,
+    } },
     visibleMatchIds: state.visibleMatchIds.filter((id) => id !== matchId),
     blockedCandidateIds: next === 'blocked'
       ? [...new Set([...state.blockedCandidateIds, match.candidateId])]

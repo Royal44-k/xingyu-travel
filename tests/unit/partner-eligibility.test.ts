@@ -7,8 +7,9 @@ import {
   scorePartnerCandidate,
   validatePartnerIntent,
   type PartnerCandidate,
+  type PartnerIntent,
 } from '@/data/partners';
-import { createPartnerStore } from '@/stores/partner-store';
+import { containsContactDetails, createPartnerStore } from '@/stores/partner-store';
 
 const eligibleProfile = {
   id: 'viewer-demo',
@@ -34,6 +35,16 @@ describe('partner eligibility', () => {
     expect(eligibleProfile).not.toHaveProperty('identityPhoto');
     expect(eligibleProfile).not.toHaveProperty('face');
   });
+
+  it.each([Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, undefined])(
+    'treats malformed runtime age %s as age restricted',
+    (age) => {
+      expect(isPartnerEligible({ ...eligibleProfile, age } as typeof eligibleProfile)).toEqual({
+        allowed: false,
+        code: 'AGE_RESTRICTED',
+      });
+    },
+  );
 });
 
 describe('partner intent and hard filters', () => {
@@ -86,6 +97,48 @@ describe('partner intent and hard filters', () => {
       '旅行节奏很合拍',
     ]);
   });
+
+  it.each([
+    ['budget', { budget: 9000 }, 74, ['旅行日期高度重合', '旅行节奏很合拍', '共同兴趣较多']],
+    ['pace', { pace: '紧凑' }, 77, ['旅行日期高度重合', '预算范围很接近', '共同兴趣较多']],
+    ['interests', { interests: ['徒步'] }, 77, ['旅行日期高度重合', '预算范围很接近', '旅行节奏很合拍']],
+    ['route', { route: '拉萨—林芝' }, 82, ['旅行日期高度重合', '预算范围很接近', '旅行节奏很合拍']],
+  ])('derives a predictable score from changed %s intent', (_field, patch, score, reasons) => {
+    expect(scorePartnerCandidate({ ...defaultPartnerIntent, ...patch }, demoPartnerCandidates[0])).toMatchObject({
+      score,
+      reasons,
+    });
+  });
+
+  it('changes the top reasons when several current intent preferences diverge', () => {
+    expect(scorePartnerCandidate({
+      ...defaultPartnerIntent,
+      budget: 9000,
+      pace: '紧凑',
+      interests: ['徒步'],
+      route: '拉萨—林芝',
+    }, demoPartnerCandidates[0])).toMatchObject({
+      score: 34,
+      reasons: ['旅行日期高度重合', '住宿边界相容', '社交偏好相近'],
+    });
+  });
+
+  it.each([
+    ['overlong destination', { destination: '川'.repeat(81) }],
+    ['invalid calendar date', { startDate: '2026-02-30' }],
+    ['capacity over limit', { capacity: 13 }],
+    ['too many interests', { interests: Array.from({ length: 21 }, (_, index) => `兴趣${index}`) }],
+    ['unknown sensitive field', { preciseCoordinates: '30,120' }],
+  ])('rejects strict runtime intent input before persistence: %s', (_label, patch) => {
+    const malformed = { ...defaultPartnerIntent, ...patch } as unknown as PartnerIntent;
+    const store = createPartnerStore();
+
+    const validation = validatePartnerIntent(malformed);
+    expect(validation.success).toBe(false);
+    if (!validation.success) expect(Object.keys(validation.fieldErrors).length).toBeGreaterThan(0);
+    expect(() => store.getState().publishIntent(eligibleProfile, malformed)).toThrow('PARTNER_INVALID_INTENT');
+    expect(store.getState().intents).toEqual({});
+  });
 });
 
 describe('partner match and chat state', () => {
@@ -134,6 +187,23 @@ describe('partner match and chat state', () => {
     expect(store.getState().matches[matchId].messages.at(-1)?.body).toBe('电话 13800138000');
   });
 
+  it.each([
+    '电话 138 0013 8000',
+    '手机 138-0013-8000',
+    '联系 @travel_2026',
+    '微 信 travel_2026',
+    '加V: travel_2026',
+    'vx travel2026',
+    '邮箱 ME@example.com',
+  ])('detects contact bypass form: %s', (body) => {
+    expect(containsContactDetails(body)).toBe(true);
+  });
+
+  it.each(['走 318 国道', '预算 5200 元', '9 月 18 日出发', '航班号 CA1234']) (
+    'does not block ordinary travel number: %s',
+    (body) => expect(containsContactDetails(body)).toBe(false),
+  );
+
   it('locks matches immediately after block or report and records check-in safety state', () => {
     const blockedStore = matchedStore();
     const blockedId = Object.keys(blockedStore.getState().matches)[0];
@@ -158,6 +228,34 @@ describe('partner match and chat state', () => {
     expect(reportedStore.getState().matches[reportedId].status).toBe('reported');
     expect(reportedStore.getState().visibleMatchIds).not.toContain(reportedId);
   });
+
+  it.each(['blockMatch', 'reportMatch'] as const)(
+    'atomically revokes bilateral contact consent on terminal %s',
+    (action) => {
+      const store = matchedStore();
+      const matchId = Object.keys(store.getState().matches)[0];
+      store.getState().setContactConsent(eligibleProfile, matchId, 'viewer', true);
+      store.getState().setContactConsent(eligibleProfile, matchId, 'candidate', true);
+
+      store.getState()[action](eligibleProfile, matchId);
+
+      expect(store.getState().matches[matchId]).toMatchObject({
+        viewerContactConsent: false,
+        candidateContactConsent: false,
+      });
+      expect(() => store.getState().setContactConsent(eligibleProfile, matchId, 'viewer', true)).toThrow(
+        'PARTNER_MATCH_LOCKED',
+      );
+      expect(() => store.getState().sendMessage(eligibleProfile, matchId, 'me@example.com')).toThrow(
+        'PARTNER_MATCH_LOCKED',
+      );
+      const persisted = JSON.parse(window.localStorage.getItem('xingyu-partner-demo-v1') ?? '{}');
+      expect(persisted.state.matches[matchId]).toMatchObject({
+        viewerContactConsent: false,
+        candidateContactConsent: false,
+      });
+    },
+  );
 
   it('rejects malformed persisted matches without overwriting the unsafe bytes', async () => {
     const malformedBytes = JSON.stringify({

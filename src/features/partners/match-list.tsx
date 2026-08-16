@@ -18,6 +18,7 @@ export function PartnerMatchExperience() {
   const requestMatch = usePartnerStore((state) => state.requestMatch);
   const simulateMutualApproval = usePartnerStore((state) => state.simulateMutualApproval);
   const hydrationError = usePartnerStoreHydration((state) => state.hydrationError);
+  const hydrated = usePartnerStoreHydration((state) => state.hydrated);
 
   useEffect(() => { void hydratePartnerStore(); }, []);
   const candidates = useMemo(() => intent ? filterPartnerCandidates(intent, demoPartnerCandidates, {
@@ -47,7 +48,9 @@ export function PartnerMatchExperience() {
         </div>
       </header>
       {hydrationError && <p className={styles.notice} role="status">本地匹配记录校验失败，已继续使用安全的内存状态；原数据未被覆盖。</p>}
-      <IntentForm initialIntent={intent ?? defaultPartnerIntent} onPublish={handlePublish} />
+      {hydrated
+        ? <IntentForm key={JSON.stringify(intent ?? defaultPartnerIntent)} initialIntent={intent ?? defaultPartnerIntent} onPublish={handlePublish} />
+        : <p className={styles.notice} aria-live="polite">正在读取本地匹配意愿…</p>}
       {published && <p className={styles.publishedNotice}><CheckCircle aria-hidden size={18} />已发布到本地演示匹配</p>}
       {actionError && <p className={styles.formError} role="alert">{actionError}</p>}
       <section aria-labelledby="candidate-title" className={styles.candidateSection}>

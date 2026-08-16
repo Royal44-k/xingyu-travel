@@ -27,6 +27,9 @@ export function ChatRoom({ matchId }: { matchId: string }) {
   useEffect(() => { void hydratePartnerStore(); }, []);
 
   if (!match) return <LockedChat title="聊天暂不可用" message="找不到这条本地演示匹配，或它从未完成双方同意。" />;
+  if (match.viewerId !== demoViewerProfile.id) {
+    return <LockedChat title="聊天暂不可用" message="这条本地演示匹配不属于当前演示身份。" />;
+  }
   if (match.status !== 'matched') {
     return <LockedChat title={match.status === 'blocked' || match.status === 'reported' ? '此聊天已锁定' : '聊天暂不可用'} message={match.status === 'pending_mutual' ? '只有双方明确同意后才会开放聊天。' : '拉黑或举报会立即结束匹配，聊天不可恢复。'} />;
   }

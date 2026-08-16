@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { scoreMatch, type MatchReasonKey, type MatchSignals } from '@/domain/partners/score-match';
 
 export type PartnerRiskStatus = 'clear' | 'review' | 'restricted';
@@ -40,7 +41,11 @@ export interface PartnerCandidate extends PartnerProfile {
   capacity: number;
   certified: boolean;
   blockedUserIds: string[];
-  matchSignals: MatchSignals;
+  matchPreferences: {
+    budgetTolerance: number;
+    scheduleCompatibility: number;
+    socialCompatibility: number;
+  };
 }
 
 export type EligibilityResult =
@@ -89,16 +94,10 @@ export const demoPartnerCandidates: PartnerCandidate[] = [{
   capacity: 3,
   certified: true,
   blockedUserIds: [],
-  matchSignals: {
-    destination: '川西',
-    dateOverlap: 1,
-    budgetFit: 0.9,
-    paceFit: 1,
-    interestFit: 0.8,
-    routeFit: 1,
-    lodgingFit: 1,
-    scheduleFit: 0.6,
-    socialFit: 0.8,
+  matchPreferences: {
+    budgetTolerance: 2000,
+    scheduleCompatibility: 0.2,
+    socialCompatibility: 0.6,
   },
 }, {
   id: 'user-azhou',
@@ -120,16 +119,10 @@ export const demoPartnerCandidates: PartnerCandidate[] = [{
   capacity: 2,
   certified: true,
   blockedUserIds: [],
-  matchSignals: {
-    destination: '川西',
-    dateOverlap: 0.75,
-    budgetFit: 0.82,
-    paceFit: 0.72,
-    interestFit: 0.65,
-    routeFit: 0.78,
-    lodgingFit: 0.65,
-    scheduleFit: 0.75,
-    socialFit: 0.82,
+  matchPreferences: {
+    budgetTolerance: 2400,
+    scheduleCompatibility: 0.75,
+    socialCompatibility: 0.82,
   },
 }];
 
@@ -145,42 +138,48 @@ const reasonLabels: Readonly<Record<MatchReasonKey, string>> = {
 };
 
 export function isPartnerEligible(profile: PartnerProfile): EligibilityResult {
-  if (profile.age < 18) return { allowed: false, code: 'AGE_RESTRICTED' };
+  if (!Number.isFinite(profile.age) || profile.age < 18) return { allowed: false, code: 'AGE_RESTRICTED' };
   if (!profile.identityVerified) return { allowed: false, code: 'IDENTITY_REQUIRED' };
   if (profile.riskStatus !== 'clear') return { allowed: false, code: 'RISK_RESTRICTED' };
   return { allowed: true };
 }
 
-export function validatePartnerIntent(intent: PartnerIntent):
+const realIsoDateSchema = (message: string) => z.string().regex(/^\d{4}-\d{2}-\d{2}$/, message).refine((value) => {
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(parsed.valueOf()) && parsed.toISOString().slice(0, 10) === value;
+}, message);
+
+export const partnerIntentSchema = z.object({
+  destination: z.string().trim().min(1, '请输入目的地').max(80, '目的地不能超过 80 个字符'),
+  startDate: realIsoDateSchema('请选择有效的出发日期'),
+  endDate: realIsoDateSchema('请选择有效的返程日期'),
+  budget: z.number().finite().positive('请输入大于 0 的预算'),
+  pace: z.string().trim().min(1, '请选择旅行节奏').max(80, '旅行节奏不能超过 80 个字符'),
+  interests: z.array(z.string().trim().min(1, '兴趣不能为空').max(80, '单项兴趣不能超过 80 个字符'))
+    .min(1, '请至少选择一项兴趣').max(20, '兴趣最多填写 20 项'),
+  route: z.string().trim().min(1, '请输入期待路线').max(240, '期待路线不能超过 240 个字符'),
+  lodgingBoundary: z.string().trim().min(1, '请说明住宿边界').max(240, '住宿边界不能超过 240 个字符'),
+  schedule: z.string().trim().min(1, '请说明日常作息').max(240, '日常作息不能超过 240 个字符'),
+  socialPreference: z.string().trim().min(1, '请说明社交偏好').max(240, '社交偏好不能超过 240 个字符'),
+  capacity: z.number().int('同行容量必须是整数').min(1, '同行容量至少为 1 人').max(12, '同行容量最多为 12 人'),
+  certificationRequired: z.boolean(),
+}).strict().superRefine((intent, context) => {
+  if (intent.endDate < intent.startDate) {
+    context.addIssue({ code: 'custom', path: ['endDate'], message: '返程日期不能早于出发日期' });
+  }
+});
+
+export function validatePartnerIntent(intent: unknown):
   | { success: true; data: PartnerIntent }
   | { success: false; fieldErrors: Record<string, string> } {
+  const parsed = partnerIntentSchema.safeParse(intent);
+  if (parsed.success) return { success: true, data: parsed.data };
   const fieldErrors: Record<string, string> = {};
-  if (!intent.destination.trim()) fieldErrors.destination = '请输入目的地';
-  if (!isIsoDate(intent.startDate)) fieldErrors.startDate = '请选择有效的出发日期';
-  if (!isIsoDate(intent.endDate)) fieldErrors.endDate = '请选择有效的返程日期';
-  else if (isIsoDate(intent.startDate) && intent.endDate < intent.startDate) {
-    fieldErrors.endDate = '返程日期不能早于出发日期';
+  for (const issue of parsed.error.issues) {
+    const key = typeof issue.path[0] === 'string' ? issue.path[0] : 'form';
+    fieldErrors[key] ??= key === 'form' ? '意愿数据包含未知或无效字段' : issue.message;
   }
-  if (!Number.isFinite(intent.budget) || intent.budget <= 0) fieldErrors.budget = '请输入大于 0 的预算';
-  if (!intent.pace.trim()) fieldErrors.pace = '请选择旅行节奏';
-  if (!intent.interests.length || intent.interests.some((interest) => !interest.trim())) {
-    fieldErrors.interests = '请至少选择一项兴趣';
-  }
-  if (!intent.route.trim()) fieldErrors.route = '请输入期待路线';
-  if (!intent.lodgingBoundary.trim()) fieldErrors.lodgingBoundary = '请说明住宿边界';
-  if (!intent.schedule.trim()) fieldErrors.schedule = '请说明日常作息';
-  if (!intent.socialPreference.trim()) fieldErrors.socialPreference = '请说明社交偏好';
-  if (!Number.isInteger(intent.capacity) || intent.capacity < 1) fieldErrors.capacity = '同行容量至少为 1 人';
-  if (Object.keys(fieldErrors).length) return { success: false, fieldErrors };
-  return { success: true, data: {
-    ...intent,
-    destination: intent.destination.trim(),
-    interests: intent.interests.map((interest) => interest.trim()),
-    route: intent.route.trim(),
-    lodgingBoundary: intent.lodgingBoundary.trim(),
-    schedule: intent.schedule.trim(),
-    socialPreference: intent.socialPreference.trim(),
-  } };
+  return { success: false, fieldErrors };
 }
 
 export function filterPartnerCandidates(
@@ -207,7 +206,7 @@ export function scorePartnerCandidate(_intent: PartnerIntent, candidate: Partner
   reasons: string[];
   reasonKeys: MatchReasonKey[];
 } {
-  const result = scoreMatch(candidate.matchSignals, candidate);
+  const result = scoreMatch(deriveMatchSignals(_intent, candidate), candidate);
   return {
     candidate,
     score: result.score,
@@ -216,8 +215,38 @@ export function scorePartnerCandidate(_intent: PartnerIntent, candidate: Partner
   };
 }
 
-function isIsoDate(value: string) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const parsed = new Date(`${value}T00:00:00.000Z`);
-  return !Number.isNaN(parsed.valueOf()) && parsed.toISOString().slice(0, 10) === value;
+function deriveMatchSignals(intent: PartnerIntent, candidate: PartnerCandidate): MatchSignals {
+  const paceOrder = ['舒缓', '适中', '紧凑'];
+  const intentPace = paceOrder.indexOf(intent.pace);
+  const candidatePace = paceOrder.indexOf(candidate.pace);
+  return {
+    destination: intent.destination,
+    dateOverlap: dateOverlap(intent.startDate, intent.endDate, candidate.startDate, candidate.endDate),
+    budgetFit: Math.max(0, 1 - Math.abs(intent.budget - candidate.budget) / candidate.matchPreferences.budgetTolerance),
+    paceFit: intentPace < 0 || candidatePace < 0 ? 0 : Math.max(0, 1 - Math.abs(intentPace - candidatePace) / 2),
+    interestFit: overlapRatio(intent.interests, candidate.interests),
+    routeFit: overlapRatio(routeStops(intent.route), routeStops(candidate.route)),
+    lodgingFit: intent.lodgingBoundary === candidate.lodgingBoundary ? 1 : 0,
+    scheduleFit: intent.schedule === candidate.schedule ? candidate.matchPreferences.scheduleCompatibility : 0,
+    socialFit: intent.socialPreference === candidate.socialPreference ? candidate.matchPreferences.socialCompatibility : 0,
+  };
+}
+
+function dateOverlap(intentStart: string, intentEnd: string, candidateStart: string, candidateEnd: string) {
+  const day = 86_400_000;
+  const start = Math.max(Date.parse(`${intentStart}T00:00:00Z`), Date.parse(`${candidateStart}T00:00:00Z`));
+  const end = Math.min(Date.parse(`${intentEnd}T00:00:00Z`), Date.parse(`${candidateEnd}T00:00:00Z`));
+  const intentDays = (Date.parse(`${intentEnd}T00:00:00Z`) - Date.parse(`${intentStart}T00:00:00Z`)) / day + 1;
+  return end < start || intentDays <= 0 ? 0 : Math.min(1, ((end - start) / day + 1) / intentDays);
+}
+
+function routeStops(route: string) {
+  return route.split(/[—–→>\/、,，-]+/).map((stop) => stop.trim()).filter(Boolean);
+}
+
+function overlapRatio(intentValues: string[], candidateValues: string[]) {
+  const intentSet = new Set(intentValues.map((value) => value.trim()).filter(Boolean));
+  if (intentSet.size === 0) return 0;
+  const candidateSet = new Set(candidateValues.map((value) => value.trim()).filter(Boolean));
+  return [...intentSet].filter((value) => candidateSet.has(value)).length / intentSet.size;
 }
