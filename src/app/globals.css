@@ -1,0 +1,38 @@
+:root {
+  --ink: #10100f;
+  --ivory: #f4f0e8;
+  --sand: #b79a68;
+  --mist: #d8d3ca;
+  --pine: #26312b;
+  --font-display: var(--font-noto-serif-sc), "Songti SC", serif;
+  --font-ui: var(--font-noto-sans-sc), "PingFang SC", sans-serif;
+  --content-max: 1320px;
+  --radius-control: 10px;
+  --radius-panel: 18px;
+}
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  color: var(--ink);
+  background: var(--ivory);
+  font-family: var(--font-ui);
+}
+
+button,
+input,
+select,
+textarea { font: inherit; }
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
