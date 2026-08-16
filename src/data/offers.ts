@@ -47,4 +47,18 @@ export const sandboxOffers: readonly RawOffer[] = [
     updatedAt: SANDBOX_OBSERVED_AT,
     demoMode: true,
   },
+  {
+    id: 'DEMO-TICKET-DAL-01',
+    provider: '星屿沙箱演示门票',
+    kind: 'ticket',
+    title: '大理古城体验演示门票',
+    destination: '大理',
+    basePrice: 88,
+    taxes: 0,
+    mandatoryFees: 0,
+    baggageIncluded: false,
+    refundable: true,
+    updatedAt: SANDBOX_OBSERVED_AT,
+    demoMode: true,
+  },
 ] as const;

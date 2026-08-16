@@ -61,4 +61,29 @@ describe('scoreMatch', () => {
     expect(result.score).toBe(25);
     expect(result.reasons[0]).toMatchObject({ key: 'date', points: 25 });
   });
+
+  it('normalizes non-finite fit signals to zero and returns serializable reasons', () => {
+    const result = scoreMatch(
+      {
+        destination: '川西',
+        dateOverlap: Number.NaN,
+        budgetFit: Number.POSITIVE_INFINITY,
+        paceFit: Number.NEGATIVE_INFINITY,
+        interestFit: 0,
+        routeFit: 0,
+        lodgingFit: 0,
+        scheduleFit: 0,
+        socialFit: 0,
+      },
+      { id: 'user-muyu', displayName: '木雨' },
+    );
+
+    expect(result.score).toBe(0);
+    expect(result.reasons).toEqual([
+      { key: 'date', points: 0 },
+      { key: 'budget', points: 0 },
+      { key: 'pace', points: 0 },
+    ]);
+    expect(JSON.parse(JSON.stringify(result))).toEqual(result);
+  });
 });

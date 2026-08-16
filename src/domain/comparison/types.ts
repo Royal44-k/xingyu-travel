@@ -1,4 +1,4 @@
-export const offerKinds = ['flight', 'hotel', 'train', 'car'] as const;
+export const offerKinds = ['flight', 'hotel', 'train', 'car', 'ticket'] as const;
 
 export type OfferKind = (typeof offerKinds)[number];
 
