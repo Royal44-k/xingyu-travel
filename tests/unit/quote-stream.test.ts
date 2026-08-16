@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { POST } from '@/app/api/v1/comparison/searches/route';
-import { GET, encodeSse } from '@/app/api/v1/comparison/searches/[id]/events/route';
+import {
+  GET,
+  encodeSse,
+  quoteEventsForSearch,
+} from '@/app/api/v1/comparison/searches/[id]/events/route';
 import type { QuoteEvent } from '@/domain/comparison/types';
 
 const validSearch = {
@@ -44,6 +48,10 @@ describe('comparison search route', () => {
     ['an unsupported product kind', { ...validSearch, kind: 'car' }],
     ['an empty destination', { ...validSearch, destination: '   ' }],
     ['an invalid traveler count', { ...validSearch, travelers: 0 }],
+    ['a non-existent calendar date', { ...validSearch, from: '2026-02-30' }],
+    ['a reversed date range', { ...validSearch, from: '2026-08-28', to: '2026-08-27' }],
+    ['too many travelers', { ...validSearch, travelers: 10 }],
+    ['an oversized destination', { ...validSearch, destination: '大'.repeat(61) }],
   ])('returns the unified JSON error contract for %s', async (_name, body) => {
     const response = await createSearch(body);
 
@@ -58,6 +66,23 @@ describe('comparison search route', () => {
       request_id: expect.stringMatching(/^req_/),
       demo_mode: true,
     });
+  });
+
+  it('trims bounded location inputs before creating the stable token', async () => {
+    const response = await createSearch({
+      ...validSearch,
+      destination: '  大理  ',
+      origin: '  上海  ',
+    });
+    const { search_id: searchId } = await response.json();
+    const streamResponse = await GET(
+      new Request(`http://test/api/v1/comparison/searches/${searchId}/events`),
+      { params: Promise.resolve({ id: searchId }) },
+    );
+
+    expect(response.status).toBe(202);
+    expect(streamResponse.status).toBe(200);
+    expect(await streamResponse.text()).toContain('"id":"DEMO-FLIGHT-DAL-01"');
   });
 });
 
@@ -97,8 +122,8 @@ describe('comparison quote stream', () => {
 
   it('returns a unified not-found response for an unknown search id', async () => {
     const response = await GET(
-      new Request('http://test/api/v1/comparison/searches/search_missing/events'),
-      { params: Promise.resolve({ id: 'search_missing' }) },
+      new Request('http://test/api/v1/comparison/searches/missing/events'),
+      { params: Promise.resolve({ id: 'missing' }) },
     );
 
     expect(response.status).toBe(404);
@@ -107,5 +132,103 @@ describe('comparison quote stream', () => {
       error: { code: 'COMPARISON_SEARCH_NOT_FOUND' },
       demo_mode: true,
     });
+  });
+
+  it.each([
+    ['invalid encoded JSON', 'search_7b'],
+    [
+      'a stateless reversed date range',
+      `search_${Array.from(
+        new TextEncoder().encode(
+          JSON.stringify({
+            destination: '大理',
+            kind: 'flight',
+            origin: null,
+            from: '2026-08-28',
+            to: '2026-08-27',
+            travelers: 2,
+          }),
+        ),
+        (byte) => byte.toString(16).padStart(2, '0'),
+      ).join('')}`,
+    ],
+    ['an oversized stateless token', `search_${'61'.repeat(2049)}`],
+  ])('returns a structured 400 for %s', async (_name, id) => {
+    const response = await GET(
+      new Request(`http://test/api/v1/comparison/searches/${id}/events`),
+      { params: Promise.resolve({ id }) },
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      ok: false,
+      error: { code: 'INVALID_COMPARISON_SEARCH_ID' },
+      request_id: expect.stringMatching(/^req_/),
+      demo_mode: true,
+    });
+  });
+
+  it('emits degradation from a recorded ticket supplier failure rather than product kind', async () => {
+    const creation = await createSearch({
+      destination: '大理',
+      kind: 'ticket',
+      from: '2026-08-22',
+      travelers: 2,
+    });
+    const { search_id: searchId } = await creation.json();
+    const response = await GET(
+      new Request(`http://test/api/v1/comparison/searches/${searchId}/events`),
+      { params: Promise.resolve({ id: searchId }) },
+    );
+    const text = await response.text();
+
+    expect(text).toContain('"id":"DEMO-TICKET-DAL-01"');
+    expect(text).toContain('event: degraded\n');
+    expect(text).toContain('大理景区直连暂未响应');
+    expect(text).toContain('event: complete\n');
+  });
+
+  it('preserves partial offers and always completes after a supplier runner throws', async () => {
+    const partialOffer = {
+      id: 'partial-1',
+      provider: '部分成功供应商',
+      kind: 'flight',
+      title: '部分成功报价',
+      destination: '大理',
+      basePrice: 800,
+      taxes: 100,
+      mandatoryFees: 0,
+      totalPrice: 900,
+      currency: 'CNY',
+      priceExplanation: '基础价 ¥800 · 税费 ¥100 · 必付费用 ¥0',
+      baggageIncluded: true,
+      refundable: true,
+      providerVerified: true,
+      includedBenefits: ['托运行李'],
+      updatedAt: '2026-08-16T09:00:00+08:00',
+      demoMode: true,
+    } as const;
+    const throwingRuns = {
+      async *run() {
+        yield { status: 'success' as const, provider: '部分成功供应商', offers: [partialOffer] };
+        throw new Error('supplier transport failed');
+      },
+    };
+    const events = [];
+
+    for await (const event of quoteEventsForSearch(validSearch, throwingRuns)) {
+      events.push(event);
+    }
+
+    expect(events.map((event) => event.type)).toEqual([
+      'offer',
+      'degraded',
+      'complete',
+    ]);
+    expect(events[1]).toMatchObject({
+      type: 'degraded',
+      payload: { unavailableProviders: 1 },
+    });
+    expect(events[2]).toEqual({ type: 'complete', payload: { offerCount: 1 } });
   });
 });

@@ -103,3 +103,77 @@ Vitest, TypeScript incremental metadata, and Next build output required approved
 - Sandbox offers remain intentionally fixed and sparse: the current inventory has two flight quotes and one quote each for hotel and ticket in Dali. Empty-result behavior is therefore expected for other sandbox destinations.
 - The price calendar is explicitly labeled as a fixed demo sample. It does not imply a live historical-price feed.
 - Browser screenshot and viewport-level visual QA remain outside Task 5; this task's UI verification is component, static-analysis, and production-build based.
+
+## Review Round 1
+
+### RED
+
+Added regression coverage before changing production code, then ran:
+
+```text
+node node_modules/vitest/vitest.mjs run tests/unit/quote-stream.test.ts tests/unit/comparison-search-params.test.ts tests/component/comparison-client.test.tsx --reporter=verbose
+Test Files 3 failed (3)
+Tests 14 failed | 14 passed (28)
+```
+
+The failures directly reproduced the review findings:
+
+- impossible and reversed dates plus a 61-character destination were accepted with 202;
+- crafted invalid, oversized, and reversed-date stateless IDs returned 404/200 instead of structured 400 responses;
+- the ticket stream emitted its fixed offer and `complete` but no recorded supplier degradation;
+- the supplier-exception event generator did not exist;
+- zero-offer completion remained stuck on `正在接收沙箱报价…`;
+- benefit and verification filters were absent/inert;
+- two providers sharing one local ID collided in favorite and compare state;
+- the compare CTA opened no view;
+- filter and outbound dialogs left focus on their background triggers.
+
+A corrected focused ticket test was rerun separately to remove an irrelevant origin mismatch. It failed specifically because the resulting stream contained `offer` and `complete` but no `degraded` frame.
+
+### Fixes
+
+- Moved POST validation into the shared `comparisonSearchSchema`: locations are trimmed and bounded, traveler count is 1–9, dates must be real ISO calendar dates, and an end date cannot precede its start date.
+- Reused that exact schema when decoding self-contained search IDs. Non-search IDs retain the not-found contract; malformed, oversized, or schema-invalid search tokens return structured `INVALID_COMPARISON_SEARCH_ID` responses with status 400.
+- Added fixed `sandboxSupplierRuns` success/failure records and a `MockSupplierRunProvider`. SSE degradation now follows recorded provider outcomes for any product kind. `quoteEventsForSearch` retains earlier offers and emits `complete` from `finally`, including after a runner exception.
+- Added explicit provider-verification and included-benefit data to sandbox offers. The filter drawer now applies refundability, included benefit (flight baggage or the non-flight benefit list), and verified-provider state to real rows.
+- Changed every client identity consumer—upsert, React key, favorite, selection, three-item limit, and selected-offer lookup—to the same `${provider}:${id}` compound key.
+- Handled `complete` explicitly, separating active loading from a stable zero-result message.
+- Implemented a named modal comparison table for 1–3 selected offers with provider, comparable total, baggage/benefits, refund/change conditions, verification, and a close control.
+- Added one scoped `useDialogFocus` helper for initial focus, Escape, Tab/Shift+Tab containment, and trigger-focus restoration. The filter drawer, outbound sandbox confirmation, and comparison modal use it.
+- Moved query parsing into `searchFromParams`, accepting `string | string[] | undefined` and deterministically taking the first repeated value without calling string methods on arrays.
+
+### GREEN
+
+Focused review regressions:
+
+```text
+node node_modules/vitest/vitest.mjs run tests/unit/quote-stream.test.ts tests/unit/comparison-search-params.test.ts tests/component/comparison-client.test.tsx
+Test Files 3 passed (3)
+Tests 30 passed (30)
+```
+
+Final verification:
+
+```text
+pnpm lint
+eslint .
+
+pnpm typecheck
+tsc --noEmit
+
+node node_modules/vitest/vitest.mjs run
+Test Files 10 passed (10)
+Tests 75 passed (75)
+
+pnpm build
+Compiled successfully
+Routes /compare, /api/v1/comparison/searches, and /api/v1/comparison/searches/[id]/events emitted as dynamic routes
+```
+
+Review fix commit: `fix: complete comparison workflows and validation`.
+
+### Remaining Concerns
+
+- Supplier successes and failures are deterministic fixtures, not live partner health checks. The provider-run abstraction exposes the boundary for later adapters without claiming live availability.
+- Search IDs are validated self-contained transport tokens, not encrypted credentials; they intentionally encode only bounded comparison inputs and no personal/payment data.
+- Visual browser screenshots and viewport interaction runs remain deferred; this round verifies behavior through DOM interaction tests, static checks, and the production build.

@@ -1,4 +1,5 @@
 import type { ComparisonSearchInput } from '@/domain/shared/api';
+import { comparisonSearchSchema } from './search-schema';
 
 const searches = new Map<string, ComparisonSearchInput>();
 
@@ -25,39 +26,42 @@ export function registerComparisonSearch(input: ComparisonSearchInput): string {
   return id;
 }
 
-export function findComparisonSearch(id: string): ComparisonSearchInput | undefined {
-  const registered = searches.get(id);
-  if (registered) return registered;
+export type ComparisonSearchLookup =
+  | { status: 'found'; input: ComparisonSearchInput }
+  | { status: 'invalid' }
+  | { status: 'missing' };
 
-  const token = id.startsWith('search_') ? id.slice('search_'.length) : '';
-  if (!token || token.length % 2 !== 0 || !/^[a-f0-9]+$/.test(token)) return undefined;
+export function findComparisonSearch(id: string): ComparisonSearchLookup {
+  const registered = searches.get(id);
+  if (registered) return { status: 'found', input: registered };
+
+  if (!id.startsWith('search_')) return { status: 'missing' };
+  const token = id.slice('search_'.length);
+  if (
+    !token ||
+    token.length > 2048 ||
+    token.length % 2 !== 0 ||
+    !/^[a-f0-9]+$/.test(token)
+  ) {
+    return { status: 'invalid' };
+  }
 
   try {
     const bytes = Uint8Array.from(
       token.match(/.{2}/g) ?? [],
       (pair) => Number.parseInt(pair, 16),
     );
-    const decoded = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes)) as Record<
-      string,
-      unknown
-    >;
-    if (typeof decoded.destination !== 'string' || !decoded.destination) return undefined;
-    if (
-      decoded.kind !== null &&
-      !['flight', 'hotel', 'ticket'].includes(String(decoded.kind))
-    ) {
-      return undefined;
-    }
-
-    return {
-      destination: decoded.destination,
-      ...(decoded.kind ? { kind: decoded.kind as ComparisonSearchInput['kind'] } : {}),
-      ...(typeof decoded.origin === 'string' ? { origin: decoded.origin } : {}),
-      ...(typeof decoded.from === 'string' ? { from: decoded.from } : {}),
-      ...(typeof decoded.to === 'string' ? { to: decoded.to } : {}),
-      ...(typeof decoded.travelers === 'number' ? { travelers: decoded.travelers } : {}),
-    };
+    const decoded = JSON.parse(
+      new TextDecoder('utf-8', { fatal: true }).decode(bytes),
+    ) as Record<string, unknown>;
+    const withoutNulls = Object.fromEntries(
+      Object.entries(decoded).filter(([, value]) => value !== null),
+    );
+    const parsed = comparisonSearchSchema.safeParse(withoutNulls);
+    return parsed.success
+      ? { status: 'found', input: parsed.data }
+      : { status: 'invalid' };
   } catch {
-    return undefined;
+    return { status: 'invalid' };
   }
 }

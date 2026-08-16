@@ -26,6 +26,7 @@ import type {
 } from '@/domain/comparison/types';
 import type { ComparisonSearchInput } from '@/domain/shared/api';
 import { OfferRow } from './offer-row';
+import { useDialogFocus } from './use-dialog-focus';
 import styles from './comparison.module.css';
 
 type ComparisonClientProps = {
@@ -43,7 +44,12 @@ const productTabs = [
 ] as const;
 
 function offerKey(offer: NormalizedOffer): string {
-  return `${offer.provider}\u0000${offer.id}`;
+  return `${offer.provider}:${offer.id}`;
+}
+
+function hasIncludedBenefit(offer: NormalizedOffer): boolean {
+  if (offer.kind === 'flight') return offer.baggageIncluded;
+  return (offer.includedBenefits?.length ?? 0) > 0;
 }
 
 function upsertOffer(
@@ -105,16 +111,30 @@ export function ComparisonClient({
     kind: initialKind,
   });
   const [offers, setOffers] = useState<NormalizedOffer[]>([]);
+  const [streamComplete, setStreamComplete] = useState(false);
   const [degradedMessage, setDegradedMessage] = useState<string>();
   const [sortOrder, setSortOrder] = useState<SortOrder>('price-asc');
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [refundableOnly, setRefundableOnly] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
+  const [benefitOnly, setBenefitOnly] = useState(false);
+  const [verifiedOnly, setVerifiedOnly] = useState(false);
+  const [selectedOfferKeys, setSelectedOfferKeys] = useState<string[]>([]);
+  const [favoriteOfferKeys, setFavoriteOfferKeys] = useState<string[]>([]);
   const [alertsEnabled, setAlertsEnabled] = useState(false);
   const [outboundOffer, setOutboundOffer] = useState<NormalizedOffer>();
+  const [comparisonOpen, setComparisonOpen] = useState(false);
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const filterTriggerRef = useRef<HTMLButtonElement>(null);
+  const filterDialogRef = useRef<HTMLElement>(null);
+  const outboundTriggerRef = useRef<HTMLElement>(null);
+  const outboundDialogRef = useRef<HTMLElement>(null);
+  const compareTriggerRef = useRef<HTMLButtonElement>(null);
+  const compareDialogRef = useRef<HTMLElement>(null);
+
+  useDialogFocus(filtersOpen, filterDialogRef, filterTriggerRef, () => setFiltersOpen(false));
+  useDialogFocus(Boolean(outboundOffer), outboundDialogRef, outboundTriggerRef, () => setOutboundOffer(undefined));
+  useDialogFocus(comparisonOpen, compareDialogRef, compareTriggerRef, () => setComparisonOpen(false));
 
   useEffect(() => {
     let active = true;
@@ -125,6 +145,8 @@ export function ComparisonClient({
         setOffers((current) => upsertOffer(current, event.payload));
       } else if (event.type === 'degraded') {
         setDegradedMessage(event.payload.message);
+      } else if (event.type === 'complete') {
+        setStreamComplete(true);
       }
     };
 
@@ -138,7 +160,10 @@ export function ComparisonClient({
     }
 
     const disconnect = connectToQuoteStream(search, acceptEvent, () => {
-      if (active) setDegradedMessage('报价流暂时中断，已保留当前结果');
+      if (active) {
+        setDegradedMessage('报价流暂时中断，已保留当前结果');
+        setStreamComplete(true);
+      }
     });
 
     return () => {
@@ -148,9 +173,10 @@ export function ComparisonClient({
   }, [search, stream]);
 
   const visibleOffers = useMemo(() => {
-    const filtered = refundableOnly
-      ? offers.filter((offer) => offer.refundable)
-      : offers;
+    const filtered = offers
+      .filter((offer) => !refundableOnly || offer.refundable)
+      .filter((offer) => !benefitOnly || hasIncludedBenefit(offer))
+      .filter((offer) => !verifiedOnly || offer.providerVerified !== false);
 
     return [...filtered].sort((left, right) => {
       if (sortOrder === 'price-desc') return right.totalPrice - left.totalPrice;
@@ -159,13 +185,19 @@ export function ComparisonClient({
       }
       return left.totalPrice - right.totalPrice;
     });
-  }, [offers, refundableOnly, sortOrder]);
+  }, [benefitOnly, offers, refundableOnly, sortOrder, verifiedOnly]);
+
+  const selectedOffers = useMemo(
+    () => offers.filter((offer) => selectedOfferKeys.includes(offerKey(offer))),
+    [offers, selectedOfferKeys],
+  );
 
   function selectKind(kind: ComparisonProductKind) {
     setOffers([]);
+    setStreamComplete(false);
     setDegradedMessage(undefined);
     setSearch((current) => ({ ...current, kind }));
-    setSelectedIds([]);
+    setSelectedOfferKeys([]);
   }
 
   function selectAdjacentTab(
@@ -185,17 +217,17 @@ export function ComparisonClient({
     tabRefs.current[nextIndex]?.focus();
   }
 
-  function toggleInList(id: string, setter: typeof setFavoriteIds) {
+  function toggleInList(key: string, setter: typeof setFavoriteOfferKeys) {
     setter((current) =>
-      current.includes(id) ? current.filter((entry) => entry !== id) : [...current, id],
+      current.includes(key) ? current.filter((entry) => entry !== key) : [...current, key],
     );
   }
 
-  function toggleComparison(id: string) {
-    setSelectedIds((current) => {
-      if (current.includes(id)) return current.filter((entry) => entry !== id);
+  function toggleComparison(key: string) {
+    setSelectedOfferKeys((current) => {
+      if (current.includes(key)) return current.filter((entry) => entry !== key);
       if (current.length >= 3) return current;
-      return [...current, id];
+      return [...current, key];
     });
   }
 
@@ -270,6 +302,7 @@ export function ComparisonClient({
             aria-expanded={filtersOpen}
             className={styles.secondaryButton}
             onClick={() => setFiltersOpen(true)}
+            ref={filterTriggerRef}
             type="button"
           >
             <Funnel aria-hidden size={18} />
@@ -315,36 +348,46 @@ export function ComparisonClient({
           {visibleOffers.map((offer) => (
             <OfferRow
               comparisonDisabled={
-                selectedIds.length >= 3 && !selectedIds.includes(offer.id)
+                selectedOfferKeys.length >= 3 &&
+                !selectedOfferKeys.includes(offerKey(offer))
               }
-              favorite={favoriteIds.includes(offer.id)}
+              favorite={favoriteOfferKeys.includes(offerKey(offer))}
               key={offerKey(offer)}
               now={now}
               offer={offer}
-              onFavorite={() => toggleInList(offer.id, setFavoriteIds)}
-              onOutbound={() => setOutboundOffer(offer)}
-              onSelect={() => toggleComparison(offer.id)}
-              selected={selectedIds.includes(offer.id)}
+              onFavorite={() => toggleInList(offerKey(offer), setFavoriteOfferKeys)}
+              onOutbound={(trigger) => {
+                outboundTriggerRef.current = trigger;
+                setOutboundOffer(offer);
+              }}
+              onSelect={() => toggleComparison(offerKey(offer))}
+              selected={selectedOfferKeys.includes(offerKey(offer))}
             />
           ))}
-          {offers.length === 0 ? (
+          {offers.length === 0 && !streamComplete ? (
             <div className={styles.loading} aria-live="polite">
               正在接收沙箱报价…
             </div>
           ) : null}
+          {offers.length === 0 && streamComplete ? (
+            <div className={styles.loading}>暂无可用的沙箱报价</div>
+          ) : null}
+          {offers.length > 0 && visibleOffers.length === 0 ? (
+            <div className={styles.loading}>没有符合筛选条件的报价</div>
+          ) : null}
         </div>
       </section>
 
-      {selectedIds.length > 0 ? (
+      {selectedOfferKeys.length > 0 ? (
         <aside className={styles.compareBar} aria-label="同屏对比选择">
-          <span><Check aria-hidden size={17} /> 已选择 {selectedIds.length}/3 项</span>
-          <button className={styles.primaryButton} type="button">查看同屏差异</button>
+          <span><Check aria-hidden size={17} /> 已选择 {selectedOfferKeys.length}/3 项</span>
+          <button className={styles.primaryButton} onClick={() => setComparisonOpen(true)} ref={compareTriggerRef} type="button">查看同屏差异</button>
         </aside>
       ) : null}
 
       {filtersOpen ? (
         <div className={styles.drawerBackdrop}>
-          <aside aria-label="筛选条件" aria-modal="true" className={styles.drawer} role="dialog">
+          <aside aria-label="筛选条件" aria-modal="true" className={styles.drawer} ref={filterDialogRef} role="dialog" tabIndex={-1}>
             <div className={styles.drawerHeader}>
               <div><p>FILTERS</p><h2>筛选条件</h2></div>
               <button aria-label="关闭筛选" className={styles.iconButton} onClick={() => setFiltersOpen(false)} type="button"><X aria-hidden size={21} /></button>
@@ -352,11 +395,11 @@ export function ComparisonClient({
             <fieldset>
               <legend>退改与服务</legend>
               <label><input checked={refundableOnly} onChange={(event) => setRefundableOnly(event.target.checked)} type="checkbox" />仅看可退改</label>
-              <label><input type="checkbox" />包含行李或早餐</label>
+              <label><input checked={benefitOnly} onChange={(event) => setBenefitOnly(event.target.checked)} type="checkbox" />仅看含权益</label>
             </fieldset>
             <fieldset>
               <legend>供应商可信度</legend>
-              <label><input type="checkbox" />仅看已验证供应商</label>
+              <label><input checked={verifiedOnly} onChange={(event) => setVerifiedOnly(event.target.checked)} type="checkbox" />仅看已验证供应商</label>
             </fieldset>
             <button className={styles.primaryButton} onClick={() => setFiltersOpen(false)} type="button">应用筛选</button>
           </aside>
@@ -365,12 +408,34 @@ export function ComparisonClient({
 
       {outboundOffer ? (
         <div className={styles.dialogBackdrop}>
-          <section aria-label="沙箱演示确认" aria-modal="true" className={styles.confirmDialog} role="dialog">
+          <section aria-label="沙箱演示确认" aria-modal="true" className={styles.confirmDialog} ref={outboundDialogRef} role="dialog" tabIndex={-1}>
             <span className={styles.demoPill}>沙箱 / Demo</span>
             <h2>这是演示报价，不会跳转真实供应商</h2>
             <p>当前操作仅解释外部确认流程，不会预订、出票或付款，也不会采集支付信息。</p>
             <p className={styles.dialogOffer}>{outboundOffer.provider} · ¥{new Intl.NumberFormat('zh-CN').format(outboundOffer.totalPrice)} 含税总价</p>
             <button className={styles.primaryButton} onClick={() => setOutboundOffer(undefined)} type="button">我知道了</button>
+          </section>
+        </div>
+      ) : null}
+
+      {comparisonOpen ? (
+        <div className={styles.dialogBackdrop}>
+          <section aria-label="报价同屏对比" aria-modal="true" className={styles.comparisonDialog} ref={compareDialogRef} role="dialog" tabIndex={-1}>
+            <div className={styles.drawerHeader}>
+              <div><p>COMPARE</p><h2>报价同屏对比</h2></div>
+              <button aria-label="关闭同屏对比" className={styles.iconButton} onClick={() => setComparisonOpen(false)} type="button"><X aria-hidden size={21} /></button>
+            </div>
+            <div className={styles.comparisonTableWrap}>
+              <table aria-label="已选报价差异" className={styles.comparisonTable}>
+                <thead><tr><th scope="col">对比项</th>{selectedOffers.map((offer) => <th key={offerKey(offer)} scope="col">{offer.provider}</th>)}</tr></thead>
+                <tbody>
+                  <tr><th scope="row">含税总价</th>{selectedOffers.map((offer) => <td key={offerKey(offer)}>¥{new Intl.NumberFormat('zh-CN').format(offer.totalPrice)}</td>)}</tr>
+                  <tr><th scope="row">行李与权益</th>{selectedOffers.map((offer) => <td key={offerKey(offer)}>{offer.baggageIncluded ? '含托运行李' : offer.includedBenefits?.join('、') || '未含额外权益'}</td>)}</tr>
+                  <tr><th scope="row">退改条件</th>{selectedOffers.map((offer) => <td key={offerKey(offer)}>{offer.refundable ? '支持退改' : '限制退改'}</td>)}</tr>
+                  <tr><th scope="row">供应商</th>{selectedOffers.map((offer) => <td key={offerKey(offer)}>{offer.providerVerified === false ? '待核验' : '已验证'}</td>)}</tr>
+                </tbody>
+              </table>
+            </div>
           </section>
         </div>
       ) : null}

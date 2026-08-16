@@ -18,6 +18,8 @@ export interface RawOffer {
   mandatoryFees?: number;
   baggageIncluded: boolean;
   refundable: boolean;
+  providerVerified?: boolean;
+  includedBenefits?: readonly string[];
   updatedAt: string;
   demoMode?: boolean;
 }
@@ -38,3 +40,19 @@ export type QuoteEvent =
       payload: { unavailableProviders: number; message: string };
     }
   | { type: 'complete'; payload: { offerCount: number } };
+
+export type SupplierRunResult =
+  | {
+      status: 'success';
+      provider: string;
+      offers: readonly NormalizedOffer[];
+    }
+  | {
+      status: 'failure';
+      provider: string;
+      message: string;
+    };
+
+export interface SupplierRunProvider {
+  run(input: import('../shared/api').ComparisonSearchInput): AsyncIterable<SupplierRunResult>;
+}

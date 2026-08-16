@@ -21,7 +21,7 @@ type OfferRowProps = {
   comparisonDisabled: boolean;
   onFavorite: () => void;
   onSelect: () => void;
-  onOutbound: () => void;
+  onOutbound: (trigger: HTMLButtonElement) => void;
 };
 
 const STALE_AFTER_MS = 2 * 60 * 60 * 1000;
@@ -53,6 +53,9 @@ export function OfferRow({
     Number.isFinite(updatedAt) &&
     Number.isFinite(referenceTime) &&
     referenceTime - updatedAt > STALE_AFTER_MS;
+  const benefit = offer.baggageIncluded
+    ? '含托运行李'
+    : offer.includedBenefits?.[0] ?? '未含额外权益';
 
   return (
     <article className={styles.offerRow} data-testid="offer-row">
@@ -61,7 +64,9 @@ export function OfferRow({
           <span>{offer.provider}</span>
           <span className={styles.verified}>
             <ShieldCheck aria-hidden size={15} weight="fill" />
-            供应商可信度 4.8/5 · 已验证
+            {offer.providerVerified === false
+              ? '供应商可信度待核验'
+              : '供应商可信度 4.8/5 · 已验证'}
           </span>
         </div>
         <h2>{offer.title ?? `${offer.destination ?? ''}演示报价`}</h2>
@@ -77,7 +82,7 @@ export function OfferRow({
       <div className={styles.offerConditions}>
         <p>
           <SuitcaseRolling aria-hidden size={18} />
-          {offer.baggageIncluded ? '含托运行李' : '不含托运行李'}
+          {benefit}
         </p>
         <p>
           <CheckCircle aria-hidden size={18} />
@@ -101,7 +106,7 @@ export function OfferRow({
         <button
           aria-label={`查看 ${offer.provider} 演示报价`}
           className={styles.primaryButton}
-          onClick={onOutbound}
+          onClick={(event) => onOutbound(event.currentTarget)}
           type="button"
         >
           查看演示报价
@@ -133,7 +138,7 @@ export function OfferRow({
 
       {expanded ? (
         <div className={styles.expandedConditions}>
-          <p>{offer.baggageIncluded ? '含 1 件托运行李' : '未包含托运行李额度'}</p>
+          <p>{offer.baggageIncluded ? '含 1 件托运行李' : benefit}</p>
           <p>{offer.refundable ? '起飞前支持按供应商规则退改' : '不可免费退改'}</p>
           <p>价格已统一计入税费与必须支付的服务费用，附加选购服务不计入。</p>
         </div>

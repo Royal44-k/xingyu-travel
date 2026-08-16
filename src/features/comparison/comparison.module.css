@@ -475,7 +475,8 @@
 }
 
 .drawerHeader h2,
-.confirmDialog h2 {
+.confirmDialog h2,
+.comparisonDialog h2 {
   margin: 0;
   font-family: var(--font-display);
   font-weight: 500;
@@ -517,6 +518,49 @@
   border-radius: 8px;
   background: var(--ivory);
   box-shadow: 0 28px 90px rgb(0 0 0 / 30%);
+}
+
+.comparisonDialog {
+  width: min(920px, 100%);
+  max-height: min(760px, calc(100vh - 48px));
+  overflow: auto;
+  padding: 34px;
+  border-radius: 8px;
+  background: var(--ivory);
+  box-shadow: 0 28px 90px rgb(0 0 0 / 30%);
+}
+
+.comparisonTableWrap {
+  overflow-x: auto;
+  margin-top: 26px;
+}
+
+.comparisonTable {
+  width: 100%;
+  min-width: 620px;
+  border-spacing: 0;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.comparisonTable th,
+.comparisonTable td {
+  padding: 15px 17px;
+  border: 1px solid rgb(16 16 15 / 12%);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.comparisonTable thead th {
+  color: var(--ivory);
+  background: var(--pine);
+  font-weight: 500;
+}
+
+.comparisonTable tbody th {
+  width: 130px;
+  background: #e4ded2;
+  font-weight: 600;
 }
 
 .demoPill {
@@ -673,5 +717,9 @@
 
   .confirmDialog {
     padding: 28px 24px;
+  }
+
+  .comparisonDialog {
+    padding: 25px 18px;
   }
 }

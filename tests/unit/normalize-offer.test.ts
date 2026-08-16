@@ -120,6 +120,8 @@ describe('MockInventoryProvider', () => {
       mandatoryFees: 0,
       baggageIncluded: false,
       refundable: true,
+      providerVerified: true,
+      includedBenefits: ['古城导览'],
       updatedAt: '2026-08-16T09:00:00+08:00',
       demoMode: true,
     });

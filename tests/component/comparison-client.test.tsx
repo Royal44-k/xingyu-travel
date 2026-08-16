@@ -31,6 +31,8 @@ const offers: NormalizedOffer[] = [
     refundable: false,
     updatedAt: '2026-08-16T09:00:00+08:00',
     demoMode: true,
+    providerVerified: true,
+    includedBenefits: ['托运行李'],
   },
   {
     id: 'offer-2',
@@ -49,6 +51,8 @@ const offers: NormalizedOffer[] = [
     refundable: true,
     updatedAt: '2026-08-16T11:30:00+08:00',
     demoMode: true,
+    providerVerified: false,
+    includedBenefits: [],
   },
   {
     id: 'offer-3',
@@ -67,6 +71,8 @@ const offers: NormalizedOffer[] = [
     refundable: true,
     updatedAt: '2026-08-16T11:45:00+08:00',
     demoMode: true,
+    providerVerified: true,
+    includedBenefits: ['托运行李'],
   },
   {
     id: 'offer-4',
@@ -85,6 +91,8 @@ const offers: NormalizedOffer[] = [
     refundable: false,
     updatedAt: '2026-08-16T11:50:00+08:00',
     demoMode: true,
+    providerVerified: true,
+    includedBenefits: ['托运行李'],
   },
 ];
 
@@ -200,5 +208,140 @@ describe('ComparisonClient incremental results', () => {
     expect(within(dialog).queryByRole('link')).not.toBeInTheDocument();
     await user.click(within(dialog).getByRole('button', { name: '我知道了' }));
     expect(screen.queryByRole('dialog', { name: '沙箱演示确认' })).not.toBeInTheDocument();
+  });
+
+  it('shows a stable empty result after a zero-offer stream completes', async () => {
+    render(
+      <ComparisonClient
+        initialSearch={initialSearch}
+        now="2026-08-16T12:30:00+08:00"
+        stream={streamEvents([{ type: 'complete', payload: { offerCount: 0 } }])}
+      />,
+    );
+
+    expect(await screen.findByText('暂无可用的沙箱报价')).toBeInTheDocument();
+    expect(screen.queryByText('正在接收沙箱报价…')).not.toBeInTheDocument();
+  });
+
+  it('filters real rows by refundability, included benefit, and verified supplier', async () => {
+    const user = userEvent.setup();
+    render(
+      <ComparisonClient
+        initialSearch={initialSearch}
+        now="2026-08-16T12:30:00+08:00"
+        stream={streamEvents([
+          ...offers.slice(0, 3).map((payload) => ({ type: 'offer' as const, payload })),
+          { type: 'complete', payload: { offerCount: 3 } },
+        ])}
+      />,
+    );
+    await screen.findByText('上海至大理 MU演示航班');
+
+    await user.click(screen.getByRole('button', { name: '筛选条件' }));
+    await user.click(screen.getByRole('checkbox', { name: '仅看可退改' }));
+    await user.click(screen.getByRole('checkbox', { name: '仅看含权益' }));
+    await user.click(screen.getByRole('checkbox', { name: '仅看已验证供应商' }));
+    await user.click(screen.getByRole('button', { name: '应用筛选' }));
+
+    expect(screen.getAllByTestId('offer-row')).toHaveLength(1);
+    expect(screen.getByText('远岫旅行')).toBeInTheDocument();
+    expect(screen.queryByText('山海出行')).not.toBeInTheDocument();
+  });
+
+  it('keeps favorites and compare selection independent for providers sharing a local id', async () => {
+    const user = userEvent.setup();
+    const sharedIdOffers = [
+      { ...offers[0], id: 'shared-local-id' },
+      { ...offers[1], id: 'shared-local-id' },
+    ];
+    render(
+      <ComparisonClient
+        initialSearch={initialSearch}
+        now="2026-08-16T12:30:00+08:00"
+        stream={streamEvents(sharedIdOffers.map((payload) => ({ type: 'offer', payload })))}
+      />,
+    );
+    await screen.findByText('云程旅行');
+
+    const firstFavorite = screen.getByRole('button', { name: '收藏 云程旅行 报价' });
+    const secondFavorite = screen.getByRole('button', { name: '收藏 山海出行 报价' });
+    await user.click(firstFavorite);
+    expect(firstFavorite).toHaveAttribute('aria-pressed', 'true');
+    expect(secondFavorite).toHaveAttribute('aria-pressed', 'false');
+
+    await user.click(screen.getByRole('checkbox', { name: '加入同屏对比：云程旅行' }));
+    await user.click(screen.getByRole('checkbox', { name: '加入同屏对比：山海出行' }));
+    expect(screen.getByText('已选择 2/3 项')).toBeInTheDocument();
+  });
+
+  it('opens a real accessible comparison table for selected offers and closes it', async () => {
+    const user = userEvent.setup();
+    render(
+      <ComparisonClient
+        initialSearch={initialSearch}
+        now="2026-08-16T12:30:00+08:00"
+        stream={streamEvents(offers.slice(0, 2).map((payload) => ({ type: 'offer', payload })))}
+      />,
+    );
+    await screen.findByText('云程旅行');
+    await user.click(screen.getByRole('checkbox', { name: '加入同屏对比：云程旅行' }));
+    await user.click(screen.getByRole('checkbox', { name: '加入同屏对比：山海出行' }));
+    await user.click(screen.getByRole('button', { name: '查看同屏差异' }));
+
+    const dialog = screen.getByRole('dialog', { name: '报价同屏对比' });
+    const table = within(dialog).getByRole('table', { name: '已选报价差异' });
+    expect(table).toHaveTextContent('云程旅行');
+    expect(table).toHaveTextContent('山海出行');
+    expect(table).toHaveTextContent('含税总价');
+    expect(table).toHaveTextContent('行李与权益');
+    expect(table).toHaveTextContent('退改条件');
+    await user.click(within(dialog).getByRole('button', { name: '关闭同屏对比' }));
+    expect(screen.queryByRole('dialog', { name: '报价同屏对比' })).not.toBeInTheDocument();
+  });
+
+  it('traps filter focus, closes on Escape, and restores focus to its trigger', async () => {
+    const user = userEvent.setup();
+    render(
+      <ComparisonClient
+        initialSearch={initialSearch}
+        now="2026-08-16T12:30:00+08:00"
+        stream={streamEvents([{ type: 'complete', payload: { offerCount: 0 } }])}
+      />,
+    );
+    const trigger = screen.getByRole('button', { name: '筛选条件' });
+    await user.click(trigger);
+    const dialog = screen.getByRole('dialog', { name: '筛选条件' });
+    const close = within(dialog).getByRole('button', { name: '关闭筛选' });
+    const apply = within(dialog).getByRole('button', { name: '应用筛选' });
+
+    expect(close).toHaveFocus();
+    await user.keyboard('{Shift>}{Tab}{/Shift}');
+    expect(apply).toHaveFocus();
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog', { name: '筛选条件' })).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+  });
+
+  it('traps outbound focus, closes on Escape, and restores focus to the quote trigger', async () => {
+    const user = userEvent.setup();
+    render(
+      <ComparisonClient
+        initialSearch={initialSearch}
+        now="2026-08-16T12:30:00+08:00"
+        stream={streamEvents([{ type: 'offer', payload: offers[0] }])}
+      />,
+    );
+    await screen.findByText('云程旅行');
+    const trigger = screen.getByRole('button', { name: '查看 云程旅行 演示报价' });
+    await user.click(trigger);
+    const dialog = screen.getByRole('dialog', { name: '沙箱演示确认' });
+    const close = within(dialog).getByRole('button', { name: '我知道了' });
+
+    expect(close).toHaveFocus();
+    await user.keyboard('{Tab}');
+    expect(close).toHaveFocus();
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog', { name: '沙箱演示确认' })).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
   });
 });
