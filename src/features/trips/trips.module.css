@@ -4,6 +4,16 @@
   padding: 126px 0 80px;
 }
 
+.hydrationWarning {
+  margin: 0 0 14px;
+  padding: 12px 16px;
+  color: #694d25;
+  background: #efe0b9;
+  border-left: 3px solid #9c7841;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
 .hero {
   position: relative;
   padding: 48px 52px 42px;
@@ -302,6 +312,8 @@
 .consentLabel input { margin-top: 3px; }
 .confirmGuardian { width: 100%; }
 .confirmGuardian:disabled { cursor: not-allowed; opacity: .45; }
+.guardianDialogActions { display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; }
+.cancelGuardian { min-height: 43px; color: #39352f; background: transparent; border: 1px solid #bdb3a5; border-radius: 6px; cursor: pointer; }
 
 .statePage { display: grid; min-height: 72vh; place-items: center; padding: 130px 20px 60px; }
 .statePanel { width: min(100%, 680px); padding: 52px; text-align: center; background: #eae3d7; border: 1px solid #d0c6b7; }

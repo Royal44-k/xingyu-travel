@@ -8,7 +8,7 @@ import {
   useTripStore as useDraftTripStore,
 } from '@/domain/trips/trip-store';
 import { TripWorkbench } from '@/features/trips/trip-workbench';
-import { useTripStore, useTripStoreHydration } from '@/stores/trip-store';
+import { createTripStore, useTripStore, useTripStoreHydration } from '@/stores/trip-store';
 
 const draft = extractTripDraft(postsBySlug['dali-slow-5d']);
 
@@ -145,6 +145,74 @@ describe('TripWorkbench', () => {
 
     await user.click(guardian);
     expect(guardian).not.toBeChecked();
+  });
+
+  it('resets guardian consent through close, Escape and cancel before restoring trigger focus', async () => {
+    const user = userEvent.setup();
+    render(<TripWorkbench slug="dali-slow-5d" />);
+    await screen.findByRole('heading', { name: /大理慢行计划/ });
+    const guardian = screen.getByRole('switch', { name: '行程守护演示' });
+
+    const openAndConsent = async () => {
+      await user.click(guardian);
+      const dialog = screen.getByRole('dialog', { name: '授权行程守护演示' });
+      await user.click(within(dialog).getByRole('checkbox', { name: /我明确同意/ }));
+      return dialog;
+    };
+    const expectResetOnReopen = async () => {
+      expect(guardian).toHaveFocus();
+      await user.click(guardian);
+      const dialog = screen.getByRole('dialog', { name: '授权行程守护演示' });
+      expect(within(dialog).getByRole('checkbox', { name: /我明确同意/ })).not.toBeChecked();
+      expect(within(dialog).getByRole('button', { name: '确认开启' })).toBeDisabled();
+      return dialog;
+    };
+
+    let dialog = await openAndConsent();
+    await user.click(within(dialog).getByRole('button', { name: '关闭守护授权' }));
+    dialog = await expectResetOnReopen();
+    await user.click(within(dialog).getByRole('checkbox', { name: /我明确同意/ }));
+    await user.keyboard('{Escape}');
+    dialog = await expectResetOnReopen();
+    await user.click(within(dialog).getByRole('checkbox', { name: /我明确同意/ }));
+    await user.click(within(dialog).getByRole('button', { name: '取消' }));
+    await expectResetOnReopen();
+  });
+
+  it('renders and edits an accepted workbench when legacy draft hydration fails', async () => {
+    const user = userEvent.setup();
+    useTripStore.setState({ trips: {}, partnerIntents: {} });
+    const persistedStore = createTripStore();
+    persistedStore.getState().acceptDraft(draft);
+    persistedStore.getState().updateTrip(draft.id, { budget: 6100 });
+    useTripStoreHydration.setState({ hydrated: false, hydrationError: false });
+    useDraftTripStore.setState({ drafts: {} });
+    useDraftHydrationStore.setState({ hydrated: true, hydrationError: true });
+
+    render(<TripWorkbench slug="dali-slow-5d" />);
+
+    expect(await screen.findByRole('heading', { name: /大理慢行计划/ })).toBeInTheDocument();
+    expect(screen.getByLabelText('总预算')).toHaveValue(6100);
+    expect(screen.getByText(/攻略草稿读取失败/)).toBeInTheDocument();
+    await user.clear(screen.getByLabelText('总预算'));
+    await user.type(screen.getByLabelText('总预算'), '6200');
+    await user.click(screen.getByRole('button', { name: '保存行程设置' }));
+    expect(useTripStore.getState().trips[draft.id].budget).toBe(6200);
+  });
+
+  it('recovers without crashing or overwriting valid JSON with malformed workbench structure', async () => {
+    useTripStore.setState({ trips: {}, partnerIntents: {} });
+    useTripStoreHydration.setState({ hydrated: false, hydrationError: false });
+    const malformedBytes = JSON.stringify({
+      state: { trips: null, partnerIntents: {} },
+      version: 1,
+    });
+    window.localStorage.setItem('xingyu-demo-v1', malformedBytes);
+
+    render(<TripWorkbench slug="dali-slow-5d" />);
+
+    await waitFor(() => expect(screen.getByText('本地行程暂时无法读取')).toBeInTheDocument());
+    expect(window.localStorage.getItem('xingyu-demo-v1')).toBe(malformedBytes);
   });
 
   it('keeps loading and recovery states stable around draft hydration', async () => {

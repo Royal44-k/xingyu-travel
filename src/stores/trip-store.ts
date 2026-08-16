@@ -3,6 +3,7 @@
 import { create } from 'zustand';
 import { createStore } from 'zustand/vanilla';
 import { persist } from 'zustand/middleware';
+import { z } from 'zod';
 import type { TripDraft } from '@/domain/trips/extract-draft';
 
 export type WorkbenchTripStatus = 'review' | 'active' | 'guarded' | 'discarded' | 'archived';
@@ -61,6 +62,10 @@ interface TripStoreHydrationState {
   hydrationError: boolean;
 }
 
+interface CreateTripStoreOptions {
+  onHydrationError?: (error: unknown) => void;
+}
+
 const allowedTransitions: Readonly<Record<WorkbenchTripStatus, readonly WorkbenchTripStatus[]>> = {
   review: ['active', 'discarded'],
   active: ['guarded', 'archived'],
@@ -76,6 +81,90 @@ export const demoMembers = [
   { id: 'member-muyu', name: '木雨' },
   { id: 'member-zhou', name: '周舟' },
 ] as const;
+
+const realIsoDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(parsed.valueOf()) && parsed.toISOString().slice(0, 10) === value;
+});
+
+const itineraryItemSchema = z.object({
+  id: z.string().min(1).max(120),
+  day: z.number().int().positive(),
+  title: z.string().min(1).max(120),
+  description: z.string().max(500),
+  location: z.string().min(1).max(120),
+  estimatedCost: z.number().finite().nonnegative(),
+  isAlternative: z.boolean(),
+}).strict();
+
+const decisionCandidateSchema = z.object({
+  id: z.string().min(1).max(120),
+  title: z.string().min(1).max(120),
+  description: z.string().max(500),
+}).strict();
+
+const workbenchTripSchema = z.object({
+  id: z.string().min(1).max(120),
+  sourcePostSlug: z.string().min(1).max(120),
+  title: z.string().min(1).max(120),
+  destination: z.string().min(1).max(120),
+  startDate: realIsoDateSchema,
+  endDate: realIsoDateSchema,
+  travelers: z.number().int().min(1).max(9),
+  budget: z.number().finite().nonnegative(),
+  status: z.enum(['review', 'active', 'guarded', 'discarded', 'archived']),
+  guardianEnabled: z.boolean(),
+  items: z.array(itineraryItemSchema).min(1).max(60),
+  candidates: z.array(decisionCandidateSchema).min(1).max(20),
+  votes: z.record(z.string(), z.string()),
+}).strict().superRefine((trip, context) => {
+  if (trip.endDate < trip.startDate) {
+    context.addIssue({ code: 'custom', path: ['endDate'], message: 'invalid date order' });
+  }
+  if (trip.guardianEnabled !== (trip.status === 'guarded')) {
+    context.addIssue({ code: 'custom', path: ['guardianEnabled'], message: 'guardian/status mismatch' });
+  }
+  const itemIds = new Set(trip.items.map((item) => item.id));
+  if (itemIds.size !== trip.items.length) {
+    context.addIssue({ code: 'custom', path: ['items'], message: 'duplicate item id' });
+  }
+  const candidateIds = new Set(trip.candidates.map((candidate) => candidate.id));
+  if (candidateIds.size !== trip.candidates.length) {
+    context.addIssue({ code: 'custom', path: ['candidates'], message: 'duplicate candidate id' });
+  }
+  const memberIds = new Set<string>(demoMembers.map((member) => member.id));
+  for (const [memberId, candidateId] of Object.entries(trip.votes)) {
+    if (!memberIds.has(memberId) || !candidateIds.has(candidateId)) {
+      context.addIssue({ code: 'custom', path: ['votes', memberId], message: 'invalid vote' });
+    }
+  }
+});
+
+const persistedTripStateSchema = z.object({
+  trips: z.record(z.string(), workbenchTripSchema),
+  partnerIntents: z.record(z.string(), z.boolean()),
+}).strict().superRefine((state, context) => {
+  for (const [tripId, trip] of Object.entries(state.trips)) {
+    if (trip.id !== tripId) {
+      context.addIssue({ code: 'custom', path: ['trips', tripId, 'id'], message: 'trip key/id mismatch' });
+    }
+  }
+  for (const tripId of Object.keys(state.partnerIntents)) {
+    if (!state.trips[tripId]) {
+      context.addIssue({ code: 'custom', path: ['partnerIntents', tripId], message: 'orphan intent' });
+    }
+  }
+});
+
+type PersistedTripState = z.infer<typeof persistedTripStateSchema>;
+
+function parsePersistedTripState(state: unknown): PersistedTripState {
+  const parsed = persistedTripStateSchema.safeParse(state);
+  if (parsed.success) return parsed.data;
+  const error = new Error('TRIP_INVALID_PERSISTED_STATE') as Error & { cause?: unknown };
+  error.cause = parsed.error;
+  throw error;
+}
 
 export function transitionTrip(
   status: WorkbenchTripStatus,
@@ -230,17 +319,37 @@ function stateCreator(set: (recipe: (state: TripStoreState) => Partial<TripStore
   } satisfies TripStoreState;
 }
 
-const persistOptions = {
-  name: 'xingyu-demo-v1',
-  skipHydration: true,
-  partialize: (state: TripStoreState) => ({
-    trips: state.trips,
-    partnerIntents: state.partnerIntents,
-  }),
-} as const;
+function persistenceOptions(options: CreateTripStoreOptions = {}) {
+  return {
+    name: 'xingyu-demo-v1',
+    version: 1,
+    skipHydration: true,
+    partialize: (state: TripStoreState): PersistedTripState => ({
+      trips: state.trips,
+      partnerIntents: state.partnerIntents,
+    }),
+    migrate: (persistedState: unknown, version: number): PersistedTripState => {
+      if (version !== 0) throw new Error(`TRIP_UNSUPPORTED_PERSISTED_VERSION:${version}`);
+      return parsePersistedTripState(persistedState);
+    },
+    merge: (persistedState: unknown, currentState: TripStoreState): TripStoreState => {
+      const safeState = parsePersistedTripState(persistedState);
+      return {
+        ...currentState,
+        trips: { ...safeState.trips, ...currentState.trips },
+        partnerIntents: { ...safeState.partnerIntents, ...currentState.partnerIntents },
+      };
+    },
+    onRehydrateStorage: () => (_state: TripStoreState | undefined, error: unknown) => {
+      if (error) options.onHydrationError?.(error);
+    },
+  };
+}
 
-export function createTripStore() {
-  return createStore<TripStoreState>()(persist(stateCreator, persistOptions));
+export function createTripStore(options: CreateTripStoreOptions = {}) {
+  return createStore<TripStoreState>()(
+    persist<TripStoreState, [], [], PersistedTripState>(stateCreator, persistenceOptions(options)),
+  );
 }
 
 export const useTripStoreHydration = create<TripStoreHydrationState>(() => ({
@@ -249,12 +358,12 @@ export const useTripStoreHydration = create<TripStoreHydrationState>(() => ({
 }));
 
 export const useTripStore = create<TripStoreState>()(
-  persist(stateCreator, {
-    ...persistOptions,
-    onRehydrateStorage: () => (_state, error) => {
-      if (error) useTripStoreHydration.setState({ hydrationError: true });
-    },
-  }),
+  persist<TripStoreState, [], [], PersistedTripState>(
+    stateCreator,
+    persistenceOptions({
+      onHydrationError: () => useTripStoreHydration.setState({ hydrationError: true }),
+    }),
+  ),
 );
 
 export async function hydrateWorkbenchTripStore() {

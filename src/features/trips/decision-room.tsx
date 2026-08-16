@@ -25,11 +25,15 @@ export function DecisionRoom({
   const [consent, setConsent] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
+  const closeGuardianDialog = () => {
+    setGuardianDialogOpen(false);
+    setConsent(false);
+  };
   useDialogFocus(
     guardianDialogOpen,
     dialogRef,
     triggerRef,
-    () => { setGuardianDialogOpen(false); setConsent(false); },
+    closeGuardianDialog,
   );
 
   const counts = Object.fromEntries(
@@ -48,8 +52,7 @@ export function DecisionRoom({
   const confirmGuardian = () => {
     if (!consent) return;
     onEnableGuardian(true);
-    setGuardianDialogOpen(false);
-    setConsent(false);
+    closeGuardianDialog();
   };
 
   return (
@@ -130,13 +133,16 @@ export function DecisionRoom({
             role="dialog"
             tabIndex={-1}
           >
-            <button aria-label="关闭守护授权" className={styles.dialogClose} onClick={() => setGuardianDialogOpen(false)} type="button"><X aria-hidden size={20} /></button>
+            <button aria-label="关闭守护授权" className={styles.dialogClose} onClick={closeGuardianDialog} type="button"><X aria-hidden size={20} /></button>
             <ShieldCheck aria-hidden className={styles.dialogIcon} size={32} />
             <p>LOCAL GUARDIAN DEMO</p>
             <h2 id="guardian-title">授权行程守护演示</h2>
             <span id="guardian-description">开启后仅在这个浏览器记录“守护已开启”的演示状态。不会读取位置、联系紧急联系人或发出真实预警。</span>
             <label className={styles.consentLabel}><input checked={consent} onChange={(event) => setConsent(event.target.checked)} type="checkbox" />我明确同意开启本地守护演示</label>
-            <button className={styles.confirmGuardian} disabled={!consent} onClick={confirmGuardian} type="button">确认开启</button>
+            <div className={styles.guardianDialogActions}>
+              <button className={styles.cancelGuardian} onClick={closeGuardianDialog} type="button">取消</button>
+              <button className={styles.confirmGuardian} disabled={!consent} onClick={confirmGuardian} type="button">确认开启</button>
+            </div>
           </div>
         </div>
       )}

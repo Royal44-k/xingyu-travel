@@ -59,11 +59,11 @@ export function TripWorkbench({ slug }: { slug: string }) {
     return `/compare?${query.toString()}`;
   }, [trip]);
 
-  if (!draftHydrated || !workbenchHydrated) {
+  if (!workbenchHydrated || (!trip && !draftHydrated)) {
     return <WorkbenchState title="正在读取本地行程…" message="正在合并攻略草稿与浏览器中的工作台状态。" />;
   }
 
-  if (draftHydrationError || workbenchHydrationError) {
+  if (!trip && (draftHydrationError || workbenchHydrationError)) {
     return <WorkbenchState title="本地行程暂时无法读取" message="浏览器中的数据未被覆盖。请返回原攻略，稍后再试。" sourceHref={`/square/${slug}`} />;
   }
 
@@ -78,6 +78,8 @@ export function TripWorkbench({ slug }: { slug: string }) {
   const budgetSummary = getBudgetSummary(trip);
   return (
     <main className={styles.page}>
+      {draftHydrationError && <p className={styles.hydrationWarning} role="status">攻略草稿读取失败，继续使用已保存的本地工作台。</p>}
+      {workbenchHydrationError && <p className={styles.hydrationWarning} role="status">工作台存储校验失败，继续使用当前安全的内存状态；原存储未被覆盖。</p>}
       <header className={styles.hero}>
         <div className={styles.eyebrow}><span>LOCAL TRIP / DALI</span><span>本地演示工作台</span></div>
         <div className={styles.heroTitle}>

@@ -108,3 +108,67 @@ Vitest and Next required approved writes for their temporary cache and build art
 - All partner-intent, voting, budget, and guardian behavior is intentionally browser-local demo state. There is no booking, publishing, monitoring, or location backend.
 - Initial dates, costs, candidates, and the three member identities are fixed Dali demo fixtures. The store boundaries support later adapters without representing those fixtures as live data.
 - Verification covers DOM interaction, accessibility-oriented semantics, static analysis, regression tests, and a production build. Browser screenshot and viewport-level visual QA were not run in this task.
+
+## Review round 1
+
+### RED
+
+Added the review regressions before changing production code, then ran:
+
+```text
+.\node_modules\.bin\vitest.CMD run tests\unit\trip-store.test.ts tests\component\trip-workbench.test.tsx --reporter=verbose
+Test Files 2 failed (2)
+Tests 8 failed | 17 passed (25)
+```
+
+The failures reproduced each boundary defect:
+
+- four valid-JSON but structurally invalid workbench payloads did not report hydration failure;
+- a version-0 payload remained version 0 because no migration existed;
+- the guardian dialog's X path retained checked consent on reopen;
+- a valid accepted workbench was replaced by fatal recovery when only the legacy draft store failed;
+- a malformed `trips: null` workbench payload did not reach safe recovery.
+
+### Fixes
+
+- Added strict Zod validation for persisted trips, settings, ISO dates and ordering, finite nonnegative budgets/costs, itinerary items, candidates, member/candidate votes, record key/ID agreement, partner-intent ownership, and guardian/status coherence. Strict objects also reject unexpected fields.
+- Versioned `xingyu-demo-v1` at version 1. Version-0 state is validated before migration, then rewritten only after successful hydration.
+- Replaced Zustand's default unchecked shallow merge with a validating merge. Valid persisted records merge behind current safe in-memory records; invalid state throws into the hydration-error callback before any state/storage replacement.
+- Made `createTripStore` accept an isolated hydration-error callback for direct persistence-boundary tests. The app store maps that same callback to its recovery state.
+- Changed route precedence so an already accepted workbench remains usable when Task 6 draft hydration fails. A non-blocking warning explains that the saved workbench remains active; fatal draft recovery is reserved for routes with no accepted trip.
+- Routed guardian X, Escape, Cancel, and successful confirmation through one close handler that clears consent. Dialog cleanup restores focus to the guardian switch.
+
+### GREEN
+
+Focused review verification:
+
+```text
+.\node_modules\.bin\vitest.CMD run tests\unit\trip-store.test.ts tests\component\trip-workbench.test.tsx
+Test Files 2 passed (2)
+Tests 25 passed (25)
+```
+
+Final verification:
+
+```text
+.\node_modules\.bin\tsc.CMD --noEmit --incremental false
+exit 0
+
+.\node_modules\.bin\eslint.CMD .
+exit 0
+
+.\node_modules\.bin\vitest.CMD run --maxWorkers=1 --reporter=dot
+Test Files 16 passed (16)
+Tests 119 passed (119)
+
+.\node_modules\.bin\next.CMD build
+Compiled successfully
+Route /trips/[slug]  Dynamic
+```
+
+Review fix commit: `fix: harden trip hydration and guardian consent`.
+
+### Remaining concerns
+
+- Persisted state is intentionally rejected as a whole if any trip is structurally invalid. The untouched browser bytes and explicit recovery state favor non-destructive safety over silently retaining a partially valid subset.
+- Browser screenshot and viewport-level visual QA remain outside this review round; interaction behavior is covered through DOM tests, static checks, and the production build.

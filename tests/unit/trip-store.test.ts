@@ -147,4 +147,79 @@ describe('draft merge and persistence', () => {
       partnerIntents: { [daliDraft.id]: true },
     });
   });
+
+  it.each([
+    ['null trips', { trips: null, partnerIntents: {} }],
+    [
+      'invalid status',
+      {
+        trips: {
+          [daliDraft.id]: {
+            ...acceptedTrip(),
+            status: 'teleporting',
+          },
+        },
+        partnerIntents: {},
+      },
+    ],
+    [
+      'NaN-like item cost',
+      {
+        trips: {
+          [daliDraft.id]: {
+            ...acceptedTrip(),
+            items: [{ ...acceptedTrip().items[0], estimatedCost: 'NaN' }],
+          },
+        },
+        partnerIntents: {},
+      },
+    ],
+    [
+      'incomplete item',
+      {
+        trips: {
+          [daliDraft.id]: {
+            ...acceptedTrip(),
+            items: [{ id: 'incomplete-item' }],
+          },
+        },
+        partnerIntents: {},
+      },
+    ],
+  ])('rejects structurally malformed persisted state: %s', async (_name, malformedState) => {
+    let hydrationError = false;
+    const store = createTripStore({ onHydrationError: () => { hydrationError = true; } });
+    store.getState().acceptDraft(daliDraft);
+    const safeTrip = structuredClone(store.getState().trips[daliDraft.id]);
+    const malformedBytes = JSON.stringify({ state: malformedState, version: 1 });
+    window.localStorage.setItem('xingyu-demo-v1', malformedBytes);
+
+    await store.persist.rehydrate();
+
+    expect(hydrationError).toBe(true);
+    expect(store.getState().trips).toEqual({ [daliDraft.id]: safeTrip });
+    expect(window.localStorage.getItem('xingyu-demo-v1')).toBe(malformedBytes);
+  });
+
+  it('validates and migrates a version-zero workbench without losing its safe trip', async () => {
+    const source = createTripStore();
+    source.getState().acceptDraft(daliDraft);
+    const legacyTrip = { ...structuredClone(source.getState().trips[daliDraft.id]), budget: 6000 };
+    window.localStorage.setItem('xingyu-demo-v1', JSON.stringify({
+      state: { trips: { [daliDraft.id]: legacyTrip }, partnerIntents: {} },
+      version: 0,
+    }));
+    const store = createTripStore();
+
+    await store.persist.rehydrate();
+
+    expect(store.getState().trips[daliDraft.id].budget).toBe(6000);
+    expect(JSON.parse(window.localStorage.getItem('xingyu-demo-v1') ?? '{}').version).toBe(1);
+  });
 });
+
+function acceptedTrip() {
+  const store = createTripStore();
+  store.getState().acceptDraft(daliDraft);
+  return structuredClone(store.getState().trips[daliDraft.id]);
+}
