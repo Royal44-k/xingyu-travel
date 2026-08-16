@@ -18,6 +18,8 @@ export function ConvertToTrip({ post, onNavigate }: ConvertToTripProps) {
   const router = useRouter();
   const saveDraft = useTripStore((state) => state.saveDraft);
   const hydrated = useTripHydrationStore((state) => state.hydrated);
+  const hydrationError = useTripHydrationStore((state) => state.hydrationError);
+  const readyToConvert = hydrated && !hydrationError;
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -29,7 +31,7 @@ export function ConvertToTrip({ post, onNavigate }: ConvertToTripProps) {
   }, []);
 
   const confirm = () => {
-    if (!hydrated) return;
+    if (!readyToConvert) return;
     saveDraft(draft);
     setOpen(false);
     const href = `/trips/${post.slug}`;
@@ -39,8 +41,9 @@ export function ConvertToTrip({ post, onNavigate }: ConvertToTripProps) {
 
   return (
     <>
-      <button aria-describedby={hydrated ? undefined : 'trip-draft-loading'} className={styles.convertButton} disabled={!hydrated} onClick={() => setOpen(true)} ref={triggerRef} type="button">转为行程 <ArrowRight aria-hidden size={18} /></button>
+      <button aria-describedby={readyToConvert ? undefined : hydrationError ? 'trip-draft-error' : 'trip-draft-loading'} className={styles.convertButton} disabled={!readyToConvert} onClick={() => setOpen(true)} ref={triggerRef} type="button">转为行程 <ArrowRight aria-hidden size={18} /></button>
       {!hydrated && <p className={styles.hydrationNotice} id="trip-draft-loading" role="status">正在读取本地草稿…</p>}
+      {hydrationError && <p className={styles.hydrationNotice} id="trip-draft-error" role="alert">本地草稿暂时无法读取，无法转为行程。请手动清除浏览器中的本地草稿后重试。</p>}
       {open && (
         <div className={styles.dialogBackdrop}>
           <div aria-describedby="trip-review-description" aria-labelledby="trip-review-title" aria-modal="true" className={styles.reviewDrawer} ref={dialogRef} role="dialog" tabIndex={-1}>

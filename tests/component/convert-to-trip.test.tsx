@@ -105,6 +105,27 @@ describe('ConvertToTrip', () => {
       'dali-slow-5d': { destination: '大理', days: 5 },
     });
   });
+
+  it('blocks conversion after malformed persisted storage and leaves the bytes untouched', async () => {
+    const user = userEvent.setup();
+    const navigate = vi.fn();
+    useTripStore.setState({ drafts: {} });
+    useTripHydrationStore.setState({ hydrated: false, hydrationError: false });
+    window.localStorage.setItem(persistKey, '{broken');
+    render(<ConvertToTrip post={dali} onNavigate={navigate} />);
+
+    const trigger = screen.getByRole('button', { name: /转为行程/ });
+    expect(trigger).toBeDisabled();
+    await waitFor(() => expect(useTripHydrationStore.getState()).toMatchObject({ hydrated: true, hydrationError: true }));
+    expect(trigger).toBeDisabled();
+    expect(screen.getByText('本地草稿暂时无法读取，无法转为行程。请手动清除浏览器中的本地草稿后重试。')).toBeInTheDocument();
+
+    await user.click(trigger);
+    expect(screen.queryByRole('dialog', { name: '确认行程草稿' })).not.toBeInTheDocument();
+    expect(useTripStore.getState().drafts).toEqual({});
+    expect(navigate).not.toHaveBeenCalled();
+    expect(window.localStorage.getItem(persistKey)).toBe('{broken');
+  });
 });
 
 describe('TripDraftHandoff', () => {
