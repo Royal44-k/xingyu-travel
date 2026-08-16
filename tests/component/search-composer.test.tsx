@@ -85,3 +85,16 @@ it('builds the exact encoded comparison route used by default submission', () =>
     '/compare?kind=flight&destination=%E5%A4%A7%E7%90%86&from=2026-08-22&to=2026-08-27&travelers=2',
   );
 });
+
+it('uses the default submission path to assign the encoded comparison URL', async () => {
+  const user = userEvent.setup();
+  const assignLocation = vi.fn();
+  render(<SearchComposer assignLocation={assignLocation} />);
+
+  await user.click(screen.getByRole('button', { name: '开始规划' }));
+
+  expect(assignLocation).toHaveBeenCalledOnce();
+  expect(assignLocation).toHaveBeenCalledWith(
+    '/compare?kind=flight&destination=%E5%A4%A7%E7%90%86&from=2026-08-22&to=2026-08-27&travelers=2',
+  );
+});

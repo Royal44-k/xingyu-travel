@@ -11,3 +11,12 @@ it('renders the Xingyu brand promise', () => {
     }),
   ).toBeInTheDocument();
 });
+
+it('keeps the site banner outside the main content landmark', () => {
+  render(<HomePage />);
+
+  const banner = screen.getByRole('banner');
+  const main = screen.getByRole('main');
+
+  expect(main).not.toContainElement(banner);
+});

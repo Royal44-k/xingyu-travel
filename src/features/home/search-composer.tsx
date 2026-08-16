@@ -26,7 +26,10 @@ export type HomeSearch = {
 
 type SearchComposerProps = {
   onSubmit?: (search: HomeSearch) => void;
+  assignLocation?: LocationAssigner;
 };
+
+export type LocationAssigner = (href: string) => void;
 
 const kinds = [
   { id: 'flight', label: '机票', icon: AirplaneTilt },
@@ -68,14 +71,18 @@ export function buildComparisonHref(search: HomeSearch) {
   return `/compare?${params.toString()}`;
 }
 
-function navigateToComparison(search: HomeSearch) {
-  if (typeof window !== 'undefined') {
-    window.location.assign(buildComparisonHref(search));
-  }
+export function navigateToComparison(
+  search: HomeSearch,
+  assignLocation?: LocationAssigner,
+) {
+  const href = buildComparisonHref(search);
+  if (assignLocation) return assignLocation(href);
+  if (typeof window !== 'undefined') window.location.assign(href);
 }
 
 export function SearchComposer({
-  onSubmit = navigateToComparison,
+  onSubmit,
+  assignLocation,
 }: SearchComposerProps) {
   const [kind, setKind] = useState<ProductKind>('flight');
   const [destination, setDestination] = useState('大理');
@@ -103,13 +110,16 @@ export function SearchComposer({
 
   function submitSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    onSubmit({
+    const search = {
       kind,
       destination: destination.trim(),
       from,
       to,
       travelers: Number(travelers),
-    });
+    };
+
+    if (onSubmit) onSubmit(search);
+    else navigateToComparison(search, assignLocation);
   }
 
   return (

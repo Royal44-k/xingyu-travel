@@ -4,10 +4,12 @@ import { Hero } from '@/features/home/hero';
 
 export default function HomePage() {
   return (
-    <main>
+    <>
       <SiteHeader activePath="/" />
-      <Hero />
-      <FeaturedDestinations />
-    </main>
+      <main>
+        <Hero />
+        <FeaturedDestinations />
+      </main>
+    </>
   );
 }
