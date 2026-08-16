@@ -1,13 +1,13 @@
 import { SiteHeader } from '@/components/site-header';
-import { TripDraftHandoff } from '@/features/trips/trip-draft-handoff';
+import { TripWorkbench } from '@/features/trips/trip-workbench';
 
-export default async function TripDraftPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function TripPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
 
   return (
     <>
       <SiteHeader />
-      <TripDraftHandoff slug={slug} />
+      <TripWorkbench slug={slug} />
     </>
   );
 }
