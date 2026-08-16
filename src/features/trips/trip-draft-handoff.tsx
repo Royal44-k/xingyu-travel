@@ -3,22 +3,18 @@
 import Link from 'next/link';
 import { useEffect } from 'react';
 import { postsBySlug } from '@/data/posts';
-import { hydrateTripStore, useTripStore } from '@/domain/trips/trip-store';
+import { hydrateTripStore, useTripHydrationStore, useTripStore } from '@/domain/trips/trip-store';
 import styles from '@/features/square/square.module.css';
 
-interface TripDraftHandoffProps {
-  slug: string;
-  hydrate?: () => void | Promise<void>;
-}
-
-export function TripDraftHandoff({ slug, hydrate = hydrateTripStore }: TripDraftHandoffProps) {
+export function TripDraftHandoff({ slug }: { slug: string }) {
   const draft = useTripStore((state) => state.drafts[slug]);
-  const hydrated = useTripStore((state) => state.hydrated);
+  const hydrated = useTripHydrationStore((state) => state.hydrated);
+  const hydrationError = useTripHydrationStore((state) => state.hydrationError);
   const sourceHref = postsBySlug[slug] ? `/square/${slug}` : '/square';
 
   useEffect(() => {
-    void hydrate();
-  }, [hydrate]);
+    void hydrateTripStore();
+  }, []);
 
   if (!hydrated) {
     return (
@@ -26,6 +22,19 @@ export function TripDraftHandoff({ slug, hydrate = hydrateTripStore }: TripDraft
         <section className={styles.handoffPanel} aria-live="polite">
           <p>LOCAL DRAFT</p>
           <h1>正在读取本地草稿…</h1>
+        </section>
+      </main>
+    );
+  }
+
+  if (hydrationError) {
+    return (
+      <main className={styles.detailPage}>
+        <section className={styles.handoffPanel}>
+          <p>LOCAL DRAFT</p>
+          <h1>本地草稿暂时无法读取</h1>
+          <span>浏览器中的草稿未被覆盖。请返回原攻略，稍后再尝试生成或读取本地草稿。</span>
+          <Link href={sourceHref}>返回原攻略</Link>
         </section>
       </main>
     );

@@ -2,10 +2,10 @@
 
 import { ArrowRight, CheckCircle, X } from '@phosphor-icons/react';
 import { useRouter } from 'next/navigation';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { TravelPost } from '@/data/posts';
 import { extractTripDraft } from '@/domain/trips/extract-draft';
-import { useTripStore } from '@/domain/trips/trip-store';
+import { hydrateTripStore, useTripHydrationStore, useTripStore } from '@/domain/trips/trip-store';
 import { useDialogFocus } from '@/features/comparison/use-dialog-focus';
 import styles from './square.module.css';
 
@@ -17,13 +17,19 @@ interface ConvertToTripProps {
 export function ConvertToTrip({ post, onNavigate }: ConvertToTripProps) {
   const router = useRouter();
   const saveDraft = useTripStore((state) => state.saveDraft);
+  const hydrated = useTripHydrationStore((state) => state.hydrated);
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const draft = extractTripDraft(post);
   useDialogFocus(open, dialogRef, triggerRef, () => setOpen(false));
 
+  useEffect(() => {
+    void hydrateTripStore();
+  }, []);
+
   const confirm = () => {
+    if (!hydrated) return;
     saveDraft(draft);
     setOpen(false);
     const href = `/trips/${post.slug}`;
@@ -33,7 +39,8 @@ export function ConvertToTrip({ post, onNavigate }: ConvertToTripProps) {
 
   return (
     <>
-      <button className={styles.convertButton} onClick={() => setOpen(true)} ref={triggerRef} type="button">转为行程 <ArrowRight aria-hidden size={18} /></button>
+      <button aria-describedby={hydrated ? undefined : 'trip-draft-loading'} className={styles.convertButton} disabled={!hydrated} onClick={() => setOpen(true)} ref={triggerRef} type="button">转为行程 <ArrowRight aria-hidden size={18} /></button>
+      {!hydrated && <p className={styles.hydrationNotice} id="trip-draft-loading" role="status">正在读取本地草稿…</p>}
       {open && (
         <div className={styles.dialogBackdrop}>
           <div aria-describedby="trip-review-description" aria-labelledby="trip-review-title" aria-modal="true" className={styles.reviewDrawer} ref={dialogRef} role="dialog" tabIndex={-1}>

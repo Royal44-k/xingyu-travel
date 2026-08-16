@@ -94,6 +94,8 @@
 .convertButton,
 .confirmButton { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 9px; background: var(--pine); color: var(--ivory); cursor: pointer; }
 .convertButton { width: 100%; margin-top: 18px; padding: 13px 16px; }
+.convertButton:disabled { cursor: wait; opacity: .62; }
+.hydrationNotice { margin: 8px 0 0; color: rgb(16 16 15 / 62%); font-size: 12px; text-align: center; }
 
 .dialogBackdrop { position: fixed; z-index: 50; inset: 0; display: flex; justify-content: end; background: rgb(16 16 15 / 42%); }
 .reviewDrawer { width: min(100%, 560px); min-height: 100%; padding: 28px; overflow-y: auto; background: var(--ivory); box-shadow: -16px 0 40px rgb(16 16 15 / 17%); }
