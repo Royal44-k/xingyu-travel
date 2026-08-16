@@ -190,6 +190,10 @@ describe('partner match and chat state', () => {
   it.each([
     '电话 138 0013 8000',
     '手机 138-0013-8000',
+    '国际格式 +8613800138000',
+    '国际格式 +86 138-0013-8000',
+    '国际格式 008613800138000',
+    '国际格式 0086 138 0013 8000',
     '联系 @travel_2026',
     '微 信 travel_2026',
     '加V: travel_2026',
@@ -199,7 +203,7 @@ describe('partner match and chat state', () => {
     expect(containsContactDetails(body)).toBe(true);
   });
 
-  it.each(['走 318 国道', '预算 5200 元', '9 月 18 日出发', '航班号 CA1234']) (
+  it.each(['走 318 国道', '预算 5200 元', '9 月 18 日出发', '航班号 CA1234', '订单 +86-2026-0918']) (
     'does not block ordinary travel number: %s',
     (body) => expect(containsContactDetails(body)).toBe(false),
   );
@@ -268,14 +272,71 @@ describe('partner match and chat state', () => {
       version: 1,
     });
     window.localStorage.setItem('xingyu-partner-demo-v1', malformedBytes);
-    let hydrationError = false;
-    const store = createPartnerStore({ onHydrationError: () => { hydrationError = true; } });
+    let hydrationFailure: unknown;
+    const store = createPartnerStore({ onHydrationError: (error) => { hydrationFailure = error; } });
 
     await store.persist.rehydrate();
 
-    expect(hydrationError).toBe(true);
+    expect(hydrationFailure).toBeInstanceOf(Error);
+    expect((hydrationFailure as Error).message).toBe('PARTNER_INVALID_PERSISTED_STATE');
     expect(store.getState().matches).toEqual({});
     expect(window.localStorage.getItem('xingyu-partner-demo-v1')).toBe(malformedBytes);
+  });
+
+  it('migrates a valid v1 terminal match by revoking consent and repersisting safe v2 state', async () => {
+    const source = matchedStore();
+    const matchId = Object.keys(source.getState().matches)[0];
+    source.getState().setContactConsent(eligibleProfile, matchId, 'viewer', true);
+    source.getState().setContactConsent(eligibleProfile, matchId, 'candidate', true);
+    source.getState().sendMessage(eligibleProfile, matchId, '先在站内确认路线');
+    source.getState().acknowledgeTrustedContact(eligibleProfile, matchId);
+    source.getState().shareTrip(eligibleProfile, matchId);
+    const legacyState = JSON.parse(window.localStorage.getItem('xingyu-partner-demo-v1') ?? '{}').state;
+    legacyState.matches[matchId].status = 'blocked';
+    legacyState.matches[matchId].viewerContactConsent = true;
+    legacyState.matches[matchId].candidateContactConsent = true;
+    legacyState.visibleMatchIds = [];
+    legacyState.blockedCandidateIds = [demoPartnerCandidates[0].id];
+    const legacyBytes = JSON.stringify({ state: legacyState, version: 1 });
+    window.localStorage.setItem('xingyu-partner-demo-v1', legacyBytes);
+    const store = createPartnerStore();
+
+    await store.persist.rehydrate();
+
+    expect(store.getState().matches[matchId]).toEqual({
+      ...legacyState.matches[matchId],
+      viewerContactConsent: false,
+      candidateContactConsent: false,
+    });
+    expect(store.getState().intents).toEqual(legacyState.intents);
+    expect(store.getState().blockedCandidateIds).toEqual(legacyState.blockedCandidateIds);
+    const migrated = JSON.parse(window.localStorage.getItem('xingyu-partner-demo-v1') ?? '{}');
+    expect(migrated.version).toBe(2);
+    expect(migrated.state.matches[matchId]).toMatchObject({
+      status: 'blocked',
+      viewerContactConsent: false,
+      candidateContactConsent: false,
+    });
+  });
+
+  it('rejects v2 persisted terminal matches that retain either contact consent flag', async () => {
+    const source = matchedStore();
+    const matchId = Object.keys(source.getState().matches)[0];
+    const unsafeState = JSON.parse(window.localStorage.getItem('xingyu-partner-demo-v1') ?? '{}').state;
+    unsafeState.matches[matchId].status = 'reported';
+    unsafeState.matches[matchId].viewerContactConsent = true;
+    unsafeState.visibleMatchIds = [];
+    const unsafeBytes = JSON.stringify({ state: unsafeState, version: 2 });
+    window.localStorage.setItem('xingyu-partner-demo-v1', unsafeBytes);
+    let hydrationFailure: unknown;
+    const store = createPartnerStore({ onHydrationError: (error) => { hydrationFailure = error; } });
+
+    await store.persist.rehydrate();
+
+    expect(hydrationFailure).toBeInstanceOf(Error);
+    expect((hydrationFailure as Error).message).toBe('PARTNER_INVALID_PERSISTED_STATE');
+    expect(store.getState().matches).toEqual({});
+    expect(window.localStorage.getItem('xingyu-partner-demo-v1')).toBe(unsafeBytes);
   });
 });
 

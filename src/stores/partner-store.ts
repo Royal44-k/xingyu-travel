@@ -88,25 +88,37 @@ const matchSchema = z.object({
   checkInStatus: z.enum(['none', 'checked_in', 'missed']),
   demoMode: z.literal(true),
 }).strict();
-const persistedPartnerStateSchema = z.object({
-  intents: z.record(z.string(), partnerIntentSchema),
-  matches: z.record(z.string(), matchSchema),
-  visibleMatchIds: z.array(z.string()),
-  blockedCandidateIds: z.array(z.string()),
-}).strict().superRefine((state, context) => {
-  for (const [matchId, match] of Object.entries(state.matches)) {
-    if (match.id !== matchId) context.addIssue({ code: 'custom', path: ['matches', matchId], message: 'key mismatch' });
-  }
-  if (new Set(state.visibleMatchIds).size !== state.visibleMatchIds.length) {
-    context.addIssue({ code: 'custom', path: ['visibleMatchIds'], message: 'duplicate id' });
-  }
-  for (const matchId of state.visibleMatchIds) {
-    const match = state.matches[matchId];
-    if (!match || match.status === 'blocked' || match.status === 'reported') {
-      context.addIssue({ code: 'custom', path: ['visibleMatchIds'], message: 'invalid visible match' });
+function createPersistedPartnerStateSchema(requireTerminalConsentRevoked: boolean) {
+  return z.object({
+    intents: z.record(z.string(), partnerIntentSchema),
+    matches: z.record(z.string(), matchSchema),
+    visibleMatchIds: z.array(z.string()),
+    blockedCandidateIds: z.array(z.string()),
+  }).strict().superRefine((state, context) => {
+    for (const [matchId, match] of Object.entries(state.matches)) {
+      if (match.id !== matchId) {
+        context.addIssue({ code: 'custom', path: ['matches', matchId], message: 'key mismatch' });
+      }
+      if (requireTerminalConsentRevoked &&
+        (match.status === 'blocked' || match.status === 'reported') &&
+        (match.viewerContactConsent || match.candidateContactConsent)) {
+        context.addIssue({ code: 'custom', path: ['matches', matchId], message: 'terminal consent not revoked' });
+      }
     }
-  }
-});
+    if (new Set(state.visibleMatchIds).size !== state.visibleMatchIds.length) {
+      context.addIssue({ code: 'custom', path: ['visibleMatchIds'], message: 'duplicate id' });
+    }
+    for (const matchId of state.visibleMatchIds) {
+      const match = state.matches[matchId];
+      if (!match || match.status === 'blocked' || match.status === 'reported') {
+        context.addIssue({ code: 'custom', path: ['visibleMatchIds'], message: 'invalid visible match' });
+      }
+    }
+  });
+}
+
+const persistedPartnerStateV1Schema = createPersistedPartnerStateSchema(false);
+const persistedPartnerStateSchema = createPersistedPartnerStateSchema(true);
 type PersistedPartnerState = z.infer<typeof persistedPartnerStateSchema>;
 
 export function transitionPartnerMatch(status: PartnerMatchStatus, next: PartnerMatchStatus) {
@@ -115,7 +127,7 @@ export function transitionPartnerMatch(status: PartnerMatchStatus, next: Partner
 }
 
 export function containsContactDetails(body: string) {
-  const formattedChinesePhone = /(?<!\d)1[3-9](?:[\s-]?\d){9}(?!\d)/;
+  const formattedChinesePhone = /(?<!\d)(?:(?:\+\s*86|0086)[\s-]*)?1[3-9](?:[\s-]?\d){9}(?!\d)/;
   const email = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i;
   const bareHandle = /(?:^|[\s：:，,；;])@[a-z0-9_\-\u4e00-\u9fff]{2,32}(?![a-z0-9_\-\u4e00-\u9fff])/iu;
   const contactLabel = /(?:微\s*信|加\s*[vVＶ]|[vV][xX]|[wW][xX]|wechat|weixin|v\s*信)\s*(?:号|id|[:：])?\s*[a-z0-9_-]{2,32}/iu;
@@ -257,9 +269,27 @@ function parsePersistedState(state: unknown): PersistedPartnerState {
   throw error;
 }
 
+function migrateV1PersistedState(state: unknown): PersistedPartnerState {
+  const legacy = persistedPartnerStateV1Schema.safeParse(state);
+  if (!legacy.success) {
+    const error = new Error('PARTNER_INVALID_PERSISTED_STATE') as Error & { cause?: unknown };
+    error.cause = legacy.error;
+    throw error;
+  }
+  return parsePersistedState({
+    ...legacy.data,
+    matches: Object.fromEntries(Object.entries(legacy.data.matches).map(([matchId, match]) => [
+      matchId,
+      match.status === 'blocked' || match.status === 'reported'
+        ? { ...match, viewerContactConsent: false, candidateContactConsent: false }
+        : match,
+    ])),
+  });
+}
+
 function persistenceOptions(options: CreatePartnerStoreOptions = {}) {
   return {
-    name: 'xingyu-partner-demo-v1', version: 1, skipHydration: true,
+    name: 'xingyu-partner-demo-v1', version: 2, skipHydration: true,
     partialize: (state: PartnerStoreState): PersistedPartnerState => ({
       intents: state.intents, matches: state.matches,
       visibleMatchIds: state.visibleMatchIds, blockedCandidateIds: state.blockedCandidateIds,
@@ -267,6 +297,10 @@ function persistenceOptions(options: CreatePartnerStoreOptions = {}) {
     merge: (persistedState: unknown, current: PartnerStoreState): PartnerStoreState => ({
       ...current, ...parsePersistedState(persistedState),
     }),
+    migrate: (persistedState: unknown, version: number): PersistedPartnerState => {
+      if (version !== 1) throw new Error(`PARTNER_UNSUPPORTED_PERSISTED_VERSION:${version}`);
+      return migrateV1PersistedState(persistedState);
+    },
     onRehydrateStorage: () => (_state: PartnerStoreState | undefined, error: unknown) => {
       if (error) options.onHydrationError?.(error);
     },
