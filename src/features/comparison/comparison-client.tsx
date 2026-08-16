@@ -24,6 +24,7 @@ import type {
   NormalizedOffer,
   QuoteEvent,
 } from '@/domain/comparison/types';
+import { offerIdentity } from '@/domain/comparison/offer-identity';
 import type { ComparisonSearchInput } from '@/domain/shared/api';
 import { OfferRow } from './offer-row';
 import { useDialogFocus } from './use-dialog-focus';
@@ -43,10 +44,6 @@ const productTabs = [
   { id: 'ticket', label: '门票', icon: Ticket },
 ] as const;
 
-function offerKey(offer: NormalizedOffer): string {
-  return `${offer.provider}:${offer.id}`;
-}
-
 function hasIncludedBenefit(offer: NormalizedOffer): boolean {
   if (offer.kind === 'flight') return offer.baggageIncluded;
   return (offer.includedBenefits?.length ?? 0) > 0;
@@ -56,8 +53,8 @@ function upsertOffer(
   current: NormalizedOffer[],
   incoming: NormalizedOffer,
 ): NormalizedOffer[] {
-  const key = offerKey(incoming);
-  const index = current.findIndex((offer) => offerKey(offer) === key);
+  const key = offerIdentity(incoming);
+  const index = current.findIndex((offer) => offerIdentity(offer) === key);
   if (index === -1) return [...current, incoming];
   return current.map((offer, offerIndex) => (offerIndex === index ? incoming : offer));
 }
@@ -188,7 +185,8 @@ export function ComparisonClient({
   }, [benefitOnly, offers, refundableOnly, sortOrder, verifiedOnly]);
 
   const selectedOffers = useMemo(
-    () => offers.filter((offer) => selectedOfferKeys.includes(offerKey(offer))),
+    () =>
+      offers.filter((offer) => selectedOfferKeys.includes(offerIdentity(offer))),
     [offers, selectedOfferKeys],
   );
 
@@ -349,19 +347,21 @@ export function ComparisonClient({
             <OfferRow
               comparisonDisabled={
                 selectedOfferKeys.length >= 3 &&
-                !selectedOfferKeys.includes(offerKey(offer))
+                !selectedOfferKeys.includes(offerIdentity(offer))
               }
-              favorite={favoriteOfferKeys.includes(offerKey(offer))}
-              key={offerKey(offer)}
+              favorite={favoriteOfferKeys.includes(offerIdentity(offer))}
+              key={offerIdentity(offer)}
               now={now}
               offer={offer}
-              onFavorite={() => toggleInList(offerKey(offer), setFavoriteOfferKeys)}
+              onFavorite={() =>
+                toggleInList(offerIdentity(offer), setFavoriteOfferKeys)
+              }
               onOutbound={(trigger) => {
                 outboundTriggerRef.current = trigger;
                 setOutboundOffer(offer);
               }}
-              onSelect={() => toggleComparison(offerKey(offer))}
-              selected={selectedOfferKeys.includes(offerKey(offer))}
+              onSelect={() => toggleComparison(offerIdentity(offer))}
+              selected={selectedOfferKeys.includes(offerIdentity(offer))}
             />
           ))}
           {offers.length === 0 && !streamComplete ? (
@@ -427,12 +427,12 @@ export function ComparisonClient({
             </div>
             <div className={styles.comparisonTableWrap}>
               <table aria-label="已选报价差异" className={styles.comparisonTable}>
-                <thead><tr><th scope="col">对比项</th>{selectedOffers.map((offer) => <th key={offerKey(offer)} scope="col">{offer.provider}</th>)}</tr></thead>
+                <thead><tr><th scope="col">对比项</th>{selectedOffers.map((offer) => <th key={offerIdentity(offer)} scope="col">{offer.provider}</th>)}</tr></thead>
                 <tbody>
-                  <tr><th scope="row">含税总价</th>{selectedOffers.map((offer) => <td key={offerKey(offer)}>¥{new Intl.NumberFormat('zh-CN').format(offer.totalPrice)}</td>)}</tr>
-                  <tr><th scope="row">行李与权益</th>{selectedOffers.map((offer) => <td key={offerKey(offer)}>{offer.baggageIncluded ? '含托运行李' : offer.includedBenefits?.join('、') || '未含额外权益'}</td>)}</tr>
-                  <tr><th scope="row">退改条件</th>{selectedOffers.map((offer) => <td key={offerKey(offer)}>{offer.refundable ? '支持退改' : '限制退改'}</td>)}</tr>
-                  <tr><th scope="row">供应商</th>{selectedOffers.map((offer) => <td key={offerKey(offer)}>{offer.providerVerified === false ? '待核验' : '已验证'}</td>)}</tr>
+                  <tr><th scope="row">含税总价</th>{selectedOffers.map((offer) => <td key={offerIdentity(offer)}>¥{new Intl.NumberFormat('zh-CN').format(offer.totalPrice)}</td>)}</tr>
+                  <tr><th scope="row">行李与权益</th>{selectedOffers.map((offer) => <td key={offerIdentity(offer)}>{offer.baggageIncluded ? '含托运行李' : offer.includedBenefits?.join('、') || '未含额外权益'}</td>)}</tr>
+                  <tr><th scope="row">退改条件</th>{selectedOffers.map((offer) => <td key={offerIdentity(offer)}>{offer.refundable ? '支持退改' : '限制退改'}</td>)}</tr>
+                  <tr><th scope="row">供应商</th>{selectedOffers.map((offer) => <td key={offerIdentity(offer)}>{offer.providerVerified === false ? '待核验' : '已验证'}</td>)}</tr>
                 </tbody>
               </table>
             </div>

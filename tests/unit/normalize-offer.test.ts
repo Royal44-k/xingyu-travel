@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { MockInventoryProvider } from '@/adapters/mock/mock-inventory';
+import {
+  MockInventoryProvider,
+  MockSupplierRunProvider,
+} from '@/adapters/mock/mock-inventory';
 import { normalizeOffer } from '@/domain/comparison/normalize-offer';
 import { offerKinds } from '@/domain/comparison/types';
 import { sandboxOffers } from '@/data/offers';
@@ -141,6 +144,51 @@ describe('MockInventoryProvider', () => {
       totalPrice: 88,
       updatedAt: '2026-08-16T09:00:00+08:00',
       demoMode: true,
+    });
+  });
+
+  it('joins a supplier run to the matching provider when local offer ids collide', async () => {
+    const sharedOfferFields = {
+      id: 'shared-local-id',
+      kind: 'hotel',
+      destination: '碰撞目的地',
+      basePrice: 500,
+      taxes: 0,
+      mandatoryFees: 0,
+      baggageIncluded: false,
+      refundable: true,
+      updatedAt: '2026-08-16T09:00:00+08:00',
+      demoMode: true,
+    } as const;
+    const provider = new MockSupplierRunProvider(
+      [
+        {
+          status: 'success',
+          provider: '目标:供应商',
+          kind: 'hotel',
+          destination: '碰撞目的地',
+          offerRefs: [{ provider: '目标:供应商', id: 'shared-local-id' }],
+        },
+      ],
+      [
+        { ...sharedOfferFields, provider: '其他供应商', title: '错误报价' },
+        { ...sharedOfferFields, provider: '目标:供应商', title: '正确报价' },
+      ],
+    );
+    const results = [];
+
+    for await (const result of provider.run({
+      destination: '碰撞目的地',
+      kind: 'hotel',
+    })) {
+      results.push(result);
+    }
+
+    expect(results).toHaveLength(1);
+    expect(results[0]).toMatchObject({
+      status: 'success',
+      provider: '目标:供应商',
+      offers: [{ provider: '目标:供应商', title: '正确报价' }],
     });
   });
 });

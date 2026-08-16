@@ -1,4 +1,5 @@
 import type { RawOffer } from '@/domain/comparison/types';
+import type { OfferIdentityInput } from '@/domain/comparison/offer-identity';
 
 export const SANDBOX_OBSERVED_AT = '2026-08-16T09:00:00+08:00';
 
@@ -77,7 +78,7 @@ export type SandboxSupplierRunFixture =
       provider: string;
       kind: 'flight' | 'hotel' | 'ticket';
       destination: string;
-      offerIds: readonly string[];
+      offerRefs: readonly OfferIdentityInput[];
     }
   | {
       status: 'failure';
@@ -93,7 +94,10 @@ export const sandboxSupplierRuns: readonly SandboxSupplierRunFixture[] = [
     provider: '星屿沙箱演示航班',
     kind: 'flight',
     destination: '大理',
-    offerIds: ['DEMO-FLIGHT-DAL-01', 'DEMO-FLIGHT-DAL-02'],
+    offerRefs: [
+      { provider: '星屿沙箱演示航班', id: 'DEMO-FLIGHT-DAL-01' },
+      { provider: '星屿沙箱演示航班', id: 'DEMO-FLIGHT-DAL-02' },
+    ],
   },
   {
     status: 'failure',
@@ -107,14 +111,18 @@ export const sandboxSupplierRuns: readonly SandboxSupplierRunFixture[] = [
     provider: '星屿沙箱演示住宿',
     kind: 'hotel',
     destination: '大理',
-    offerIds: ['DEMO-HOTEL-DAL-01'],
+    offerRefs: [
+      { provider: '星屿沙箱演示住宿', id: 'DEMO-HOTEL-DAL-01' },
+    ],
   },
   {
     status: 'success',
     provider: '星屿沙箱演示门票',
     kind: 'ticket',
     destination: '大理',
-    offerIds: ['DEMO-TICKET-DAL-01'],
+    offerRefs: [
+      { provider: '星屿沙箱演示门票', id: 'DEMO-TICKET-DAL-01' },
+    ],
   },
   {
     status: 'failure',

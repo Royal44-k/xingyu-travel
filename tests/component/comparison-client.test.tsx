@@ -274,6 +274,35 @@ describe('ComparisonClient incremental results', () => {
     expect(screen.getByText('已选择 2/3 项')).toBeInTheDocument();
   });
 
+  it('keeps delimiter-bearing provider and id pairs independent across all client state', async () => {
+    const user = userEvent.setup();
+    const collisionOffers = [
+      { ...offers[0], provider: 'a', id: 'b:c', title: '分隔符报价一' },
+      { ...offers[1], provider: 'a:b', id: 'c', title: '分隔符报价二' },
+    ];
+    render(
+      <ComparisonClient
+        initialSearch={initialSearch}
+        now="2026-08-16T12:30:00+08:00"
+        stream={streamEvents(collisionOffers.map((payload) => ({ type: 'offer', payload })))}
+      />,
+    );
+
+    expect(await screen.findByText('分隔符报价一')).toBeInTheDocument();
+    expect(screen.getByText('分隔符报价二')).toBeInTheDocument();
+    expect(screen.getAllByTestId('offer-row')).toHaveLength(2);
+
+    const firstFavorite = screen.getByRole('button', { name: '收藏 a 报价' });
+    const secondFavorite = screen.getByRole('button', { name: '收藏 a:b 报价' });
+    await user.click(firstFavorite);
+    expect(firstFavorite).toHaveAttribute('aria-pressed', 'true');
+    expect(secondFavorite).toHaveAttribute('aria-pressed', 'false');
+
+    await user.click(screen.getByRole('checkbox', { name: '加入同屏对比：a' }));
+    await user.click(screen.getByRole('checkbox', { name: '加入同屏对比：a:b' }));
+    expect(screen.getByText('已选择 2/3 项')).toBeInTheDocument();
+  });
+
   it('opens a real accessible comparison table for selected offers and closes it', async () => {
     const user = userEvent.setup();
     render(

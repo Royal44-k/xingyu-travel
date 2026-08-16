@@ -136,7 +136,7 @@ A corrected focused ticket test was rerun separately to remove an irrelevant ori
 - Reused that exact schema when decoding self-contained search IDs. Non-search IDs retain the not-found contract; malformed, oversized, or schema-invalid search tokens return structured `INVALID_COMPARISON_SEARCH_ID` responses with status 400.
 - Added fixed `sandboxSupplierRuns` success/failure records and a `MockSupplierRunProvider`. SSE degradation now follows recorded provider outcomes for any product kind. `quoteEventsForSearch` retains earlier offers and emits `complete` from `finally`, including after a runner exception.
 - Added explicit provider-verification and included-benefit data to sandbox offers. The filter drawer now applies refundability, included benefit (flight baggage or the non-flight benefit list), and verified-provider state to real rows.
-- Changed every client identity consumer—upsert, React key, favorite, selection, three-item limit, and selected-offer lookup—to the same `${provider}:${id}` compound key.
+- Changed every client identity consumer—upsert, React key, favorite, selection, three-item limit, and selected-offer lookup—to one provider/ID identity. Round 2 below replaces that round's delimiter encoding with the collision-safe shared helper.
 - Handled `complete` explicitly, separating active loading from a stable zero-result message.
 - Implemented a named modal comparison table for 1–3 selected offers with provider, comparable total, baggage/benefits, refund/change conditions, verification, and a close control.
 - Added one scoped `useDialogFocus` helper for initial focus, Escape, Tab/Shift+Tab containment, and trigger-focus restoration. The filter drawer, outbound sandbox confirmation, and comparison modal use it.
@@ -177,3 +177,51 @@ Review fix commit: `fix: complete comparison workflows and validation`.
 - Supplier successes and failures are deterministic fixtures, not live partner health checks. The provider-run abstraction exposes the boundary for later adapters without claiming live availability.
 - Search IDs are validated self-contained transport tokens, not encrypted credentials; they intentionally encode only bounded comparison inputs and no personal/payment data.
 - Visual browser screenshots and viewport interaction runs remain deferred; this round verifies behavior through DOM interaction tests, static checks, and the production build.
+
+## Review Round 2
+
+### RED
+
+Added the delimiter-collision and provider-aware supplier-join regressions before production changes, then ran:
+
+```text
+node node_modules/vitest/vitest.mjs run tests/unit/offer-identity.test.ts tests/unit/normalize-offer.test.ts tests/component/comparison-client.test.tsx --reporter=verbose
+Test Files 3 failed (3)
+Tests 2 failed | 29 passed (31)
+```
+
+The direct identity suite failed because the shared domain helper did not exist. The client test proved `provider='a', id='b:c'` and `provider='a:b', id='c'` collapsed to one row under the delimiter key. The supplier-run test expected the offer belonging to `目标:供应商`, but the adapter's non-injectable ID-only fixture lookup returned no injected result.
+
+### Fix
+
+- Added the single domain-level `offerIdentity` helper, which serializes `[provider, id]` as an unambiguous JSON tuple.
+- Removed the client-local key builder. Incremental upsert, React keys, favorites, selected comparison state, three-item limiting, and selected-offer table lookup now all call the shared helper directly.
+- Changed successful supplier fixtures from local `offerIds` to structured `{ provider, id }` references.
+- Made the sandbox supplier-run adapter accept explicit fixture/offer dependencies and join each reference to an offer by the shared identity helper, so equal local IDs from different providers cannot cross-wire.
+
+### GREEN
+
+```text
+node node_modules/vitest/vitest.mjs run tests/unit/offer-identity.test.ts tests/unit/normalize-offer.test.ts tests/component/comparison-client.test.tsx
+Test Files 3 passed (3)
+Tests 32 passed (32)
+
+node node_modules/vitest/vitest.mjs run
+Test Files 11 passed (11)
+Tests 78 passed (78)
+
+pnpm typecheck
+tsc --noEmit
+
+pnpm lint
+eslint .
+
+pnpm build
+Compiled successfully
+```
+
+Review fix commit: `fix: make comparison offer identity collision-safe`.
+
+### Remaining Concerns
+
+- No new functional concern was introduced. Offer identity remains an internal serialized key and is not exposed as a public API identifier.
