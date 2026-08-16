@@ -1,0 +1,50 @@
+import type { RawOffer } from '@/domain/comparison/types';
+
+export const SANDBOX_OBSERVED_AT = '2026-08-16T09:00:00+08:00';
+
+export const sandboxOffers: readonly RawOffer[] = [
+  {
+    id: 'DEMO-FLIGHT-DAL-01',
+    provider: '星屿沙箱演示航班',
+    kind: 'flight',
+    title: '上海至大理演示航班 A',
+    origin: '上海',
+    destination: '大理',
+    basePrice: 860,
+    taxes: 120,
+    mandatoryFees: 40,
+    baggageIncluded: true,
+    refundable: false,
+    updatedAt: SANDBOX_OBSERVED_AT,
+    demoMode: true,
+  },
+  {
+    id: 'DEMO-FLIGHT-DAL-02',
+    provider: '星屿沙箱演示航班',
+    kind: 'flight',
+    title: '上海至大理演示航班 B',
+    origin: '上海',
+    destination: '大理',
+    basePrice: 930,
+    taxes: 80,
+    mandatoryFees: 0,
+    baggageIncluded: false,
+    refundable: true,
+    updatedAt: SANDBOX_OBSERVED_AT,
+    demoMode: true,
+  },
+  {
+    id: 'DEMO-HOTEL-DAL-01',
+    provider: '星屿沙箱演示住宿',
+    kind: 'hotel',
+    title: '大理湖畔演示住宿',
+    destination: '大理',
+    basePrice: 680,
+    taxes: 30,
+    mandatoryFees: 20,
+    baggageIncluded: false,
+    refundable: true,
+    updatedAt: SANDBOX_OBSERVED_AT,
+    demoMode: true,
+  },
+] as const;
