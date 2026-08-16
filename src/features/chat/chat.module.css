@@ -1,0 +1,54 @@
+.page { width: min(100% - 48px, var(--content-max)); margin: 0 auto; padding: 118px 0 80px; }
+.chatHeader { display: flex; align-items: end; justify-content: space-between; gap: 30px; padding: 32px 36px; color: #f5efe4; background: #1f2b25; }
+.chatHeader p, .conversationHeading p, .safetyRail section > p, .safetyDialog > p, .lockedPage p { margin: 0 0 8px; color: #c9b889; font-size: 9px; font-weight: 800; letter-spacing: .17em; }
+.chatHeader h1 { margin: 0 0 10px; font-family: var(--font-display); font-size: 38px; font-weight: 500; }
+.chatHeader span { display: flex; align-items: center; gap: 6px; color: rgb(245 239 228 / 62%); font-size: 12px; }
+.chatHeader a { padding-bottom: 4px; border-bottom: 1px solid #c9b889; font-size: 12px; text-decoration: none; }
+.warningBar { margin: 12px 0; padding: 12px; color: #7d312c; background: #f0d9d2; }
+.chatLayout { display: grid; grid-template-columns: minmax(0, 1fr) 370px; gap: 18px; margin-top: 18px; }
+.conversation { display: grid; min-height: 680px; grid-template-rows: auto 1fr auto auto; padding: 30px; background: #fffdf8; border: 1px solid #d8d0c4; }
+.conversationHeading { display: flex; align-items: end; justify-content: space-between; padding-bottom: 22px; border-bottom: 1px solid #ddd5c9; }
+.conversationHeading h2, .safetyRail h2, .safetyDialog h2 { margin: 0; font-family: var(--font-display); font-size: 24px; font-weight: 600; }
+.conversationHeading > span { color: #7b746b; font-size: 11px; }
+.messageList { display: grid; align-content: start; gap: 12px; margin: 0; padding: 28px 0; list-style: none; }
+.messageList li { max-width: 78%; padding: 13px 15px; background: #ece5d9; border-radius: 2px 14px 14px 14px; }
+.messageList .viewerMessage { justify-self: end; color: white; background: #304138; border-radius: 14px 2px 14px 14px; }
+.messageList small { color: #82796d; font-size: 9px; }
+.viewerMessage small { color: rgb(255 255 255 / 56%); }
+.messageList p { margin: 6px 0 0; font-size: 13px; line-height: 1.65; }
+.composer { display: grid; grid-template-columns: 1fr auto; gap: 9px; padding-top: 18px; border-top: 1px solid #ddd5c9; }
+.composer label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.composer textarea { width: 100%; resize: vertical; padding: 12px; background: #f5f0e8; border: 1px solid #cfc5b6; border-radius: 5px; }
+.composer button, .consentActions button, .safetyActions button, .dangerZone button, .confirmButton { min-height: 42px; padding: 9px 14px; border: 1px solid #bdb4a6; border-radius: 5px; cursor: pointer; }
+.composer button, .confirmButton { color: white; background: #26382e; border-color: #26382e; }
+.inlineError, .inlineWarning { margin: 10px 0 0; font-size: 12px; }
+.inlineError { color: #9a3b34; } .inlineWarning { color: #3f624b; }
+.safetyRail { display: grid; align-content: start; gap: 14px; }
+.safetyRail section { padding: 26px; background: #e8e1d5; border: 1px solid #d3c9bb; }
+.safetyRail section > span { display: block; margin-top: 10px; color: #746d63; font-size: 12px; line-height: 1.6; }
+.consentActions, .safetyActions { display: grid; gap: 8px; margin-top: 18px; }
+.consentActions button, .safetyActions button { display: flex; align-items: center; justify-content: center; gap: 7px; background: #f9f5ee; }
+.consentActions button[aria-pressed="true"] { color: #f8f4eb; background: #385044; border-color: #385044; }
+.consentActions span, .safetyActions span { display: flex; align-items: center; gap: 5px; color: #41614c; font-size: 11px; }
+.safetyActions .missedNotice { align-items: flex-start; padding: 11px; color: #873b35; background: #f2dcd6; line-height: 1.55; }
+.safetyRail .dangerZone { background: #2b2724; border-color: #2b2724; color: #f5efe5; }
+.dangerZone > div { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 18px; }
+.dangerZone button { display: flex; align-items: center; justify-content: center; gap: 6px; color: #f5efe5; background: transparent; border-color: rgb(255 255 255 / 28%); font-size: 11px; }
+.lockedPage { display: grid; min-height: 76vh; place-items: center; padding: 110px 20px 50px; }
+.lockedPage section { width: min(100%, 620px); padding: 50px; text-align: center; background: #e8e1d5; border: 1px solid #d3c9bb; }
+.lockedPage h1 { margin: 0 0 12px; font-family: var(--font-display); font-size: 36px; }
+.lockedPage span { color: #716960; line-height: 1.7; }
+.lockedPage a { display: block; width: fit-content; margin: 24px auto 0; padding-bottom: 4px; border-bottom: 1px solid; text-decoration: none; }
+.dialogBackdrop { position: fixed; z-index: 70; inset: 0; display: grid; place-items: center; padding: 20px; background: rgb(12 15 13 / 70%); }
+.safetyDialog { position: relative; width: min(100%, 500px); padding: 36px; background: #f7f2e9; box-shadow: 0 30px 80px rgb(0 0 0 / 32%); }
+.consentCheck { display: flex; align-items: flex-start; gap: 9px; margin: 86px 0 18px; font-size: 12px; line-height: 1.6; }
+.consentCheck input { margin-top: 3px; }
+.dialogClose { position: absolute; top: 14px; right: 14px; display: grid; width: 36px; height: 36px; place-items: center; background: transparent; border: 0; cursor: pointer; }
+.safetyDialog > p { position: absolute; top: 36px; left: 36px; }
+.safetyDialog h2 { position: absolute; top: 54px; left: 36px; }
+.safetyDialog > span { display: block; color: #746d63; font-size: 12px; line-height: 1.65; }
+.confirmButton { width: 100%; margin-top: 18px; }
+.confirmButton:disabled { cursor: not-allowed; opacity: .45; }
+.page :is(button, a, textarea):focus-visible, .safetyDialog :is(button, input):focus-visible { outline: 3px solid #b77c28; outline-offset: 3px; }
+@media (max-width: 920px) { .chatLayout { grid-template-columns: 1fr; } .safetyRail { grid-template-columns: repeat(2, 1fr); } .dangerZone { grid-column: span 2; } }
+@media (max-width: 620px) { .page { width: min(100% - 24px, var(--content-max)); padding-top: 100px; } .chatHeader { align-items: flex-start; flex-direction: column; padding: 26px 22px; } .chatHeader h1 { font-size: 30px; } .conversation { min-height: 600px; padding: 22px 16px; } .safetyRail { grid-template-columns: 1fr; } .dangerZone { grid-column: auto; } .composer { grid-template-columns: 1fr; } .messageList li { max-width: 90%; } .dangerZone > div { grid-template-columns: 1fr; } .lockedPage section { padding: 38px 22px; } }
