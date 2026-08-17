@@ -28,6 +28,10 @@ export const demoRiskEvents: GuardianRiskEvent[] = [
   },
 ];
 
+export function isKnownGuardianTrip(tripId: string): boolean {
+  return demoRiskEvents.some((event) => event.tripId === tripId);
+}
+
 export function riskEventsForTrip(tripId: string): GuardianRiskEvent[] {
-  return demoRiskEvents.map((event) => ({ ...event, tripId }));
+  return demoRiskEvents.filter((event) => event.tripId === tripId);
 }

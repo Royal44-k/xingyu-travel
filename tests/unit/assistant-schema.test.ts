@@ -14,6 +14,22 @@ const completeResponse = {
       risk: '中',
       actions: ['确认演示行程', '联系人工顾问'],
     },
+    {
+      id: 'alt-train-02',
+      title: '大理至丽江沙箱大巴方案',
+      cost: '¥95',
+      duration: '3小时',
+      risk: '中',
+      actions: ['确认演示行程'],
+    },
+    {
+      id: 'alt-train-03',
+      title: '大理至丽江沙箱包车方案',
+      cost: '¥360',
+      duration: '2小时40分',
+      risk: '低',
+      actions: ['联系人工顾问'],
+    },
   ],
   evidence: [
     {
@@ -56,6 +72,24 @@ describe('assistantResponseSchema', () => {
       assistantResponseSchema.safeParse({
         ...completeResponse,
         alternatives: [incompleteAlternative],
+      }).success,
+    ).toBe(false);
+  });
+
+  it('rejects alternatives that do not form exactly three uniquely identified Plan A/B/C choices', () => {
+    expect(
+      assistantResponseSchema.safeParse({
+        ...completeResponse,
+        alternatives: completeResponse.alternatives.slice(0, 2),
+      }).success,
+    ).toBe(false);
+  });
+
+  it('rejects a plan with no concrete action', () => {
+    expect(
+      assistantResponseSchema.safeParse({
+        ...completeResponse,
+        alternatives: [{ ...completeResponse.alternatives[0], actions: [] }, ...completeResponse.alternatives.slice(1)],
       }).success,
     ).toBe(false);
   });

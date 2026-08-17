@@ -2,6 +2,7 @@ import type { LLMProvider } from '../contracts';
 import { assistantResponseSchema, type AssistantResponse } from '@/domain/assistant/schema';
 import type { AssistantRequest } from '@/domain/shared/api';
 import { SANDBOX_OBSERVED_AT } from '@/data/offers';
+import { isImmediateDanger } from '@/domain/assistant/safety';
 
 const sandboxAssistantResponse: AssistantResponse = {
   risk_level: 'medium',
@@ -14,6 +15,22 @@ const sandboxAssistantResponse: AssistantResponse = {
       duration: '2小时18分',
       risk: '中',
       actions: ['确认演示行程', '联系人工顾问'],
+    },
+    {
+      id: 'DEMO-ALT-BUS-02',
+      title: '大理至丽江沙箱大巴方案',
+      cost: '¥95',
+      duration: '3小时',
+      risk: '中',
+      actions: ['核对固定沙箱时间', '联系人工顾问'],
+    },
+    {
+      id: 'DEMO-ALT-CAR-03',
+      title: '大理至丽江沙箱包车方案',
+      cost: '¥360',
+      duration: '2小时40分',
+      risk: '低',
+      actions: ['核对固定沙箱费用', '联系人工顾问'],
     },
   ],
   evidence: [
@@ -68,10 +85,6 @@ const emergencyAssistantResponse: AssistantResponse = {
   demo_mode: true,
   model: 'xingyu-local-demo',
 };
-
-function isImmediateDanger(question: string) {
-  return /失联|人身危险|受伤|火灾|被困/.test(question);
-}
 
 export class MockAssistantProvider implements LLMProvider {
   async answer(input: AssistantRequest): Promise<AssistantResponse> {

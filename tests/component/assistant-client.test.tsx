@@ -2,6 +2,8 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { AssistantClient } from '@/features/assistant/assistant-client';
+import { postsBySlug } from '@/data/posts';
+import { extractTripDraft } from '@/domain/trips/extract-draft';
 import { useTripStore } from '@/stores/trip-store';
 
 const emergencyResponse = {
@@ -20,7 +22,8 @@ const emergencyResponse = {
 };
 
 beforeEach(() => {
-  useTripStore.setState({ trips: {}, partnerIntents: {} });
+  useTripStore.setState({ trips: {}, partnerIntents: {}, guardianPlans: {} });
+  useTripStore.getState().acceptDraft(extractTripDraft(postsBySlug['dali-slow-5d']));
 });
 
 describe('AssistantClient', () => {
@@ -49,9 +52,24 @@ describe('AssistantClient', () => {
 
     await user.click(within(result).getByRole('button', { name: '选择联系公安机关方案' }));
     expect(screen.getByRole('status')).toHaveTextContent('方案已保存到本浏览器的旅行决策，未创建订单');
-    expect(useTripStore.getState().guardianPlans['dali-slow-5d']).toEqual({
+    expect(useTripStore.getState().guardianPlans['draft-dali-slow-5d']).toEqual({
       id: 'EMERGENCY-110',
       title: '联系公安机关',
     });
+  });
+
+  it('blocks a second shortcut while the current request is pending', async () => {
+    const user = userEvent.setup();
+    const requests: Array<{ tripId: string; question: string }> = [];
+    render(<AssistantClient requestAssistant={(request) => {
+      requests.push(request);
+      return new Promise(() => undefined);
+    }} tripId="dali-slow-5d" />);
+
+    await user.click(screen.getByRole('button', { name: '规划建议' }));
+    expect(screen.getByRole('button', { name: '人身安全' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: '整理中…' })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: '人身安全' }));
+    expect(requests).toEqual([{ tripId: 'dali-slow-5d', question: '请为我的行程给出规划建议。' }]);
   });
 });

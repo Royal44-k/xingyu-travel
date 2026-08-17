@@ -14,7 +14,7 @@ export const assistantAlternativeSchema = z
     cost: z.string().min(1),
     duration: z.string().min(1),
     risk: z.string().min(1),
-    actions: z.array(z.string().min(1)),
+    actions: z.array(z.string().min(1)).min(1),
   })
   .strict();
 
@@ -30,7 +30,11 @@ export const assistantResponseSchema = z
   .object({
     risk_level: z.enum(['low', 'medium', 'high', 'critical']),
     answer: z.string().min(1),
-    alternatives: z.array(assistantAlternativeSchema),
+    alternatives: z.array(assistantAlternativeSchema).length(3).superRefine((alternatives, context) => {
+      if (new Set(alternatives.map((alternative) => alternative.id)).size !== alternatives.length) {
+        context.addIssue({ code: 'custom', message: 'duplicate alternative id' });
+      }
+    }),
     evidence: z.array(assistantEvidenceSchema),
     data_freshness: z.string().min(1),
     requires_human_help: z.boolean(),

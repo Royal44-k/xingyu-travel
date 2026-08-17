@@ -193,7 +193,9 @@ export function getBudgetSummary(trip: WorkbenchTrip) {
 }
 
 function getTrip(state: TripStoreState, tripId: string): WorkbenchTrip {
-  const trip = state.trips[tripId];
+  const trip = state.trips[tripId] ?? Object.values(state.trips).find(
+    (candidate) => candidate.sourcePostSlug === tripId,
+  );
   if (!trip) throw new Error(`TRIP_NOT_FOUND:${tripId}`);
   return trip;
 }
@@ -328,9 +330,10 @@ function stateCreator(set: (recipe: (state: TripStoreState) => Partial<TripStore
       getTrip(state, tripId);
       return { partnerIntents: { ...state.partnerIntents, [tripId]: true } };
     }),
-    selectGuardianPlan: (tripId: string, plan: GuardianPlanSelection) => set((state) => ({
-      guardianPlans: { ...state.guardianPlans, [tripId]: plan },
-    })),
+    selectGuardianPlan: (tripId: string, plan: GuardianPlanSelection) => set((state) => {
+      const trip = getTrip(state, tripId);
+      return { guardianPlans: { ...state.guardianPlans, [trip.id]: plan } };
+    }),
   } satisfies TripStoreState;
 }
 

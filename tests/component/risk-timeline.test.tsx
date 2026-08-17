@@ -2,11 +2,14 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { riskEventsForTrip } from '@/data/risk-events';
+import { postsBySlug } from '@/data/posts';
+import { extractTripDraft } from '@/domain/trips/extract-draft';
 import { RiskTimeline } from '@/features/guardian/risk-timeline';
 import { useTripStore } from '@/stores/trip-store';
 
 beforeEach(() => {
   useTripStore.setState({ trips: {}, partnerIntents: {}, guardianPlans: {} });
+  useTripStore.getState().acceptDraft(extractTripDraft(postsBySlug['dali-slow-5d']));
 });
 
 describe('RiskTimeline', () => {
@@ -21,7 +24,7 @@ describe('RiskTimeline', () => {
 
     await user.click(within(timeline).getByRole('button', { name: '选择调整苍山徒步为古城慢游方案' }));
     expect(screen.getByRole('status')).toHaveTextContent('方案已保存到本浏览器的旅行决策，未创建订单');
-    expect(useTripStore.getState().guardianPlans['dali-slow-5d']).toEqual({
+    expect(useTripStore.getState().guardianPlans['draft-dali-slow-5d']).toEqual({
       id: 'PLAN-A',
       title: '调整苍山徒步为古城慢游',
     });

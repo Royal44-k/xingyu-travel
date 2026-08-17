@@ -118,6 +118,16 @@ describe('decision room', () => {
     store.getState().vote(tripId, 'member-lin', 'candidate-b');
     expect(store.getState().trips[tripId].votes).toEqual({});
   });
+
+  it('stores a guardian plan only on an accepted trip and preserves trip isolation', () => {
+    const store = createTripStore();
+    store.getState().acceptDraft(daliDraft);
+
+    store.getState().selectGuardianPlan(daliDraft.sourcePostSlug, { id: 'PLAN-A', title: '室内备选' });
+    expect(store.getState().guardianPlans).toEqual({ [daliDraft.id]: { id: 'PLAN-A', title: '室内备选' } });
+    expect(() => store.getState().selectGuardianPlan('unknown-trip', { id: 'PLAN-B', title: '不应保存' })).toThrow('TRIP_NOT_FOUND:unknown-trip');
+    expect(store.getState().guardianPlans).toEqual({ [daliDraft.id]: { id: 'PLAN-A', title: '室内备选' } });
+  });
 });
 
 describe('draft merge and persistence', () => {

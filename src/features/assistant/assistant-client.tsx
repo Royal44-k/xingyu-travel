@@ -1,10 +1,11 @@
 'use client';
 
 import { PaperPlaneTilt, ShieldWarning, Sparkle } from '@phosphor-icons/react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { AssistantAlternative, AssistantResponse } from '@/domain/assistant/schema';
 import { useTripStore } from '@/stores/trip-store';
 import { AlternativePlan } from './alternative-plan';
+import { createLatestRequestGate } from './request-sequence';
 import styles from './assistant.module.css';
 
 const quickQuestions = [
@@ -40,18 +41,23 @@ export function AssistantClient({ tripId = 'dali-slow-5d', requestAssistant = re
   const [result, setResult] = useState<AssistantResponse>();
   const [error, setError] = useState<string>();
   const [loading, setLoading] = useState(false);
+  const requestGate = useRef(createLatestRequestGate());
   const selectGuardianPlan = useTripStore((state) => state.selectGuardianPlan);
 
   const ask = async (nextQuestion: string) => {
-    if (!nextQuestion.trim()) return;
+    if (!nextQuestion.trim() || loading) return;
+    const request = requestGate.current.start();
     setLoading(true);
     setError(undefined);
     try {
-      setResult(await requestAssistant({ tripId, question: nextQuestion }));
+      const response = await requestAssistant({ tripId, question: nextQuestion });
+      if (requestGate.current.isLatest(request)) setResult(response);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : '助手暂时不可用，请稍后重试。');
+      if (requestGate.current.isLatest(request)) {
+        setError(caught instanceof Error ? caught.message : '助手暂时不可用，请稍后重试。');
+      }
     } finally {
-      setLoading(false);
+      if (requestGate.current.isLatest(request)) setLoading(false);
     }
   };
 
@@ -70,7 +76,7 @@ export function AssistantClient({ tripId = 'dali-slow-5d', requestAssistant = re
       <section className={styles.askPanel} aria-label="咨询旅行助手">
         <div className={styles.quickQuestions} aria-label="快捷问题">
           {quickQuestions.map((item) => (
-            <button key={item.label} onClick={() => void ask(item.question)} type="button">{item.label}</button>
+            <button disabled={loading} key={item.label} onClick={() => void ask(item.question)} type="button">{item.label}</button>
           ))}
         </div>
         <form onSubmit={(event) => { event.preventDefault(); void ask(question); }}>

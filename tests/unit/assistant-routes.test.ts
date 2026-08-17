@@ -64,4 +64,18 @@ describe('guardian route', () => {
       events: [expect.objectContaining({ status: 'notified', source: '星屿沙箱风险事件' })],
     });
   });
+
+  it('fails closed for an unknown trip instead of relabeling a demo event', async () => {
+    const response = await getGuardian(new Request('http://localhost/api/v1/guardian/unknown-trip'), {
+      params: Promise.resolve({ tripId: 'unknown-trip' }),
+    });
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({
+      ok: false,
+      error: { code: 'GUARDIAN_TRIP_NOT_FOUND', message: '未找到该行程，无法显示守护信息。' },
+      request_id: expect.any(String),
+      demo_mode: true,
+    });
+  });
 });
