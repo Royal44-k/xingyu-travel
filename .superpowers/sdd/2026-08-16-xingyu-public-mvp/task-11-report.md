@@ -51,3 +51,45 @@ Fresh post-fix evidence:
 
 - Local Playwright invocation needs the direct local binary in this desktop environment because `pnpm exec playwright` does not resolve it; `pnpm test:e2e` itself succeeds.
 - No product-test failures remain. The `NO_COLOR`/`FORCE_COLOR` warning is environment-only and does not come from application runtime collectors.
+
+## Fix round — connected journey state and stronger browser acceptance
+
+This round reviewed the committed Task 11 baseline at `b7023ff` and preserved its existing implementation. The acceptance gaps were closed with observable state and condition-based browser checks rather than timing sleeps or `networkidle` guesses.
+
+### Critical trip-to-partner handoff
+
+- The workbench now hydrates the partner store and publishes a schema-valid partner intent whose destination, dates, and budget come from the canonical accepted trip while personal matching preferences remain intact.
+- 木雨's sandbox availability is aligned to 大理; the accepted trip still yields score 92 and exactly three explanations.
+- `/partners` consumes the already-published local intent and does not mount a second intent form.
+- The first strengthened core E2E run exposed a real boundary bug: `tripToPartnerIntent` spread the full runtime `WorkbenchTrip`, leaking strict-schema keys such as `id`, `items`, and `status`. The focused unit reproduction failed with `success: false`; explicit mapping of the four hard fields made the unit GREEN and the core journey GREEN.
+
+### Important acceptance corrections
+
+- Guardian Plan A had a static success message before any click. The component regression first failed because `role="status"` already existed. `RiskTimeline` now subscribes to the canonical trip's actual plan selection, renders no selected state initially, exposes `aria-pressed=false → true`, and announces the exact selected Plan A only after the click.
+- The core journey now submits non-default `2026-09-18`–`2026-09-22` dates and 3 travelers, compares all five literal `URLSearchParams`, checks the exact comparison summary, proves the workbench-to-partner handoff with no second form and 木雨 score 92, and proves Plan A is not a no-op.
+- The responsive timing regression navigated only to response commit and correctly failed with `document=loading` and incomplete images. The final helper waits for route-specific dynamic/hydration state, scrolls each lazy image into view, waits for `document.readyState=complete`, `document.fonts.status=loaded`, and all images complete, then proves header hydration with an open/close round trip. Every mobile route is measured with the menu both closed and open.
+- The filter-dialog E2E now checks last `Tab` → first and first `Shift+Tab` → last before retaining Escape and trigger-focus restoration. A temporary mutation removing the forward wrap produced the expected focused RED; restoring the real branch produced GREEN.
+- Existing partner component/domain fixtures were updated to request the newly intentional 大理 candidate. No hard filter was weakened. A saved intent now has a neutral local-intent notice rather than incorrectly claiming every saved intent originated in the workbench.
+
+### Fresh terminal evidence
+
+| Command / scope | Terminal result |
+| --- | --- |
+| guardian component RED | 1 failed: pre-click static status was present |
+| guardian component GREEN | 1 passed |
+| full runtime trip conversion unit RED | 1 failed: strict intent validation returned false |
+| trip conversion unit GREEN | 1 passed |
+| core journey first strengthened run | 1 failed at the strict-schema handoff boundary |
+| core journey after explicit mapping | 1 passed (11.0s) |
+| responsive timing RED | 1 failed with `document=loading`, `images=false` |
+| complete responsive spec | 7 passed (12.7s) |
+| dialog focus mutation RED / restored GREEN | 1 failed at last-to-first wrap / 1 passed (4.2s) |
+| complete accessibility spec | 10 passed (18.7s) |
+| three Task 11 specs together, one worker | 18 passed (33.5s) |
+| `pnpm test:e2e` | 18 passed (21.3s), exit 0 |
+| focused partner component | 7 passed |
+| focused partner domain unit | 45 passed |
+| final `pnpm test` | 29 files / 215 tests passed (61.31s) |
+| final `pnpm verify` | exit 0: eslint, typecheck, 29 files / 215 tests, and Next production build completed |
+
+`next-env.d.ts` was verified byte-for-byte against the HEAD blob after Next dev rewrote its generated route reference; the generated change was excluded. Final status contains only this fix round's source, test, and report files.

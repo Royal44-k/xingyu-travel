@@ -33,6 +33,9 @@ describe('partner matching flow', () => {
     const user = userEvent.setup();
     render(<PartnerMatchExperience />);
 
+    const destination = await screen.findByLabelText('目的地');
+    await user.clear(destination);
+    await user.type(destination, '大理');
     await user.click(await screen.findByRole('button', { name: '发布匹配意愿' }));
     expect(await screen.findByText('已发布到本地演示匹配')).toBeInTheDocument();
     const card = screen.getByTestId(`partner-card-${demoPartnerCandidates[0].id}`);
@@ -49,8 +52,7 @@ describe('partner matching flow', () => {
     expect(within(card).getByRole('link', { name: '进入聊天' })).toHaveAttribute('href', expect.stringMatching(/^\/chat\/match-/));
   });
 
-  it('hydrates the saved intent before mounting the form and preserves unchanged values', async () => {
-    const user = userEvent.setup();
+  it('hydrates a saved intent without mounting a second form and preserves unchanged values', async () => {
     const savedIntent = {
       ...defaultPartnerIntent,
       destination: '稻城',
@@ -64,12 +66,9 @@ describe('partner matching flow', () => {
     render(<PartnerMatchExperience />);
 
     expect(screen.getByText('正在读取本地匹配意愿…')).toBeInTheDocument();
-    const destination = await screen.findByLabelText('目的地');
-    expect(destination).toHaveValue('稻城');
-    expect(screen.getByLabelText('旅行预算')).toHaveValue(6880);
-    expect(screen.getByLabelText('期待路线')).toHaveValue('成都—康定—稻城');
-    await user.click(screen.getByRole('button', { name: '发布匹配意愿' }));
-
+    expect(await screen.findByText('已读取本地匹配意愿')).toBeInTheDocument();
+    expect(screen.queryByLabelText('目的地')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '发布匹配意愿' })).not.toBeInTheDocument();
     expect(usePartnerStore.getState().intents[demoViewerProfile.id]).toEqual(savedIntent);
   });
 });
@@ -135,7 +134,7 @@ describe('matched chat safety flow', () => {
   it('locks a shape-valid matched chat owned by another viewer', () => {
     const foreignProfile = { ...demoViewerProfile, id: 'foreign-viewer' };
     const foreignStore = createPartnerStore();
-    foreignStore.getState().publishIntent(foreignProfile, defaultPartnerIntent);
+    foreignStore.getState().publishIntent(foreignProfile, { ...defaultPartnerIntent, destination: '大理' });
     const matchId = foreignStore.getState().requestMatch(foreignProfile, demoPartnerCandidates[0].id);
     foreignStore.getState().simulateMutualApproval(foreignProfile, matchId);
     usePartnerStore.setState({
@@ -152,7 +151,7 @@ describe('matched chat safety flow', () => {
 });
 
 function createMatchedDemo() {
-  usePartnerStore.getState().publishIntent(demoViewerProfile, defaultPartnerIntent);
+  usePartnerStore.getState().publishIntent(demoViewerProfile, { ...defaultPartnerIntent, destination: '大理' });
   const matchId = usePartnerStore.getState().requestMatch(demoViewerProfile, demoPartnerCandidates[0].id);
   usePartnerStore.getState().simulateMutualApproval(demoViewerProfile, matchId);
   return matchId;

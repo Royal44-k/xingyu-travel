@@ -17,6 +17,7 @@ const eligibleProfile = {
   identityVerified: true,
   riskStatus: 'clear' as const,
 };
+const daliPartnerIntent = { ...defaultPartnerIntent, destination: '大理' };
 
 beforeEach(() => window.localStorage.clear());
 
@@ -72,7 +73,7 @@ describe('partner intent and hard filters', () => {
     const seed = demoPartnerCandidates[0];
     const candidates: PartnerCandidate[] = [
       seed,
-      { ...seed, id: 'wrong-destination', destination: '大理' },
+      { ...seed, id: 'wrong-destination', destination: '川西' },
       { ...seed, id: 'wrong-date', startDate: '2026-10-02', endDate: '2026-10-05' },
       { ...seed, id: 'full', capacity: 1 },
       { ...seed, id: 'uncertified', certified: false },
@@ -81,7 +82,7 @@ describe('partner intent and hard filters', () => {
       { ...seed, id: 'risk', riskStatus: 'review' },
     ];
 
-    expect(filterPartnerCandidates(defaultPartnerIntent, candidates, {
+    expect(filterPartnerCandidates(daliPartnerIntent, candidates, {
       viewerId: eligibleProfile.id,
       blockedCandidateIds: ['we-blocked'],
     }).map((candidate) => candidate.id)).toEqual([seed.id]);
@@ -151,7 +152,7 @@ describe('partner match and chat state', () => {
       defaultPartnerIntent,
     )).toThrow('IDENTITY_REQUIRED');
 
-    store.getState().publishIntent(eligibleProfile, defaultPartnerIntent);
+    store.getState().publishIntent(eligibleProfile, daliPartnerIntent);
     const matchId = store.getState().requestMatch(eligibleProfile, candidateId);
     expect(store.getState().matches[matchId].status).toBe('pending_mutual');
     expect(() => store.getState().sendMessage(eligibleProfile, matchId, '你好')).toThrow(
@@ -342,7 +343,7 @@ describe('partner match and chat state', () => {
 
 function matchedStore() {
   const store = createPartnerStore();
-  store.getState().publishIntent(eligibleProfile, defaultPartnerIntent);
+  store.getState().publishIntent(eligibleProfile, daliPartnerIntent);
   const matchId = store.getState().requestMatch(eligibleProfile, demoPartnerCandidates[0].id);
   store.getState().simulateMutualApproval(eligibleProfile, matchId);
   return store;

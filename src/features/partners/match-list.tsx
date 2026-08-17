@@ -49,7 +49,7 @@ export function PartnerMatchExperience() {
       </header>
       {hydrationError && <p className={styles.notice} role="status">本地匹配记录校验失败，已继续使用安全的内存状态；原数据未被覆盖。</p>}
       {hydrated
-        ? <IntentForm key={JSON.stringify(intent ?? defaultPartnerIntent)} initialIntent={intent ?? defaultPartnerIntent} onPublish={handlePublish} />
+        ? intent ? <p className={styles.publishedNotice} role="status"><CheckCircle aria-hidden size={18} />已读取本地匹配意愿</p> : <IntentForm key={JSON.stringify(defaultPartnerIntent)} initialIntent={defaultPartnerIntent} onPublish={handlePublish} />
         : <p className={styles.notice} aria-live="polite">正在读取本地匹配意愿…</p>}
       {published && <p className={styles.publishedNotice}><CheckCircle aria-hidden size={18} />已发布到本地演示匹配</p>}
       {actionError && <p className={styles.formError} role="alert">{actionError}</p>}

@@ -81,7 +81,7 @@ export const demoPartnerCandidates: PartnerCandidate[] = [{
   identityVerified: true,
   riskStatus: 'clear',
   introduction: '慢节奏风光摄影爱好者，习惯提前确认边界与每日安排。',
-  destination: '川西',
+  destination: '大理',
   startDate: '2026-09-17',
   endDate: '2026-09-24',
   budget: 5000,

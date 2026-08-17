@@ -18,6 +18,9 @@ import {
 import { DecisionRoom } from './decision-room';
 import { ItineraryEditor } from './itinerary-editor';
 import styles from './trips.module.css';
+import { demoViewerProfile } from '@/data/partners';
+import { tripToPartnerIntent } from '@/features/partners/trip-to-partner-intent';
+import { hydratePartnerStore, usePartnerStore, usePartnerStoreHydration } from '@/stores/partner-store';
 
 export function TripWorkbench({ slug }: { slug: string }) {
   const draft = useDraftTripStore((state) => state.drafts[slug]);
@@ -25,6 +28,9 @@ export function TripWorkbench({ slug }: { slug: string }) {
   const draftHydrationError = useDraftHydrationStore((state) => state.hydrationError);
   const workbenchHydrated = useTripStoreHydration((state) => state.hydrated);
   const workbenchHydrationError = useTripStoreHydration((state) => state.hydrationError);
+  const partnerHydrated = usePartnerStoreHydration((state) => state.hydrated);
+  const partnerIntent = usePartnerStore((state) => state.intents[demoViewerProfile.id]);
+  const publishPartnerMatchIntent = usePartnerStore((state) => state.publishIntent);
   const tripId = useTripStore((state) =>
     Object.keys(state.trips).find((id) => state.trips[id].sourcePostSlug === slug),
   );
@@ -39,7 +45,7 @@ export function TripWorkbench({ slug }: { slug: string }) {
   const enableGuardian = useTripStore((state) => state.enableGuardian);
   const publishPartnerIntent = useTripStore((state) => state.publishPartnerIntent);
   useEffect(() => {
-    void Promise.all([hydrateDraftTripStore(), hydrateWorkbenchTripStore()]);
+    void Promise.all([hydrateDraftTripStore(), hydrateWorkbenchTripStore(), hydratePartnerStore()]);
   }, []);
 
   useEffect(() => {
@@ -59,7 +65,7 @@ export function TripWorkbench({ slug }: { slug: string }) {
     return `/compare?${query.toString()}`;
   }, [trip]);
 
-  if (!workbenchHydrated || (!trip && !draftHydrated)) {
+  if (!workbenchHydrated || !partnerHydrated || (!trip && !draftHydrated)) {
     return <WorkbenchState title="正在读取本地行程…" message="正在合并攻略草稿与浏览器中的工作台状态。" />;
   }
 
@@ -119,7 +125,7 @@ export function TripWorkbench({ slug }: { slug: string }) {
 
       <DecisionRoom
         onEnableGuardian={(consent) => enableGuardian(trip.id, consent)}
-        onPublishPartnerIntent={() => publishPartnerIntent(trip.id)}
+        onPublishPartnerIntent={() => { publishPartnerMatchIntent(demoViewerProfile, tripToPartnerIntent(trip, partnerIntent)); publishPartnerIntent(trip.id); }}
         onVote={(memberId, candidateId) => vote(trip.id, memberId, candidateId)}
         partnerIntentPublished={partnerIntentPublished}
         trip={trip}

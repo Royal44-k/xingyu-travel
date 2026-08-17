@@ -61,7 +61,14 @@ test('filter dialog traps focus, closes with Escape, and restores its trigger', 
   await trigger.click();
   const dialog = page.getByRole('dialog', { name: '筛选条件' });
   await expect(dialog).toBeVisible();
-  await expect(page.getByRole('button', { name: '关闭筛选' })).toBeFocused();
+  const first = page.getByRole('button', { name: '关闭筛选' });
+  const last = page.getByRole('button', { name: '应用筛选' });
+  await expect(first).toBeFocused();
+  await last.focus();
+  await page.keyboard.press('Tab');
+  await expect(first).toBeFocused();
+  await page.keyboard.press('Shift+Tab');
+  await expect(last).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
   await expect(trigger).toBeFocused();
