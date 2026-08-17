@@ -71,6 +71,17 @@ async function expectClosedAndOpenLayoutsFit(page: Page) {
   await expectNoHorizontalOverflow(page);
 }
 
+async function expectDisclosureClearsMainContent(page: Page) {
+  const [disclosureBox, contentBox] = await Promise.all([
+    page.getByRole('note', { name: '演示环境说明' }).boundingBox(),
+    page.locator('body > main > :first-child').first().boundingBox(),
+  ]);
+
+  expect(disclosureBox).not.toBeNull();
+  expect(contentBox).not.toBeNull();
+  expect(contentBox!.y).toBeGreaterThanOrEqual(disclosureBox!.y + disclosureBox!.height);
+}
+
 const responsiveCases: ResponsiveCase[] = [
   {
     route: '/compare?kind=flight&destination=%E5%A4%A7%E7%90%86&from=2026-08-22&to=2026-08-27&travelers=2',
@@ -123,7 +134,44 @@ test.describe('mobile public MVP', () => {
       if (prepare) await prepare(page);
       else await page.goto(route, { waitUntil: 'commit' });
       await waitForResponsiveReady(page, () => ready(page));
+      await expectDisclosureClearsMainContent(page);
       await expectClosedAndOpenLayoutsFit(page);
     });
   }
+});
+
+test.describe('desktop design disclosure', () => {
+  test.use({ viewport: { width: 1440, height: 1024 } });
+
+  test('keeps the demo disclosure readable outside the fixed navigation', async ({ page }) => {
+    await page.goto('/', { waitUntil: 'commit' });
+    await expect(page.getByRole('note', { name: '演示环境说明' })).toBeVisible();
+
+    const [headerBox, disclosureBox] = await Promise.all([
+      page.locator('header').boundingBox(),
+      page.getByRole('note', { name: '演示环境说明' }).boundingBox(),
+    ]);
+
+    expect(headerBox).not.toBeNull();
+    expect(disclosureBox).not.toBeNull();
+    expect(disclosureBox!.y).toBeGreaterThanOrEqual(headerBox!.y + headerBox!.height - 1);
+  });
+
+  test('keeps the planning controls and seasonal destinations in the first viewport', async ({ page }) => {
+    await page.goto('/', { waitUntil: 'commit' });
+    await page.waitForFunction(() => document.fonts.status === 'loaded');
+
+    const [titleBox, composerBox, destinationBox] = await Promise.all([
+      page.getByRole('heading', { name: '把远方， 变成一段安心抵达的旅程' }).boundingBox(),
+      page.locator('form[action="/compare"]').boundingBox(),
+      page.getByRole('article').first().boundingBox(),
+    ]);
+
+    expect(titleBox).not.toBeNull();
+    expect(composerBox).not.toBeNull();
+    expect(destinationBox).not.toBeNull();
+    expect.soft(titleBox!.y).toBeLessThanOrEqual(210);
+    expect.soft(composerBox!.y).toBeLessThanOrEqual(540);
+    expect.soft(destinationBox!.y).toBeLessThanOrEqual(820);
+  });
 });

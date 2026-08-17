@@ -6,7 +6,7 @@ export default function HomePage() {
   return (
     <>
       <SiteHeader activePath="/" />
-      <main>
+      <main className="homePage">
         <Hero />
         <FeaturedDestinations />
       </main>

@@ -5,7 +5,7 @@
   gap: clamp(36px, 5vw, 76px);
   width: min(calc(100% - 80px), var(--content-max));
   margin: 0 auto;
-  padding: 72px 0 84px;
+  padding: 38px 0 84px;
   color: var(--ivory);
 }
 
@@ -22,7 +22,8 @@
 }
 
 .intro {
-  align-self: center;
+  align-self: start;
+  padding-top: 15px;
 }
 
 .intro > p {
@@ -133,7 +134,9 @@
   }
 
   .intro {
+    align-self: center;
     max-width: 540px;
+    padding-top: 0;
   }
 }
 
