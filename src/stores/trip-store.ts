@@ -352,6 +352,7 @@ function persistenceOptions(options: CreateTripStoreOptions = {}) {
       return parsePersistedTripState(persistedState);
     },
     merge: (persistedState: unknown, currentState: TripStoreState): TripStoreState => {
+      if (persistedState === undefined) return currentState;
       const safeState = parsePersistedTripState(persistedState);
       return {
         ...currentState,

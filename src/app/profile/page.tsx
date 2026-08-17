@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 export default function ProfilePage() {
   return (
     <>
-      <SiteHeader activePath="/profile" />
+        <SiteHeader activePath="/profile" variant="solid" />
       <main className="profilePage">
         <section aria-labelledby="profile-title" className="profileIntro">
           <p>XINGYU · DEMO PROFILE</p>

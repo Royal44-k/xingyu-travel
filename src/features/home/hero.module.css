@@ -201,3 +201,7 @@
     font-size: 11px;
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .imageLayer { transform: none !important; }
+}

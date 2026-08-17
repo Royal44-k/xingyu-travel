@@ -22,7 +22,7 @@ describe('RiskTimeline', () => {
     expect(timeline).toHaveTextContent('2026-08-16T09:00:00+08:00');
     expect(within(timeline).getAllByRole('article', { name: /Plan [ABC]/ })).toHaveLength(3);
 
-    await user.click(within(timeline).getByRole('button', { name: '选择调整苍山徒步为古城慢游方案' }));
+    await user.click(within(timeline).getByRole('button', { name: '选择 Plan A：调整苍山徒步为古城慢游方案' }));
     expect(screen.getByRole('status')).toHaveTextContent('方案已保存到本浏览器的旅行决策，未创建订单');
     expect(useTripStore.getState().guardianPlans['draft-dali-slow-5d']).toEqual({
       id: 'PLAN-A',

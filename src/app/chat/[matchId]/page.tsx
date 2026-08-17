@@ -9,5 +9,5 @@ export const metadata: Metadata = {
 
 export default async function ChatPage({ params }: { params: Promise<{ matchId: string }> }) {
   const { matchId } = await params;
-  return <><SiteHeader /><ChatRoom matchId={matchId} /></>;
+return <><SiteHeader variant="solid" /><ChatRoom matchId={matchId} /></>;
 }

@@ -58,7 +58,7 @@
   align-items: center;
   gap: 8px;
   padding: 0 3px;
-  color: rgb(16 16 15 / 55%);
+  color: rgb(16 16 15 / 64%);
   border: 0;
   background: transparent;
   cursor: pointer;
@@ -105,7 +105,7 @@
 }
 
 .toolbar > div span {
-  color: rgb(16 16 15 / 58%);
+  color: rgb(16 16 15 / 68%);
   font-size: 12px;
 }
 
@@ -273,7 +273,7 @@
 .updated,
 .stale {
   margin: 0;
-  color: rgb(16 16 15 / 52%);
+  color: #67645e;
   font-size: 11px;
 }
 
@@ -328,7 +328,7 @@
 
 .offerPrice > span {
   margin: 6px 0 12px;
-  color: rgb(16 16 15 / 54%);
+  color: #625f59;
   font-size: 11px;
 }
 
@@ -405,7 +405,7 @@
   min-height: 180px;
   display: grid;
   place-items: center;
-  color: rgb(16 16 15 / 58%);
+  color: rgb(16 16 15 / 68%);
   border: 1px dashed rgb(16 16 15 / 22%);
   background: rgb(244 240 232 / 48%);
 }

@@ -1,14 +1,13 @@
 'use client';
 
 import { MapPin, ShieldCheck } from '@phosphor-icons/react';
-import { motion, useReducedMotion, useScroll, useTransform } from 'motion/react';
+import { motion, useScroll, useTransform } from 'motion/react';
 import Image from 'next/image';
 import { brandAssets } from '@/data/assets';
 import { SearchComposer } from './search-composer';
 import styles from './hero.module.css';
 
 export function Hero() {
-  const reduceMotion = useReducedMotion();
   const { scrollY } = useScroll();
   const imageY = useTransform(scrollY, [0, 820], [0, 44]);
 
@@ -16,7 +15,7 @@ export function Hero() {
     <section className={styles.hero} aria-labelledby="hero-title">
       <motion.div
         className={styles.imageLayer}
-        style={reduceMotion ? undefined : { y: imageY }}
+        style={{ y: imageY }}
       >
         <Image
           alt={brandAssets.hero.alt}
@@ -32,8 +31,8 @@ export function Hero() {
       <motion.div
         animate={{ opacity: 1, y: 0 }}
         className={styles.copy}
-        initial={reduceMotion ? false : { opacity: 0, y: 18 }}
-        transition={{ duration: reduceMotion ? 0 : 0.8, ease: 'easeOut' }}
+        initial={{ opacity: 0, y: 18 }}
+        transition={{ duration: 0.8, ease: 'easeOut' }}
       >
         <p className={styles.eyebrow}>XINGYU · TRAVEL WITH CLARITY</p>
         <h1 id="hero-title">

@@ -19,6 +19,7 @@ const serif = Noto_Serif_SC({
 export const metadata: Metadata = {
   title: { default: '行屿 XINGYU', template: '%s | 行屿 XINGYU' },
   description: '透明比价、可信搭子、攻略转行程与主动式旅行守护。',
+  icons: { icon: '/assets/guardian-rainy-mountain.png' },
 };
 
 export const viewport: Viewport = { width: 'device-width', initialScale: 1 };

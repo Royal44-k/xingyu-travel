@@ -294,9 +294,10 @@ function persistenceOptions(options: CreatePartnerStoreOptions = {}) {
       intents: state.intents, matches: state.matches,
       visibleMatchIds: state.visibleMatchIds, blockedCandidateIds: state.blockedCandidateIds,
     }),
-    merge: (persistedState: unknown, current: PartnerStoreState): PartnerStoreState => ({
-      ...current, ...parsePersistedState(persistedState),
-    }),
+    merge: (persistedState: unknown, current: PartnerStoreState): PartnerStoreState => {
+      if (persistedState === undefined) return current;
+      return { ...current, ...parsePersistedState(persistedState) };
+    },
     migrate: (persistedState: unknown, version: number): PersistedPartnerState => {
       if (version !== 1) throw new Error(`PARTNER_UNSUPPORTED_PERSISTED_VERSION:${version}`);
       return migrateV1PersistedState(persistedState);

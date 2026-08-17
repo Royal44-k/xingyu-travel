@@ -28,7 +28,7 @@ it('renders usable primary navigation with the homepage marked current', () => {
   );
   expect(screen.getByRole('link', { name: '行程守护' })).toHaveAttribute(
     'href',
-    '/guardian/demo',
+    '/guardian/dali-slow-5d',
   );
   expect(screen.getByRole('link', { name: '我的行程' })).toHaveAttribute(
     'href',

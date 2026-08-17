@@ -59,6 +59,7 @@ export function ChatRoom({ matchId }: { matchId: string }) {
         <div><p>MUTUAL MATCH · SANDBOX</p><h1>与 {candidate.displayName} 的会话</h1><span><ShieldCheck aria-hidden size={16} />双方已同意 · 本地演示聊天，无实时服务或后台连接</span></div>
         <Link href="/partners">返回搭子匹配</Link>
       </header>
+      <p className={styles.safetyNotice} role="note">请勿在聊天中交换身份证件、精确位置、支付信息或其他敏感信息；涉及联系方式时需双方单独同意。</p>
       {hydrationError && <p className={styles.warningBar}>本地聊天记录校验失败，已使用安全的内存状态。</p>}
       <div className={styles.chatLayout}>
         <section aria-labelledby="messages-title" className={styles.conversation}>

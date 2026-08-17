@@ -29,7 +29,7 @@ export default function SquarePage() {
 
   return (
     <>
-      <SiteHeader activePath="/square" />
+        <SiteHeader activePath="/square" variant="solid" />
       <main className={styles.squarePage}>
         <header className={styles.hero}><p>GUIDE SQUARE</p><h1>在别人的路书里，找到自己的出发理由。</h1><span>真实的旅行片段，整理成可继续编辑的本地行程草稿。</span></header>
         <section aria-labelledby="feed-title" className={styles.feedSection}>

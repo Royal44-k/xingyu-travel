@@ -6,7 +6,7 @@ export default async function TripPage({ params }: { params: Promise<{ slug: str
 
   return (
     <>
-      <SiteHeader />
+        <SiteHeader variant="solid" />
       <TripWorkbench slug={slug} />
     </>
   );

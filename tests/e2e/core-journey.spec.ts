@@ -1,0 +1,52 @@
+import { expect, test } from '@playwright/test';
+
+const unexpectedConsoleMessages = (page: import('@playwright/test').Page) => {
+  const messages: string[] = [];
+  page.on('console', (message) => {
+    if (message.type() === 'error') {
+      messages.push(`console.error: ${message.text()}`);
+    }
+  });
+  page.on('pageerror', (error) => messages.push(`pageerror: ${error.message}`));
+  page.on('response', (response) => {
+    if (response.status() >= 400) {
+      messages.push(`http ${response.status()}: ${response.url()}`);
+    }
+  });
+  return messages;
+};
+
+test.use({ viewport: { width: 1440, height: 1024 } });
+
+test('guide to guarded alternative plan through the public UI', async ({ page }) => {
+  const errors = unexpectedConsoleMessages(page);
+
+  await page.goto('/');
+  await page.getByRole('tab', { name: '机票' }).click();
+  await page.getByRole('textbox', { name: '到达地' }).fill('大理');
+  const quoteStream = page.waitForResponse((response) => response.url().includes('/api/v1/comparison/searches/') && response.url().endsWith('/events'));
+  await page.getByRole('button', { name: '开始规划' }).click();
+
+  await expect(page).toHaveURL(/\/compare\?/);
+  expect((await quoteStream).status()).toBe(200);
+  await expect(page.getByText('¥1,010 含税总价')).toBeVisible();
+
+  await page.getByRole('link', { name: '灵感广场' }).click();
+  await page.getByRole('link', { name: '把大理留给慢下来的人：5 天环洱海松弛路线', exact: true }).click();
+  await page.getByRole('button', { name: '转为行程' }).click();
+  await page.getByRole('button', { name: '确认并保存草稿' }).click();
+  await page.getByRole('button', { name: '发布搭子意愿' }).click();
+  await expect(page.getByRole('status')).toContainText('搭子意愿已保存到本浏览器');
+  await page.getByRole('navigation', { name: '主导航' }).getByRole('link', { name: '寻找搭子' }).click();
+  await page.getByRole('button', { name: '发布匹配意愿' }).click();
+  await page.getByRole('button', { name: '愿意认识木雨' }).click();
+  await page.getByRole('button', { name: '模拟对方同意（沙箱）' }).click();
+  await page.getByRole('link', { name: '进入聊天' }).click();
+  await expect(page.getByText(/其他敏感信息/)).toBeVisible();
+
+  await page.getByRole('link', { name: /行程守护/ }).click();
+  await expect(page.getByRole('heading', { name: '备选方案' })).toBeVisible();
+  await page.getByRole('button', { name: /Plan A/ }).click();
+  await expect(page.getByText(/方案已保存到本浏览器/)).toBeVisible();
+  expect(errors).toEqual([]);
+});

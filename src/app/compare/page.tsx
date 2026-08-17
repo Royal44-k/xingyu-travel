@@ -20,7 +20,7 @@ export default async function ComparePage({
 
   return (
     <>
-      <SiteHeader activePath="/compare" />
+        <SiteHeader activePath="/compare" variant="solid" />
       <ComparisonClient initialSearch={searchFromParams(params)} />
     </>
   );

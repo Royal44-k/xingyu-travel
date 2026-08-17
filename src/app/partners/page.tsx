@@ -8,5 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function PartnersPage() {
-  return <><SiteHeader activePath="/partners" /><PartnerMatchExperience /></>;
+return <><SiteHeader activePath="/partners" variant="solid" /><PartnerMatchExperience /></>;
 }

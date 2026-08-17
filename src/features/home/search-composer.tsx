@@ -10,7 +10,7 @@ import {
   Ticket,
   UsersThree,
 } from '@phosphor-icons/react';
-import { motion, useReducedMotion } from 'motion/react';
+import { motion } from 'motion/react';
 import { useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import type { ComparisonProductKind } from '@/domain/comparison/types';
 import styles from './search-composer.module.css';
@@ -91,7 +91,6 @@ export function SearchComposer({
   const [to, setTo] = useState('2026-08-27');
   const [travelers, setTravelers] = useState('2');
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
-  const reduceMotion = useReducedMotion();
   const labels = fieldLabels[kind];
 
   function selectAdjacentTab(event: KeyboardEvent<HTMLButtonElement>, index: number) {
@@ -124,7 +123,7 @@ export function SearchComposer({
   }
 
   return (
-    <form className={styles.composer} onSubmit={submitSearch}>
+    <form action="/compare" className={styles.composer} onSubmit={submitSearch}>
       <div className={styles.tabs} role="tablist" aria-label="比价类型">
         {kinds.map((item, index) => {
           const Icon = item.icon;
@@ -158,11 +157,12 @@ export function SearchComposer({
         className={styles.fields}
         data-kind={kind}
         id="home-search-fields"
-        initial={reduceMotion ? false : { opacity: 0.72, x: 10 }}
+        initial={{ opacity: 0.72, x: 10 }}
         key={kind}
         role="tabpanel"
-        transition={{ duration: reduceMotion ? 0 : 0.2, ease: 'easeOut' }}
+        transition={{ duration: 0.2, ease: 'easeOut' }}
       >
+        <input name="kind" type="hidden" value={kind} />
         <label className={styles.destinationField}>
           <span>{labels.destination}</span>
           <span className={styles.controlRow}>

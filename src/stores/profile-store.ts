@@ -92,6 +92,7 @@ function persistenceOptions(options: CreateProfileStoreOptions = {}) {
       interestTags: state.interestTags,
     }),
     merge: (persistedState: unknown, currentState: ProfileState): ProfileState => {
+      if (persistedState === undefined) return currentState;
       try {
         return { ...currentState, ...parsePersistedProfile(persistedState) };
       } catch (error) {

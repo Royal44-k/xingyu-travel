@@ -14,7 +14,7 @@ export default async function SquarePostPage({ params }: { params: Promise<{ slu
 
   return (
     <>
-      <SiteHeader activePath="/square" />
+        <SiteHeader activePath="/square" variant="solid" />
       <main className={styles.detailPage}>
         <Link className={styles.backLink} href="/square">← 返回灵感广场</Link>
         <header className={styles.detailHeader}><p><MapPin aria-hidden size={16} weight="fill" /> {post.destination} · {post.days} 天 · 预算 ¥{post.budget.toLocaleString('zh-CN')}</p><h1>{post.title}</h1><div className={styles.detailAuthor}><b aria-hidden>{post.author.avatar}</b><span>{post.author.name} · {post.author.role}</span><time dateTime={post.publishedAt}>{new Intl.DateTimeFormat('zh-CN', { dateStyle: 'long' }).format(new Date(post.publishedAt))}</time></div>{(post.ai.generated || post.ai.rewritten) && <span className={styles.aiLabel}><Sparkle aria-hidden size={15} weight="fill" /> {post.ai.generated ? 'AI 生成' : 'AI 改写'}{post.ai.generated && post.ai.rewritten ? ' · 已人工改写' : ''}</span>}</header>
