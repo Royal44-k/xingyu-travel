@@ -1,6 +1,11 @@
 import { expect, test } from '@playwright/test';
 
 type Page = import('@playwright/test').Page;
+type ResponsiveCase = {
+  route: string;
+  prepare?: (page: Page) => Promise<void>;
+  ready: (page: Page) => Promise<void>;
+};
 
 const runtimeErrors = new WeakMap<import('@playwright/test').Page, string[]>();
 
@@ -66,6 +71,42 @@ async function expectClosedAndOpenLayoutsFit(page: Page) {
   await expectNoHorizontalOverflow(page);
 }
 
+const responsiveCases: ResponsiveCase[] = [
+  {
+    route: '/compare?kind=flight&destination=%E5%A4%A7%E7%90%86&from=2026-08-22&to=2026-08-27&travelers=2',
+    ready: async (page) => { await expect(page.getByText('¥1,010 含税总价')).toBeVisible(); },
+  },
+  {
+    route: '/square',
+    ready: async (page) => { await expect(page.getByRole('button', { name: '查看兴趣偏好' })).toBeVisible(); },
+  },
+  {
+    route: '/trips/dali-slow-5d',
+    prepare: async (page) => {
+      await page.goto('/square/dali-slow-5d', { waitUntil: 'commit' });
+      await page.getByRole('button', { name: '转为行程' }).click();
+      await page.getByRole('button', { name: '确认并保存草稿' }).click();
+      await expect(page).toHaveURL(/\/trips\/dali-slow-5d$/);
+    },
+    ready: async (page) => {
+      await expect(page.getByRole('heading', { name: '大理慢行计划' })).toBeVisible();
+      await expect(page.getByRole('region', { name: '行程设置' })).toBeVisible();
+    },
+  },
+  {
+    route: '/partners',
+    ready: async (page) => { await expect(page.getByRole('button', { name: '发布匹配意愿' })).toBeVisible(); },
+  },
+  {
+    route: '/assistant',
+    ready: async (page) => { await expect(page.getByLabel('你的问题')).toBeVisible(); },
+  },
+  {
+    route: '/guardian/dali-slow-5d',
+    ready: async (page) => { await expect(page.getByRole('button', { name: /选择 Plan A/ })).toBeVisible(); },
+  },
+];
+
 test.describe('mobile public MVP', () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
@@ -77,34 +118,10 @@ test.describe('mobile public MVP', () => {
     await expectClosedAndOpenLayoutsFit(page);
   });
 
-  for (const { route, ready } of [
-    {
-      route: '/compare?kind=flight&destination=%E5%A4%A7%E7%90%86&from=2026-08-22&to=2026-08-27&travelers=2',
-      ready: async (page: Page) => { await expect(page.getByText('¥1,010 含税总价')).toBeVisible(); },
-    },
-    {
-      route: '/square',
-      ready: async (page: Page) => { await expect(page.getByRole('button', { name: '查看兴趣偏好' })).toBeVisible(); },
-    },
-    {
-      route: '/trips/dali-slow-5d',
-      ready: async (page: Page) => { await expect(page.getByRole('heading', { name: '未找到本地行程草稿' })).toBeVisible(); },
-    },
-    {
-      route: '/partners',
-      ready: async (page: Page) => { await expect(page.getByRole('button', { name: '发布匹配意愿' })).toBeVisible(); },
-    },
-    {
-      route: '/assistant',
-      ready: async (page: Page) => { await expect(page.getByLabel('你的问题')).toBeVisible(); },
-    },
-    {
-      route: '/guardian/dali-slow-5d',
-      ready: async (page: Page) => { await expect(page.getByRole('button', { name: /选择 Plan A/ })).toBeVisible(); },
-    },
-  ] as const) {
+  for (const { route, prepare, ready } of responsiveCases) {
     test(`does not horizontally overflow on ${route}`, async ({ page }) => {
-      await page.goto(route, { waitUntil: 'commit' });
+      if (prepare) await prepare(page);
+      else await page.goto(route, { waitUntil: 'commit' });
       await waitForResponsiveReady(page, () => ready(page));
       await expectClosedAndOpenLayoutsFit(page);
     });

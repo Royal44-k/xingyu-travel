@@ -93,3 +93,28 @@ This round reviewed the committed Task 11 baseline at `b7023ff` and preserved it
 | final `pnpm verify` | exit 0: eslint, typecheck, 29 files / 215 tests, and Next production build completed |
 
 `next-env.d.ts` was verified byte-for-byte against the HEAD blob after Next dev rewrote its generated route reference; the generated change was excluded. Final status contains only this fix round's source, test, and report files.
+
+## Fix round 2 — hydrated mobile trip workbench
+
+This surgical round reviewed baseline `59a6f62` and changed no production code. The responsive trip case now proves the real hydrated `TripWorkbench`, rather than treating the clean-context recovery page as sufficient coverage.
+
+### Strict RED to GREEN
+
+- RED: the trip route's readiness assertion was first changed to require the workbench-only `大理慢行计划` heading and `行程设置` region. With no setup, the isolated case failed because a clean browser context rendered `未找到本地行程草稿`; terminal result was 1 failed (6.6s).
+- GREEN: the table case gained a typed `prepare` callback that stays in the same Playwright page/context and uses only public UI: `/square/dali-slow-5d` → `转为行程` → `确认并保存草稿` → `/trips/dali-slow-5d`. It does not inject local storage or call `page.evaluate` to create state. The isolated case then passed (1 passed, 5.7s).
+- After the real workbench is visible, the shared readiness helper waits for the route-specific UI, document completion, loaded fonts, and completed lazy images, and proves header hydration with a menu open/close round trip. The final assertion measures `scrollWidth <= innerWidth` at 390×844 with the mobile menu both closed and open.
+- Existing `console.error`, `pageerror`, and HTTP `>=400` guards remain active throughout the UI preparation and both layout states.
+
+### Fresh terminal evidence
+
+| Command / scope | Terminal result |
+| --- | --- |
+| trip responsive case before UI preparation | 1 failed (6.6s): workbench-only heading absent on the recovery page |
+| trip responsive case after real UI preparation | 1 passed (5.7s) |
+| `responsive.spec.ts --workers=1 --reporter=list` | 7 passed (15.1s) |
+| core, responsive, and accessibility specs together, one worker | 18 passed (37.4s) |
+| `pnpm test:e2e` | 18 passed (23.6s), exit 0 |
+| `pnpm test` | 29 files / 215 tests passed (87.50s), exit 0 |
+| final `pnpm verify` | exit 0: eslint, typecheck, 29 files / 215 tests passed (88.91s), and Next production build completed |
+
+The first sandboxed `pnpm verify` attempt had already passed lint, typecheck, and all 215 Vitest checks, but its build could not connect to Google Fonts for the configured Noto families. Re-running the unchanged command in a network-enabled build context completed successfully. Playwright emitted only the environmental `NO_COLOR`/`FORCE_COLOR` warning; no application runtime guard fired.
