@@ -190,7 +190,7 @@ describe('ComparisonClient incremental results', () => {
     expect(screen.getByText('已选择 3/3 项')).toBeInTheDocument();
   });
 
-  it('requires an explicit sandbox confirmation and never presents booking or payment as completed', async () => {
+  it('requires an explicit external booking confirmation with supplier responsibility disclosure', async () => {
     const user = userEvent.setup();
     render(
       <ComparisonClient
@@ -202,12 +202,12 @@ describe('ComparisonClient incremental results', () => {
     await screen.findByText('¥1,020 含税总价');
 
     await user.click(screen.getByRole('button', { name: '查看 云程旅行 演示报价' }));
-    const dialog = screen.getByRole('dialog', { name: '沙箱演示确认' });
-    expect(dialog).toHaveTextContent('沙箱 / Demo');
-    expect(dialog).toHaveTextContent('不会预订、出票或付款');
-    expect(within(dialog).queryByRole('link')).not.toBeInTheDocument();
-    await user.click(within(dialog).getByRole('button', { name: '我知道了' }));
-    expect(screen.queryByRole('dialog', { name: '沙箱演示确认' })).not.toBeInTheDocument();
+    const dialog = screen.getByRole('dialog', { name: '前往外部供应商' });
+    expect(dialog).toHaveTextContent('云程旅行');
+    expect(dialog).toHaveTextContent('外部页面的价格、库存和成交由供应商负责');
+    expect(dialog).toHaveTextContent('不会在行屿完成成交或付款');
+    await user.click(within(dialog).getByRole('button', { name: '取消并留在行屿' }));
+    expect(screen.queryByRole('dialog', { name: '前往外部供应商' })).not.toBeInTheDocument();
   });
 
   it('shows a stable empty result after a zero-offer stream completes', async () => {
@@ -363,14 +363,15 @@ describe('ComparisonClient incremental results', () => {
     await screen.findByText('云程旅行');
     const trigger = screen.getByRole('button', { name: '查看 云程旅行 演示报价' });
     await user.click(trigger);
-    const dialog = screen.getByRole('dialog', { name: '沙箱演示确认' });
-    const close = within(dialog).getByRole('button', { name: '我知道了' });
+    const dialog = screen.getByRole('dialog', { name: '前往外部供应商' });
+    const dismiss = within(dialog).getByRole('button', { name: '取消外部跳转' });
+    const close = within(dialog).getByRole('button', { name: '取消并留在行屿' });
 
-    expect(close).toHaveFocus();
+    expect(dismiss).toHaveFocus();
     await user.keyboard('{Tab}');
     expect(close).toHaveFocus();
     await user.keyboard('{Escape}');
-    expect(screen.queryByRole('dialog', { name: '沙箱演示确认' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: '前往外部供应商' })).not.toBeInTheDocument();
     expect(trigger).toHaveFocus();
   });
 });

@@ -34,6 +34,80 @@ input,
 select,
 textarea { font: inherit; }
 
+.demoBanner {
+  margin: 0;
+  padding: 10px max(20px, calc((100vw - var(--content-max)) / 2));
+  color: #513d1f;
+  border-bottom: 1px solid #c7aa70;
+  background: #f3e8cb;
+  font-size: 12px;
+  line-height: 1.65;
+  text-align: center;
+}
+
+.profilePage {
+  width: min(calc(100% - 48px), 860px);
+  margin: 0 auto;
+  padding: 120px 0 96px;
+}
+
+.profileIntro,
+.preferenceSettings {
+  padding: clamp(24px, 5vw, 44px);
+  border: 1px solid rgb(16 16 15 / 13%);
+  border-radius: var(--radius-panel);
+  background: rgb(244 240 232 / 82%);
+  box-shadow: 0 18px 42px rgb(16 16 15 / 7%);
+}
+
+.profileIntro > p:first-child,
+.preferenceSettings > p:first-child {
+  color: var(--sand);
+  font-size: 11px;
+  letter-spacing: 0.17em;
+}
+
+.profileIntro h1,
+.preferenceSettings h2 {
+  margin: 0 0 15px;
+  font-family: var(--font-display);
+  font-weight: 500;
+}
+
+.profileIntro > p:not(:first-child),
+.preferenceSettings > p:not(:first-child) {
+  color: rgb(16 16 15 / 70%);
+  line-height: 1.8;
+}
+
+.profileStatusList {
+  display: grid;
+  gap: 12px;
+  margin: 28px 0 0;
+}
+
+.profileStatusList > div {
+  padding: 14px 16px;
+  border-left: 2px solid var(--sand);
+  background: #e7e1d5;
+}
+
+.profileStatusList dt { font-size: 12px; font-weight: 700; }
+.profileStatusList dd { margin: 5px 0 0; color: rgb(16 16 15 / 72%); font-size: 13px; }
+
+.preferenceSettings { margin-top: 20px; }
+.preferenceSwitchRow { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin: 24px 0 14px; }
+.preferenceSwitchRow button,
+.preferenceClear { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 40px; padding: 0 14px; color: var(--ivory); border: 1px solid var(--pine); border-radius: var(--radius-control); background: var(--pine); cursor: pointer; }
+.preferenceSwitchRow button[aria-checked='false'],
+.preferenceClear { color: var(--ink); border-color: rgb(16 16 15 / 20%); background: transparent; }
+.preferenceSwitchRow button:disabled,
+.preferenceClear:disabled { opacity: 0.55; cursor: not-allowed; }
+.preferenceTags { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0; }
+.preferenceTags span { padding: 6px 9px; border-radius: 999px; background: #e7e1d5; font-size: 13px; }
+.preferenceSwitchRow button:focus-visible,
+.preferenceClear:focus-visible { outline: 2px solid var(--sand); outline-offset: 3px; }
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -42,4 +116,10 @@ textarea { font: inherit; }
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+@media (max-width: 600px) {
+  .profilePage { width: min(calc(100% - 28px), 860px); padding: 94px 0 70px; }
+  .preferenceSwitchRow { align-items: flex-start; flex-direction: column; }
+  .preferenceSwitchRow button { width: 100%; }
 }

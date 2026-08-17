@@ -1,8 +1,18 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { FeedControls } from '@/features/square/feed-controls';
 import SquarePage from '@/app/square/page';
+import { useProfileStore, useProfileStoreHydration } from '@/stores/profile-store';
+
+beforeEach(() => {
+  window.localStorage.clear();
+  useProfileStore.setState({
+    personalizedFeed: true,
+    interestTags: ['山野', '人文', '慢旅行'],
+  });
+  useProfileStoreHydration.setState({ hydrated: true, hydrationError: false });
+});
 
 describe('FeedControls', () => {
   it('lets users switch off recommendations', async () => {
@@ -70,5 +80,13 @@ describe('FeedControls', () => {
     expect(recommendation).toHaveAccessibleDescription('兴趣偏好已清空；以后添加兴趣偏好后可重新开启推荐。');
     await user.click(recommendation);
     expect(change).not.toHaveBeenCalledWith('recommended');
+  });
+
+  it('uses the profile preference as the only source for chronological ordering', () => {
+    useProfileStore.setState({ personalizedFeed: false, interestTags: ['慢旅行'] });
+    render(<SquarePage />);
+
+    expect(screen.getByRole('button', { name: '按时间排序' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: '为你推荐' })).toHaveAttribute('aria-pressed', 'false');
   });
 });

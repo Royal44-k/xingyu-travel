@@ -24,6 +24,7 @@ import type {
   NormalizedOffer,
   QuoteEvent,
 } from '@/domain/comparison/types';
+import { ExternalBookingDialog } from '@/components/external-booking-dialog';
 import { offerIdentity } from '@/domain/comparison/offer-identity';
 import type { ComparisonSearchInput } from '@/domain/shared/api';
 import { OfferRow } from './offer-row';
@@ -125,12 +126,10 @@ export function ComparisonClient({
   const filterTriggerRef = useRef<HTMLButtonElement>(null);
   const filterDialogRef = useRef<HTMLElement>(null);
   const outboundTriggerRef = useRef<HTMLElement>(null);
-  const outboundDialogRef = useRef<HTMLElement>(null);
   const compareTriggerRef = useRef<HTMLButtonElement>(null);
   const compareDialogRef = useRef<HTMLElement>(null);
 
   useDialogFocus(filtersOpen, filterDialogRef, filterTriggerRef, () => setFiltersOpen(false));
-  useDialogFocus(Boolean(outboundOffer), outboundDialogRef, outboundTriggerRef, () => setOutboundOffer(undefined));
   useDialogFocus(comparisonOpen, compareDialogRef, compareTriggerRef, () => setComparisonOpen(false));
 
   useEffect(() => {
@@ -227,6 +226,15 @@ export function ComparisonClient({
       if (current.length >= 3) return current;
       return [...current, key];
     });
+  }
+
+  function openExternalBooking() {
+    if (!outboundOffer || typeof window === 'undefined') return;
+    const localDemo =
+      process.env.NODE_ENV !== 'production' ||
+      ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname);
+    if (localDemo) return;
+    window.open('https://www.ctrip.com/', '_blank', 'noopener,noreferrer');
   }
 
   return (
@@ -407,15 +415,13 @@ export function ComparisonClient({
       ) : null}
 
       {outboundOffer ? (
-        <div className={styles.dialogBackdrop}>
-          <section aria-label="沙箱演示确认" aria-modal="true" className={styles.confirmDialog} ref={outboundDialogRef} role="dialog" tabIndex={-1}>
-            <span className={styles.demoPill}>沙箱 / Demo</span>
-            <h2>这是演示报价，不会跳转真实供应商</h2>
-            <p>当前操作仅解释外部确认流程，不会预订、出票或付款，也不会采集支付信息。</p>
-            <p className={styles.dialogOffer}>{outboundOffer.provider} · ¥{new Intl.NumberFormat('zh-CN').format(outboundOffer.totalPrice)} 含税总价</p>
-            <button className={styles.primaryButton} onClick={() => setOutboundOffer(undefined)} type="button">我知道了</button>
-          </section>
-        </div>
+        <ExternalBookingDialog
+          offer={outboundOffer}
+          onClose={() => setOutboundOffer(undefined)}
+          onConfirm={openExternalBooking}
+          open
+          returnFocusRef={outboundTriggerRef}
+        />
       ) : null}
 
       {comparisonOpen ? (

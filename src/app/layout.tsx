@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Noto_Sans_SC, Noto_Serif_SC } from 'next/font/google';
+import { DemoBanner } from '@/components/demo-banner';
 import './globals.css';
 
 const sans = Noto_Sans_SC({
@@ -25,7 +26,7 @@ export const viewport: Viewport = { width: 'device-width', initialScale: 1 };
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="zh-CN" className={`${sans.variable} ${serif.variable}`}>
-      <body>{children}</body>
+      <body><DemoBanner />{children}</body>
     </html>
   );
 }
