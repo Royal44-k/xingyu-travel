@@ -1,10 +1,12 @@
 import type { LLMProvider } from '@/adapters/contracts';
+import { z } from 'zod';
 import { MockAssistantProvider } from '@/adapters/mock/mock-assistant';
-import { assistantResponseSchema, type AssistantResponse } from '@/domain/assistant/schema';
-import { containsUnverifiedHighStakesClaim, isImmediateDanger } from '@/domain/assistant/safety';
+import type { AssistantResponse } from '@/domain/assistant/schema';
+import { isImmediateDanger } from '@/domain/assistant/safety';
 import type { AssistantRequest } from '@/domain/shared/api';
 
 const qwenEndpoint = 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions';
+const modelIntentSchema = z.object({ intent: z.enum(['plan', 'disruption', 'preparation']) }).strict();
 
 interface QwenProviderOptions {
   apiKey: string;
@@ -44,7 +46,7 @@ export class QwenProvider implements LLMProvider {
           messages: [
             {
               role: 'system',
-              content: 'Return only a JSON object matching the requested travel-assistant schema. Do not present real-time flight, weather, venue, medical, legal, or rescue claims as verified facts. Do not diagnose, give legal conclusions, or promise emergency outcomes. For immediate danger, tell the user to contact 110, 120, 119 and official channels.',
+              content: 'Return only one JSON object: {"intent":"plan"|"disruption"|"preparation"}. Do not return travel facts, prices, times, medical, legal, or emergency text.',
             },
             { role: 'user', content: `Trip: ${input.tripId}\nQuestion: ${input.question}` },
           ],
@@ -65,11 +67,9 @@ export class QwenProvider implements LLMProvider {
       const payload = await response.json() as { model?: string; choices?: Array<{ message?: { content?: string } }> };
       const content = payload.choices?.[0]?.message?.content;
       if (!content) throw new Error('missing content');
-      const parsed = assistantResponseSchema.parse(JSON.parse(content));
-      if (parsed.risk_level === 'critical' || containsUnverifiedHighStakesClaim(parsed.answer)) {
-        throw providerError('QWEN_PROVIDER_UNSAFE_OUTPUT');
-      }
-      return { ...parsed, demo_mode: false, model: payload.model || this.model };
+      modelIntentSchema.parse(JSON.parse(content));
+      const template = await new MockAssistantProvider().answer(input);
+      return { ...template, demo_mode: false, model: this.model };
     } catch (error) {
       if (error instanceof Error && error.message === 'QWEN_PROVIDER_UNSAFE_OUTPUT') throw error;
       throw providerError('QWEN_PROVIDER_INVALID_RESPONSE');

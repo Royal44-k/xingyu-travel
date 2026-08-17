@@ -42,6 +42,27 @@ describe('trip state machine', () => {
 });
 
 describe('trip editing', () => {
+  it('keeps canonical map keys when every mutator is invoked through a source slug', async () => {
+    const store = createTripStore();
+    await store.persist.rehydrate();
+    store.getState().acceptDraft(daliDraft);
+    const slug = daliDraft.sourcePostSlug;
+    const itemId = store.getState().trips[daliDraft.id].items[0].id;
+    store.getState().updateTrip(slug, { budget: 6001 });
+    store.getState().updateItem(slug, itemId, { estimatedCost: 601 });
+    store.getState().toggleAlternative(slug, itemId);
+    store.getState().vote(slug, 'member-lin', 'candidate-a');
+    store.getState().enableGuardian(slug, true);
+    store.getState().publishPartnerIntent(slug);
+
+    expect(Object.entries(store.getState().trips).every(([key, trip]) => key === trip.id)).toBe(true);
+    const raw = window.localStorage.getItem('xingyu-demo-v1');
+    expect(raw).not.toBeNull();
+    const rehydrated = createTripStore();
+    await rehydrated.persist.rehydrate();
+    expect(rehydrated.getState().trips[daliDraft.id].budget).toBe(6001);
+  });
+
   it('updates dates, budget, itinerary details and computes a literal overall total', () => {
     const store = createTripStore();
     store.getState().acceptDraft(daliDraft);

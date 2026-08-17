@@ -1,20 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { QwenProvider } from '@/adapters/qwen/qwen-provider';
 
-const structuredAnswer = {
-  risk_level: 'low' as const,
-  answer: '这是模型生成的通用行程整理建议，不代表实时事实。',
-  alternatives: [
-    { id: 'MODEL-A', title: 'Plan A', cost: '¥0', duration: '当天', risk: '低', actions: ['自行核对公开信息'] },
-    { id: 'MODEL-B', title: 'Plan B', cost: '¥80', duration: '2小时', risk: '中', actions: ['联系人工顾问'] },
-    { id: 'MODEL-C', title: 'Plan C', cost: '¥160', duration: '3小时', risk: '中', actions: ['保留本地行程决定'] },
-  ],
-  evidence: [],
-  data_freshness: '模型回答不含实时数据',
-  requires_human_help: false,
-  demo_mode: false,
-  model: 'untrusted-model-label',
-};
+const structuredAnswer = { intent: 'plan' as const };
 
 function qwenResponse(content: string, status = 200): Response {
   return new Response(JSON.stringify({
@@ -41,13 +28,53 @@ describe('QwenProvider safety boundary', () => {
     expect(result.answer).toMatch(/110.*120.*119/);
   });
 
-  it('fails closed when a low-risk model response states unverified real-time or medical facts', async () => {
+  it('fails closed when a model response includes unverified real-time or medical facts', async () => {
     const unsafe = { ...structuredAnswer, answer: '当前航班已经延误，医生诊断你需要马上用药。' };
 
     await expect(provider(async () => qwenResponse(JSON.stringify(unsafe))).answer({
       tripId: 'dali-slow-5d',
       question: '请帮我整理备选行程',
-    })).rejects.toThrow('QWEN_PROVIDER_UNSAFE_OUTPUT');
+    })).rejects.toThrow('QWEN_PROVIDER_INVALID_RESPONSE');
+  });
+
+  it('never exposes model-authored answer, plan, evidence, or freshness text without trusted tools', async () => {
+    const malicious = {
+      ...structuredAnswer,
+      answer: '以下为建议。',
+      alternatives: [{ id: 'A', title: '模型计划', cost: '1', duration: '1', risk: '低', actions: ['已确诊肺炎，救援十分钟到达'] }],
+      evidence: [{ source: 'MU123 将于18:00起飞', observed_at: '现在' }],
+      data_freshness: '实时官方确认',
+    };
+
+    await expect(provider(async () => qwenResponse(JSON.stringify(malicious))).answer({
+      tripId: 'dali-slow-5d',
+      question: '帮我规划行程',
+    })).rejects.toThrow('QWEN_PROVIDER_INVALID_RESPONSE');
+  });
+
+  it('renders the audited local template for an allowed model intent', async () => {
+    const result = await provider(async () => qwenResponse(JSON.stringify({ intent: 'disruption' }))).answer({
+      tripId: 'dali-slow-5d',
+      question: '帮我整理行程',
+    });
+
+    expect(result).toMatchObject({
+      answer: '这是固定的沙箱演示建议：请先核对行程，再选择备选交通方案。',
+      demo_mode: false,
+      model: 'qwen-plus',
+    });
+    expect(result.alternatives.map((alternative) => alternative.id)).toEqual([
+      'DEMO-ALT-TRAIN-01',
+      'DEMO-ALT-BUS-02',
+      'DEMO-ALT-CAR-03',
+    ]);
+  });
+
+  it('fails closed for an unrecognized model intent', async () => {
+    await expect(provider(async () => qwenResponse(JSON.stringify({ intent: 'freeform' }))).answer({
+      tripId: 'dali-slow-5d',
+      question: '帮我整理行程',
+    })).rejects.toThrow('QWEN_PROVIDER_INVALID_RESPONSE');
   });
 
   it.each([

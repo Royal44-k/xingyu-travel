@@ -251,7 +251,7 @@ function stateCreator(set: (recipe: (state: TripStoreState) => Partial<TripStore
       const trip = getTrip(state, tripId);
       const next = { ...trip, ...patch };
       validateSettings(next);
-      return { trips: { ...state.trips, [tripId]: next } };
+      return { trips: { ...state.trips, [trip.id]: next } };
     }),
     updateItem: (tripId: string, itemId: string, patch: TripItemPatch) => set((state) => {
       const trip = getTrip(state, tripId);
@@ -263,7 +263,7 @@ function stateCreator(set: (recipe: (state: TripStoreState) => Partial<TripStore
       return {
         trips: {
           ...state.trips,
-          [tripId]: {
+          [trip.id]: {
             ...trip,
             items: trip.items.map((item) => item.id === itemId ? { ...item, ...patch } : item),
           },
@@ -281,7 +281,7 @@ function stateCreator(set: (recipe: (state: TripStoreState) => Partial<TripStore
       return {
         trips: {
           ...state.trips,
-          [tripId]: { ...trip, items: items.map((item, itemIndex) => ({ ...item, day: itemIndex + 1 })) },
+          [trip.id]: { ...trip, items: items.map((item, itemIndex) => ({ ...item, day: itemIndex + 1 })) },
         },
       };
     }),
@@ -291,7 +291,7 @@ function stateCreator(set: (recipe: (state: TripStoreState) => Partial<TripStore
       return {
         trips: {
           ...state.trips,
-          [tripId]: {
+          [trip.id]: {
             ...trip,
             items: trip.items.map((item) =>
               item.id === itemId ? { ...item, isAlternative: !item.isAlternative } : item,
@@ -311,7 +311,7 @@ function stateCreator(set: (recipe: (state: TripStoreState) => Partial<TripStore
       const votes = { ...trip.votes };
       if (votes[memberId] === candidateId) delete votes[memberId];
       else votes[memberId] = candidateId;
-      return { trips: { ...state.trips, [tripId]: { ...trip, votes } } };
+      return { trips: { ...state.trips, [trip.id]: { ...trip, votes } } };
     }),
     enableGuardian: (tripId: string, consent: boolean) => set((state) => {
       const trip = getTrip(state, tripId);
@@ -322,13 +322,13 @@ function stateCreator(set: (recipe: (state: TripStoreState) => Partial<TripStore
       return {
         trips: {
           ...state.trips,
-          [tripId]: { ...trip, status, guardianEnabled: consent },
+          [trip.id]: { ...trip, status, guardianEnabled: consent },
         },
       };
     }),
     publishPartnerIntent: (tripId: string) => set((state) => {
-      getTrip(state, tripId);
-      return { partnerIntents: { ...state.partnerIntents, [tripId]: true } };
+      const trip = getTrip(state, tripId);
+      return { partnerIntents: { ...state.partnerIntents, [trip.id]: true } };
     }),
     selectGuardianPlan: (tripId: string, plan: GuardianPlanSelection) => set((state) => {
       const trip = getTrip(state, tripId);
