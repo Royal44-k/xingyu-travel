@@ -13,6 +13,7 @@ export function PreferenceSettings() {
   const interestTags = useProfileStore((state) => state.interestTags);
   const setPersonalizedFeed = useProfileStore((state) => state.setPersonalizedFeed);
   const clearInterestTags = useProfileStore((state) => state.clearInterestTags);
+  const resetProfilePreferences = useProfileStore((state) => state.resetProfilePreferences);
   const hydrated = useProfileStoreHydration((state) => state.hydrated);
   const hydrationError = useProfileStoreHydration((state) => state.hydrationError);
   const canPersonalize = interestTags.length > 0;
@@ -29,7 +30,10 @@ export function PreferenceSettings() {
       <h2 id="preference-title">推荐与兴趣偏好</h2>
       <p>仅保存在当前浏览器，用于决定攻略广场的排序方式。</p>
       {hydrationError ? (
-        <p role="status">本地偏好无法安全读取，已使用默认演示设置。</p>
+        <div role="status">
+          <p>本地偏好无法安全读取，已关闭个性化推荐并保留原始浏览器数据。</p>
+          <button onClick={() => { resetProfilePreferences(); useProfileStoreHydration.setState({ hydrationError: false }); }} type="button">重置演示偏好</button>
+        </div>
       ) : null}
       <div className="preferenceSwitchRow">
         <span>个性化推荐</span>

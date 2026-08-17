@@ -17,6 +17,7 @@ export type ProfileState = {
   interestTags: string[];
   setPersonalizedFeed: (value: boolean) => void;
   clearInterestTags: () => void;
+  resetProfilePreferences: () => void;
 };
 
 type ProfileHydrationState = {
@@ -33,6 +34,12 @@ const defaultProfileState = {
   personalizedFeed: true,
   interestTags: ['山野', '人文', '慢旅行'],
 } as const satisfies Pick<ProfileState, 'demoProfile' | 'personalizedFeed' | 'interestTags'>;
+
+const failedClosedProfileState: Pick<ProfileState, 'demoProfile' | 'personalizedFeed' | 'interestTags'> = {
+  demoProfile: { ...defaultProfileState.demoProfile },
+  personalizedFeed: false,
+  interestTags: [],
+};
 
 const persistedProfileSchema = z.object({
   demoProfile: z.object({
@@ -66,6 +73,11 @@ function stateCreator(set: (recipe: (state: ProfileState) => Partial<ProfileStat
       personalizedFeed: value && state.interestTags.length > 0,
     })),
     clearInterestTags: () => set(() => ({ interestTags: [], personalizedFeed: false })),
+    resetProfilePreferences: () => set(() => ({
+      demoProfile: { ...defaultProfileState.demoProfile },
+      personalizedFeed: true,
+      interestTags: [...defaultProfileState.interestTags],
+    })),
   };
 }
 
@@ -79,10 +91,14 @@ function persistenceOptions(options: CreateProfileStoreOptions = {}) {
       personalizedFeed: state.personalizedFeed,
       interestTags: state.interestTags,
     }),
-    merge: (persistedState: unknown, currentState: ProfileState): ProfileState => ({
-      ...currentState,
-      ...parsePersistedProfile(persistedState),
-    }),
+    merge: (persistedState: unknown, currentState: ProfileState): ProfileState => {
+      try {
+        return { ...currentState, ...parsePersistedProfile(persistedState) };
+      } catch (error) {
+        options.onHydrationError?.(error);
+        return { ...currentState, ...failedClosedProfileState };
+      }
+    },
     onRehydrateStorage: () => (_state: ProfileState | undefined, error: unknown) => {
       if (error) options.onHydrationError?.(error);
     },

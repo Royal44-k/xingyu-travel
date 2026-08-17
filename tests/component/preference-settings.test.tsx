@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { PreferenceSettings } from '@/features/profile/preference-settings';
-import { useProfileStore, useProfileStoreHydration } from '@/stores/profile-store';
+import { createProfileStore, useProfileStore, useProfileStoreHydration } from '@/stores/profile-store';
 
 describe('PreferenceSettings', () => {
   beforeEach(() => {
@@ -12,6 +12,32 @@ describe('PreferenceSettings', () => {
       interestTags: ['山野', '人文', '慢旅行'],
     });
     useProfileStoreHydration.setState({ hydrated: true, hydrationError: false });
+  });
+
+  it('fails closed for malformed browser persistence without overwriting it until an explicit reset', async () => {
+    const malformed = JSON.stringify({
+      state: {
+        demoProfile: { age: 26, identityVerified: true, riskStatus: 'clear' },
+        personalizedFeed: true,
+        interestTags: 'not-a-list',
+      },
+      version: 1,
+    });
+    window.localStorage.setItem('xingyu-profile-demo-v1', malformed);
+    let hydrationError: unknown;
+    const store = createProfileStore({ onHydrationError: (error) => { hydrationError = error; } });
+
+    await store.persist.rehydrate();
+
+    expect(store.getState().personalizedFeed).toBe(false);
+    expect(store.getState().interestTags).toEqual([]);
+    expect(hydrationError).toBeInstanceOf(Error);
+    expect(window.localStorage.getItem('xingyu-profile-demo-v1')).toBe(malformed);
+
+    store.getState().resetProfilePreferences();
+    expect(store.getState().personalizedFeed).toBe(true);
+    expect(store.getState().interestTags).toEqual(['山野', '人文', '慢旅行']);
+    expect(window.localStorage.getItem('xingyu-profile-demo-v1')).not.toBe(malformed);
   });
 
   it('clears interest labels and disables personalized recommendations', async () => {

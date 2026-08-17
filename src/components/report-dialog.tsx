@@ -30,7 +30,7 @@ function ReportDialogContent({ subject, returnFocusRef, onClose }: Omit<ReportDi
     onClose();
   }
 
-  useDialogFocus(true, dialogRef, returnFocusRef, close);
+  useDialogFocus(true, dialogRef, returnFocusRef, close, submitted);
 
   if (submitted) {
     return (

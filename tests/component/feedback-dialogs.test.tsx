@@ -43,6 +43,29 @@ describe('ReportDialog', () => {
 
     expect(screen.getByRole('dialog', { name: '举报内容' })).toHaveTextContent('另一篇攻略');
   });
+
+  it('moves focus into the report result and keeps its keyboard trap until close', async () => {
+    const user = userEvent.setup();
+    const trigger = document.createElement('button');
+    document.body.append(trigger);
+    trigger.focus();
+    const onClose = vi.fn();
+    render(<ReportDialog onClose={onClose} open returnFocusRef={{ current: trigger }} subject="大理五日慢游" />);
+
+    await user.click(screen.getByRole('radio', { name: '虚假或误导信息' }));
+    await user.click(screen.getByRole('button', { name: '提交举报' }));
+
+    const close = screen.getByRole('button', { name: '关闭举报结果' });
+    expect(close).toHaveFocus();
+    await user.keyboard('{Tab}');
+    expect(close).toHaveFocus();
+    await user.keyboard('{Shift>}{Tab}{/Shift}');
+    expect(close).toHaveFocus();
+    await user.keyboard('{Escape}');
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(trigger).toHaveFocus();
+    trigger.remove();
+  });
 });
 
 describe('square report entry point', () => {

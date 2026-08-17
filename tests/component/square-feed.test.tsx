@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { FeedControls } from '@/features/square/feed-controls';
@@ -88,5 +88,27 @@ describe('FeedControls', () => {
 
     expect(screen.getByRole('button', { name: '按时间排序' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: '为你推荐' })).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('holds neutral while preference hydration is pending, then shows the saved chronological feed once', async () => {
+    let releaseHydration: (() => void) | undefined;
+    const pendingHydration = new Promise<void>((resolve) => { releaseHydration = resolve; });
+    const rehydrate = vi.spyOn(useProfileStore.persist, 'rehydrate').mockImplementation(async () => {
+      await pendingHydration;
+      useProfileStore.setState({ personalizedFeed: false, interestTags: ['慢旅行'] });
+    });
+    useProfileStoreHydration.setState({ hydrated: false, hydrationError: false });
+
+    render(<SquarePage />);
+
+    expect(screen.getByRole('status')).toHaveTextContent('正在读取浏览器本地偏好');
+    expect(screen.queryByRole('button', { name: '为你推荐' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '按时间排序' })).not.toBeInTheDocument();
+
+    await act(async () => { releaseHydration?.(); });
+
+    expect(await screen.findByRole('button', { name: '按时间排序' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: '为你推荐' })).toHaveAttribute('aria-pressed', 'false');
+    rehydrate.mockRestore();
   });
 });

@@ -16,6 +16,7 @@ export function useDialogFocus(
   dialogRef: RefObject<HTMLElement | null>,
   returnFocusRef: RefObject<HTMLElement | null>,
   onClose: () => void,
+  activationKey?: unknown,
 ) {
   const closeRef = useRef(onClose);
 
@@ -65,5 +66,5 @@ export function useDialogFocus(
       dialog.removeEventListener('keydown', handleKeyDown);
       returnTarget?.focus();
     };
-  }, [dialogRef, open, returnFocusRef]);
+  }, [activationKey, dialogRef, open, returnFocusRef]);
 }

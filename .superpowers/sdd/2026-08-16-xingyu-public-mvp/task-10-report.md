@@ -34,3 +34,23 @@
 
 - The production outbound target is a generic public travel-search handoff because the MVP has no contracted supplier adapter. Before enabling a real supplier, replace that URL with a provider-owned, reviewed adapter destination.
 - The default SEO fallback is the Vercel project hostname; configure `VERCEL_URL` from the deployment environment for previews/production.
+
+## Fix round 1 — review hardening
+
+### Root cause, RED → GREEN
+
+- **Malformed profile persistence:** the initial store began from recommendation-on defaults, and a Zod parse failure merely reported an error while preserving that default state. The new browser-storage regression first failed (`expected true to be false`, **1 failed, 2 passed**) after production `rehydrate()` read an invalid `xingyu-profile-demo-v1` value. The persistence merge now returns a fail-closed state (chronological, no interests), reports the hydration error, and does not write over the malformed raw value. An explicit user reset is the only path that restores demo defaults. GREEN: **3/3**.
+- **Square hydration flash:** the initial Square page exposed default recommendation controls before the skipped hydration completed. The deferred-rehydrate regression first failed because the neutral status was absent and recommendation controls rendered (**1 failed, 6 passed**). Square now withholds feed controls and posts behind a neutral local-preference status; on completion it renders the saved chronological state once, while a parse failure shows a recoverable chronological notice. GREEN: **7/7**.
+- **Report result focus:** submit removed the focused submit button, leaving `document.body` active because the focus trap did not re-activate for the result view. The focused regression first failed (`expected close result button to have focus; received body`, **1 failed, 5 passed**). The shared dialog hook now accepts an activation key, and `ReportDialog` keys it on submitted state so the result close button receives focus; Tab, Shift+Tab, Escape, and trigger restoration remain contained. GREEN: **6/6**.
+
+### Fix-round verification
+
+- `node.exe node_modules\\vitest\\vitest.mjs run tests/component/preference-settings.test.tsx --pool=threads --maxWorkers=1 --reporter=verbose` → RED 1 failed/2 passed, then GREEN **3/3**.
+- `node.exe node_modules\\vitest\\vitest.mjs run tests/component/square-feed.test.tsx --pool=threads --maxWorkers=1 --reporter=verbose` → RED 1 failed/6 passed, then GREEN **7/7**.
+- `node.exe node_modules\\vitest\\vitest.mjs run tests/component/feedback-dialogs.test.tsx --pool=threads --maxWorkers=1 --reporter=verbose` → RED 1 failed/5 passed, then GREEN **6/6**.
+- `node.exe node_modules\\vitest\\vitest.mjs run tests/component/comparison-client.test.tsx --pool=threads --maxWorkers=1 --reporter=verbose` → GREEN **11/11**, including outbound-dialog focus trapping and trigger restoration after the shared hook change.
+- `node.exe node_modules\\vitest\\vitest.mjs run tests/unit/security-headers.test.ts tests/unit/production-safeguards.test.ts --pool=threads --maxWorkers=1 --reporter=verbose` → GREEN **3/3**.
+- `node_modules\\.bin\\tsc.cmd --noEmit` → GREEN (exit 0).
+- `node_modules\\.bin\\eslint.cmd .` → GREEN (exit 0).
+- `node_modules\\.bin\\next.cmd build` → GREEN (exit 0); compiled, type checked, and generated all 13 static pages.
+- `node.exe node_modules\\vitest\\vitest.mjs run --pool=threads --maxWorkers=1 --reporter=dot` was attempted for the requested full suite. Desktop emitted only `RUN v4.1.10 D:/Codex-chat/xingyu-travel/.worktrees/xingyu-public-mvp` before its child process detached, without dots or a terminal test summary. It is explicitly **not counted as PASS**; no process was terminated.
