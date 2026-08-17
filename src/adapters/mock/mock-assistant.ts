@@ -25,11 +25,58 @@ const sandboxAssistantResponse: AssistantResponse = {
   data_freshness: '固定沙箱快照：2026-08-16 09:00 CST',
   requires_human_help: false,
   demo_mode: true,
+  model: 'xingyu-local-demo',
 };
+
+const emergencyAssistantResponse: AssistantResponse = {
+  risk_level: 'critical',
+  answer: '如存在即时人身危险，请立即拨打 110 报警；如有人受伤或失去意识，请同时拨打 120；如有火灾或被困风险，请拨打 119。请优先联系现场管理方与当地官方应急渠道，不要等待行程建议。',
+  alternatives: [
+    {
+      id: 'EMERGENCY-110',
+      title: '立即联系公安机关',
+      cost: '以官方处置为准',
+      duration: '立即执行',
+      risk: '极高',
+      actions: ['拨打 110', '说明当前位置、同行者特征和最后联系时间'],
+    },
+    {
+      id: 'EMERGENCY-120',
+      title: '出现伤病时请求医疗急救',
+      cost: '以官方处置为准',
+      duration: '立即执行',
+      risk: '极高',
+      actions: ['拨打 120', '说明伤病症状与准确位置'],
+    },
+    {
+      id: 'EMERGENCY-119',
+      title: '火灾、被困或救援风险请求消防救援',
+      cost: '以官方处置为准',
+      duration: '立即执行',
+      risk: '极高',
+      actions: ['拨打 119', '远离危险区域并等待官方指引'],
+    },
+  ],
+  evidence: [
+    {
+      source: '星屿沙箱应急指引',
+      observed_at: SANDBOX_OBSERVED_AT,
+    },
+  ],
+  data_freshness: '固定沙箱快照：2026-08-16 09:00 CST；紧急情况请以官方渠道为准',
+  requires_human_help: true,
+  demo_mode: true,
+  model: 'xingyu-local-demo',
+};
+
+function isImmediateDanger(question: string) {
+  return /失联|人身危险|受伤|火灾|被困/.test(question);
+}
 
 export class MockAssistantProvider implements LLMProvider {
   async answer(input: AssistantRequest): Promise<AssistantResponse> {
-    void input;
-    return assistantResponseSchema.parse(sandboxAssistantResponse);
+    return assistantResponseSchema.parse(
+      isImmediateDanger(input.question) ? emergencyAssistantResponse : sandboxAssistantResponse,
+    );
   }
 }

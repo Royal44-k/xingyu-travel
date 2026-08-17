@@ -25,6 +25,11 @@ export interface DecisionCandidate {
   description: string;
 }
 
+export interface GuardianPlanSelection {
+  id: string;
+  title: string;
+}
+
 export interface WorkbenchTrip {
   id: string;
   sourcePostSlug: string;
@@ -47,6 +52,7 @@ type TripItemPatch = Partial<Pick<WorkbenchItineraryItem, 'title' | 'location' |
 export interface TripStoreState {
   trips: Record<string, WorkbenchTrip>;
   partnerIntents: Record<string, boolean>;
+  guardianPlans: Record<string, GuardianPlanSelection>;
   acceptDraft: (draft: TripDraft) => void;
   updateTrip: (tripId: string, patch: TripSettingsPatch) => void;
   updateItem: (tripId: string, itemId: string, patch: TripItemPatch) => void;
@@ -55,6 +61,7 @@ export interface TripStoreState {
   vote: (tripId: string, memberId: string, candidateId: string) => void;
   enableGuardian: (tripId: string, consent: boolean) => void;
   publishPartnerIntent: (tripId: string) => void;
+  selectGuardianPlan: (tripId: string, plan: GuardianPlanSelection) => void;
 }
 
 interface TripStoreHydrationState {
@@ -143,6 +150,10 @@ const workbenchTripSchema = z.object({
 const persistedTripStateSchema = z.object({
   trips: z.record(z.string(), workbenchTripSchema),
   partnerIntents: z.record(z.string(), z.boolean()),
+  guardianPlans: z.record(z.string(), z.object({
+    id: z.string().min(1).max(120),
+    title: z.string().min(1).max(160),
+  }).strict()).default({}),
 }).strict().superRefine((state, context) => {
   for (const [tripId, trip] of Object.entries(state.trips)) {
     if (trip.id !== tripId) {
@@ -225,6 +236,7 @@ function stateCreator(set: (recipe: (state: TripStoreState) => Partial<TripStore
   return {
     trips: {},
     partnerIntents: {},
+    guardianPlans: {},
     acceptDraft: (draft: TripDraft) => set((state) => {
       const existing = Object.values(state.trips).find(
         (trip) => trip.id === draft.id || trip.sourcePostSlug === draft.sourcePostSlug,
@@ -316,6 +328,9 @@ function stateCreator(set: (recipe: (state: TripStoreState) => Partial<TripStore
       getTrip(state, tripId);
       return { partnerIntents: { ...state.partnerIntents, [tripId]: true } };
     }),
+    selectGuardianPlan: (tripId: string, plan: GuardianPlanSelection) => set((state) => ({
+      guardianPlans: { ...state.guardianPlans, [tripId]: plan },
+    })),
   } satisfies TripStoreState;
 }
 
@@ -327,6 +342,7 @@ function persistenceOptions(options: CreateTripStoreOptions = {}) {
     partialize: (state: TripStoreState): PersistedTripState => ({
       trips: state.trips,
       partnerIntents: state.partnerIntents,
+      guardianPlans: state.guardianPlans,
     }),
     migrate: (persistedState: unknown, version: number): PersistedTripState => {
       if (version !== 0) throw new Error(`TRIP_UNSUPPORTED_PERSISTED_VERSION:${version}`);
@@ -338,6 +354,7 @@ function persistenceOptions(options: CreateTripStoreOptions = {}) {
         ...currentState,
         trips: { ...safeState.trips, ...currentState.trips },
         partnerIntents: { ...safeState.partnerIntents, ...currentState.partnerIntents },
+        guardianPlans: { ...safeState.guardianPlans, ...currentState.guardianPlans },
       };
     },
     onRehydrateStorage: () => (_state: TripStoreState | undefined, error: unknown) => {

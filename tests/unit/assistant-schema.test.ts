@@ -24,6 +24,7 @@ const completeResponse = {
   data_freshness: '固定沙箱快照：2026-08-16 09:00 CST',
   requires_human_help: false,
   demo_mode: true,
+  model: 'xingyu-local-demo',
 } as const;
 
 describe('assistantResponseSchema', () => {
@@ -39,6 +40,7 @@ describe('assistantResponseSchema', () => {
     ['data_freshness'],
     ['requires_human_help'],
     ['demo_mode'],
+    ['model'],
   ] as const)('rejects a response missing required field %s', (field) => {
     const incomplete = { ...completeResponse } as Record<string, unknown>;
     delete incomplete[field];
@@ -66,6 +68,18 @@ describe('assistantResponseSchema', () => {
       }).success,
     ).toBe(false);
   });
+
+  it('rejects a critical response unless it requires human help and prioritizes all official emergency services', () => {
+    expect(
+      assistantResponseSchema.safeParse({
+        ...completeResponse,
+        risk_level: 'critical',
+        requires_human_help: true,
+        answer: '请立即拨打 110。',
+        alternatives: [completeResponse.alternatives[0]],
+      }).success,
+    ).toBe(false);
+  });
 });
 
 describe('MockAssistantProvider', () => {
@@ -77,6 +91,7 @@ describe('MockAssistantProvider', () => {
 
     expect(first).toEqual(second);
     expect(first.demo_mode).toBe(true);
+    expect(first.model).toBe('xingyu-local-demo');
     expect(first.evidence).toEqual([
       {
         source: '星屿沙箱演示数据',
