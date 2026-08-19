@@ -226,6 +226,13 @@
   font-size: 13px;
 }
 
+.libraryNotice {
+  margin: 0 0 14px;
+  color: rgb(16 16 15 / 68%);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
 .results {
   display: grid;
   gap: 12px;
@@ -383,6 +390,12 @@
 .iconButton[aria-pressed='true'] {
   color: #81443e;
   background: #f4dfd8;
+}
+
+.iconButton:disabled,
+.switch:disabled {
+  cursor: wait;
+  opacity: .46;
 }
 
 .expandedConditions {
@@ -585,6 +598,23 @@
   line-height: 1.8;
 }
 
+.dialogActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.dangerButton {
+  min-height: 42px;
+  padding: 0 16px;
+  color: var(--ivory);
+  border: 1px solid #79362e;
+  border-radius: 5px;
+  background: #79362e;
+  cursor: pointer;
+}
+
 .dialogOffer {
   padding: 12px 14px;
   border-left: 2px solid var(--sand);
@@ -609,6 +639,11 @@
 .switch:focus-visible,
 .sortControl select:focus-visible,
 .compareCheck input:focus-visible {
+  outline: 2px solid var(--sand);
+  outline-offset: 3px;
+}
+
+.dangerButton:focus-visible {
   outline: 2px solid var(--sand);
   outline-offset: 3px;
 }

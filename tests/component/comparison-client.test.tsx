@@ -1,8 +1,10 @@
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { NormalizedOffer, QuoteEvent } from '@/domain/comparison/types';
 import { ComparisonClient } from '@/features/comparison/comparison-client';
+import { offerIdentity } from '@/domain/comparison/offer-identity';
+import { useLibraryStore, useLibraryStoreHydration } from '@/stores/library-store';
 
 const initialSearch = {
   destination: '大理',
@@ -104,6 +106,16 @@ function streamEvents(events: QuoteEvent[]): AsyncIterable<QuoteEvent> {
   };
 }
 
+beforeEach(() => {
+  window.localStorage.clear();
+  useLibraryStore.setState({
+    likedPostSlugs: [],
+    favoriteOffers: {},
+    priceAlerts: {},
+  });
+  useLibraryStoreHydration.setState({ hydrated: true, hydrationError: false });
+});
+
 describe('ComparisonClient incremental results', () => {
   it('keeps earlier offers, deduplicates repeated provider/id pairs, and retains results after degradation', async () => {
     render(
@@ -181,6 +193,7 @@ describe('ComparisonClient incremental results', () => {
 
     await user.click(screen.getByRole('switch', { name: '降价提醒' }));
     expect(screen.getByRole('switch', { name: '降价提醒' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByText('已保存提醒设置；本演示不会在关闭页面后推送')).toBeInTheDocument();
 
     const compareChecks = screen.getAllByRole('checkbox', { name: /加入同屏对比/ });
     await user.click(compareChecks[0]);
@@ -188,6 +201,108 @@ describe('ComparisonClient incremental results', () => {
     await user.click(compareChecks[2]);
     expect(compareChecks[3]).toBeDisabled();
     expect(screen.getByText('已选择 3/3 项')).toBeInTheDocument();
+  });
+
+  it('keeps a favorite offer and its alert after the comparison client remounts', async () => {
+    const user = userEvent.setup();
+    const firstRender = render(
+      <ComparisonClient
+        initialSearch={initialSearch}
+        now="2026-08-16T12:30:00+08:00"
+        stream={streamEvents([{ type: 'offer', payload: offers[0] }])}
+      />,
+    );
+    await screen.findByText('云程旅行');
+
+    await user.click(screen.getByRole('button', { name: '收藏 云程旅行 报价' }));
+    await user.click(screen.getByRole('switch', { name: '降价提醒' }));
+    expect(screen.getByText('已保存提醒设置；本演示不会在关闭页面后推送')).toBeInTheDocument();
+    firstRender.unmount();
+
+    render(
+      <ComparisonClient
+        initialSearch={initialSearch}
+        now="2026-08-16T12:30:00+08:00"
+        stream={streamEvents([{ type: 'offer', payload: offers[0] }])}
+      />,
+    );
+
+    expect(await screen.findByRole('button', { name: '收藏 云程旅行 报价' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('switch', { name: '降价提醒' })).toHaveAttribute('aria-checked', 'true');
+  });
+
+  it('confirms the alert impact before atomically removing a favorite and restores focus on Escape', async () => {
+    const user = userEvent.setup();
+    render(
+      <ComparisonClient
+        initialSearch={initialSearch}
+        now="2026-08-16T12:30:00+08:00"
+        stream={streamEvents([{ type: 'offer', payload: offers[0] }])}
+      />,
+    );
+    await screen.findByText('云程旅行');
+    const favorite = screen.getByRole('button', { name: '收藏 云程旅行 报价' });
+    await user.click(favorite);
+    await user.click(screen.getByRole('switch', { name: '降价提醒' }));
+
+    await user.click(favorite);
+    const firstDialog = screen.getByRole('dialog', { name: '移除收藏报价' });
+    expect(firstDialog).toHaveTextContent('移除收藏也会关闭这条报价的降价提醒');
+    expect(within(firstDialog).getByRole('button', { name: '保留收藏' })).toHaveFocus();
+    expect(favorite).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('switch', { name: '降价提醒' })).toHaveAttribute('aria-checked', 'true');
+
+    await user.keyboard('{Shift>}{Tab}{/Shift}');
+    expect(within(firstDialog).getByRole('button', { name: '确认移除并关闭提醒' })).toHaveFocus();
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog', { name: '移除收藏报价' })).not.toBeInTheDocument();
+    expect(favorite).toHaveFocus();
+    expect(useLibraryStore.getState().priceAlerts[offerIdentity(offers[0])]).toBeDefined();
+
+    await user.click(favorite);
+    const secondDialog = screen.getByRole('dialog', { name: '移除收藏报价' });
+    await user.click(within(secondDialog).getByRole('button', { name: '确认移除并关闭提醒' }));
+
+    expect(favorite).toHaveAttribute('aria-pressed', 'false');
+    expect(useLibraryStore.getState().favoriteOffers[offerIdentity(offers[0])]).toBeUndefined();
+    expect(useLibraryStore.getState().priceAlerts[offerIdentity(offers[0])]).toBeUndefined();
+  });
+
+  it('keeps offer-library actions unavailable while hydrating and exposes a fail-closed error', async () => {
+    let releaseHydration: (() => void) | undefined;
+    const pendingHydration = new Promise<void>((resolve) => { releaseHydration = resolve; });
+    const rehydrate = vi.spyOn(useLibraryStore.persist, 'rehydrate').mockImplementation(async () => {
+      await pendingHydration;
+      useLibraryStore.getState().saveOffer(offers[0]);
+    });
+    useLibraryStoreHydration.setState({ hydrated: false, hydrationError: false });
+    const view = render(
+      <ComparisonClient
+        initialSearch={initialSearch}
+        now="2026-08-16T12:30:00+08:00"
+        stream={streamEvents([{ type: 'offer', payload: offers[0] }])}
+      />,
+    );
+    const favorite = await screen.findByRole('button', { name: '收藏 云程旅行 报价' });
+
+    expect(favorite).toBeDisabled();
+    expect(screen.getByRole('status')).toHaveTextContent('正在读取本地收藏与提醒');
+    await act(async () => { releaseHydration?.(); });
+    expect(await screen.findByRole('button', { pressed: true })).toBeEnabled();
+    rehydrate.mockRestore();
+    view.unmount();
+
+    useLibraryStoreHydration.setState({ hydrated: true, hydrationError: true });
+    render(
+      <ComparisonClient
+        initialSearch={initialSearch}
+        now="2026-08-16T12:30:00+08:00"
+        stream={streamEvents([{ type: 'offer', payload: offers[0] }])}
+      />,
+    );
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('本地收藏与提醒无法安全读取');
+    expect(screen.getByRole('button', { name: '收藏 云程旅行 报价' })).toBeDisabled();
   });
 
   it('requires an explicit external booking confirmation with supplier responsibility disclosure', async () => {

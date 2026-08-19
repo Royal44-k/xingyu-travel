@@ -29,6 +29,11 @@ import { offerIdentity } from '@/domain/comparison/offer-identity';
 import type { ComparisonSearchInput } from '@/domain/shared/api';
 import { OfferRow } from './offer-row';
 import { useDialogFocus } from './use-dialog-focus';
+import {
+  hydrateLibraryStore,
+  useLibraryStore,
+  useLibraryStoreHydration,
+} from '@/stores/library-store';
 import styles from './comparison.module.css';
 
 type ComparisonClientProps = {
@@ -118,8 +123,8 @@ export function ComparisonClient({
   const [benefitOnly, setBenefitOnly] = useState(false);
   const [verifiedOnly, setVerifiedOnly] = useState(false);
   const [selectedOfferKeys, setSelectedOfferKeys] = useState<string[]>([]);
-  const [favoriteOfferKeys, setFavoriteOfferKeys] = useState<string[]>([]);
-  const [alertsEnabled, setAlertsEnabled] = useState(false);
+  const [libraryNotice, setLibraryNotice] = useState('');
+  const [pendingRemoval, setPendingRemoval] = useState<NormalizedOffer>();
   const [outboundOffer, setOutboundOffer] = useState<NormalizedOffer>();
   const [comparisonOpen, setComparisonOpen] = useState(false);
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -128,9 +133,24 @@ export function ComparisonClient({
   const outboundTriggerRef = useRef<HTMLElement>(null);
   const compareTriggerRef = useRef<HTMLButtonElement>(null);
   const compareDialogRef = useRef<HTMLElement>(null);
+  const removalTriggerRef = useRef<HTMLButtonElement>(null);
+  const removalDialogRef = useRef<HTMLElement>(null);
+  const favoriteOffers = useLibraryStore((state) => state.favoriteOffers);
+  const priceAlerts = useLibraryStore((state) => state.priceAlerts);
+  const saveOffer = useLibraryStore((state) => state.saveOffer);
+  const removeOffer = useLibraryStore((state) => state.removeOffer);
+  const setPriceAlert = useLibraryStore((state) => state.setPriceAlert);
+  const libraryHydrated = useLibraryStoreHydration((state) => state.hydrated);
+  const libraryHydrationError = useLibraryStoreHydration((state) => state.hydrationError);
+  const libraryReady = libraryHydrated && !libraryHydrationError;
 
   useDialogFocus(filtersOpen, filterDialogRef, filterTriggerRef, () => setFiltersOpen(false));
   useDialogFocus(comparisonOpen, compareDialogRef, compareTriggerRef, () => setComparisonOpen(false));
+  useDialogFocus(Boolean(pendingRemoval), removalDialogRef, removalTriggerRef, () => setPendingRemoval(undefined));
+
+  useEffect(() => {
+    void hydrateLibraryStore();
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -189,6 +209,13 @@ export function ComparisonClient({
     [offers, selectedOfferKeys],
   );
 
+  const savedOfferKeys = useMemo(
+    () => offers.map(offerIdentity).filter((key) => Boolean(favoriteOffers[key])),
+    [favoriteOffers, offers],
+  );
+  const alertsEnabled = savedOfferKeys.length > 0 &&
+    savedOfferKeys.every((key) => Boolean(priceAlerts[key]?.enabled));
+
   function selectKind(kind: ComparisonProductKind) {
     setOffers([]);
     setStreamComplete(false);
@@ -214,10 +241,34 @@ export function ComparisonClient({
     tabRefs.current[nextIndex]?.focus();
   }
 
-  function toggleInList(key: string, setter: typeof setFavoriteOfferKeys) {
-    setter((current) =>
-      current.includes(key) ? current.filter((entry) => entry !== key) : [...current, key],
-    );
+  function toggleFavorite(offer: NormalizedOffer, trigger: HTMLButtonElement) {
+    if (!libraryReady) return;
+    const key = offerIdentity(offer);
+    if (!favoriteOffers[key]) {
+      saveOffer(offer);
+      return;
+    }
+    if (priceAlerts[key]?.enabled) {
+      removalTriggerRef.current = trigger;
+      setPendingRemoval(offer);
+      return;
+    }
+    removeOffer(key);
+  }
+
+  function toggleAlerts() {
+    if (!libraryReady || savedOfferKeys.length === 0) return;
+    const enabled = !alertsEnabled;
+    for (const key of savedOfferKeys) setPriceAlert(key, enabled);
+    setLibraryNotice(enabled
+      ? '已保存提醒设置；本演示不会在关闭页面后推送'
+      : '已关闭当前收藏报价的降价提醒');
+  }
+
+  function confirmRemoval() {
+    if (!pendingRemoval) return;
+    removeOffer(offerIdentity(pendingRemoval));
+    setPendingRemoval(undefined);
   }
 
   function toggleComparison(key: string) {
@@ -286,9 +337,11 @@ export function ComparisonClient({
             <span>降价提醒</span>
             <button
               aria-checked={alertsEnabled}
+              aria-describedby="comparison-library-state"
               aria-label="降价提醒"
               className={styles.switch}
-              onClick={() => setAlertsEnabled((value) => !value)}
+              disabled={!libraryReady || savedOfferKeys.length === 0}
+              onClick={toggleAlerts}
               role="switch"
               type="button"
             >
@@ -329,6 +382,19 @@ export function ComparisonClient({
           </label>
         </div>
 
+        {!libraryHydrated ? (
+          <p className={styles.libraryNotice} id="comparison-library-state" role="status">正在读取本地收藏与提醒…</p>
+        ) : null}
+        {libraryHydrationError ? (
+          <p className={styles.libraryNotice} id="comparison-library-state" role="alert">本地收藏与提醒无法安全读取，暂时无法更改。请清除浏览器中的本地收藏后重试。</p>
+        ) : null}
+        {libraryReady && savedOfferKeys.length === 0 ? (
+          <p className={styles.libraryNotice} id="comparison-library-state">收藏报价后可开启本地降价提醒。</p>
+        ) : null}
+        {libraryReady && savedOfferKeys.length > 0 && libraryNotice ? (
+          <p className={styles.libraryNotice} id="comparison-library-state" role="status">{libraryNotice}</p>
+        ) : null}
+
         {calendarOpen ? (
           <section className={styles.priceCalendar} aria-label="价格日历">
             <div><span>8月21日</span><strong>¥1,090</strong></div>
@@ -357,13 +423,12 @@ export function ComparisonClient({
                 selectedOfferKeys.length >= 3 &&
                 !selectedOfferKeys.includes(offerIdentity(offer))
               }
-              favorite={favoriteOfferKeys.includes(offerIdentity(offer))}
+              favorite={Boolean(favoriteOffers[offerIdentity(offer)])}
+              favoriteDisabled={!libraryReady}
               key={offerIdentity(offer)}
               now={now}
               offer={offer}
-              onFavorite={() =>
-                toggleInList(offerIdentity(offer), setFavoriteOfferKeys)
-              }
+              onFavorite={(trigger) => toggleFavorite(offer, trigger)}
               onOutbound={(trigger) => {
                 outboundTriggerRef.current = trigger;
                 setOutboundOffer(offer);
@@ -422,6 +487,28 @@ export function ComparisonClient({
           open
           returnFocusRef={outboundTriggerRef}
         />
+      ) : null}
+
+      {pendingRemoval ? (
+        <div className={styles.dialogBackdrop}>
+          <section
+            aria-labelledby="remove-favorite-title"
+            aria-modal="true"
+            className={styles.confirmDialog}
+            ref={removalDialogRef}
+            role="dialog"
+            tabIndex={-1}
+          >
+            <span className={styles.demoPill}>本地收藏</span>
+            <h2 id="remove-favorite-title">移除收藏报价</h2>
+            <p>移除收藏也会关闭这条报价的降价提醒。此操作只影响当前浏览器中的演示数据。</p>
+            <p className={styles.dialogOffer}>{pendingRemoval.provider} · {pendingRemoval.title}</p>
+            <div className={styles.dialogActions}>
+              <button className={styles.secondaryButton} onClick={() => setPendingRemoval(undefined)} type="button">保留收藏</button>
+              <button className={styles.dangerButton} onClick={confirmRemoval} type="button">确认移除并关闭提醒</button>
+            </div>
+          </section>
+        </div>
       ) : null}
 
       {comparisonOpen ? (

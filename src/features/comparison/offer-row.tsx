@@ -17,9 +17,10 @@ type OfferRowProps = {
   offer: NormalizedOffer;
   now: string;
   favorite: boolean;
+  favoriteDisabled: boolean;
   selected: boolean;
   comparisonDisabled: boolean;
-  onFavorite: () => void;
+  onFavorite: (trigger: HTMLButtonElement) => void;
   onSelect: () => void;
   onOutbound: (trigger: HTMLButtonElement) => void;
 };
@@ -40,6 +41,7 @@ export function OfferRow({
   offer,
   now,
   favorite,
+  favoriteDisabled,
   selected,
   comparisonDisabled,
   onFavorite,
@@ -126,10 +128,12 @@ export function OfferRow({
           同屏对比
         </label>
         <button
+          aria-describedby={favoriteDisabled ? 'comparison-library-state' : undefined}
           aria-label={`收藏 ${offer.provider} 报价`}
           aria-pressed={favorite}
           className={styles.iconButton}
-          onClick={onFavorite}
+          disabled={favoriteDisabled}
+          onClick={(event) => onFavorite(event.currentTarget)}
           type="button"
         >
           <Heart aria-hidden size={20} weight={favorite ? 'fill' : 'regular'} />

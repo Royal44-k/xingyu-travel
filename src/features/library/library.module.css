@@ -1,0 +1,64 @@
+.favoriteControl {
+  display: inline-flex;
+}
+
+.favoriteButton {
+  display: inline-grid;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  place-items: center;
+  color: var(--ink);
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+}
+
+.favoriteButton svg {
+  transition: color 160ms ease;
+}
+
+.favoriteButton[aria-pressed='true'] {
+  color: #a94032;
+}
+
+.favoriteButton[data-just-liked='true'] svg {
+  animation: favorite-success-bounce 360ms ease-out;
+}
+
+.favoriteButton:disabled {
+  color: rgb(16 16 15 / 38%);
+  cursor: wait;
+}
+
+.favoriteButton:focus-visible {
+  outline: 2px solid var(--sand);
+  outline-offset: 3px;
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
+@keyframes favorite-success-bounce {
+  0%, 100% { transform: scale(1); }
+  45% { transform: scale(1.22); }
+  72% { transform: scale(.96); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .favoriteButton svg {
+    transition: none;
+  }
+
+  .favoriteButton[data-just-liked='true'] svg {
+    animation: none;
+  }
+}

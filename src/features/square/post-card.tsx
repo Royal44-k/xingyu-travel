@@ -1,15 +1,15 @@
 'use client';
 
-import { Flag, Heart, MapPin } from '@phosphor-icons/react';
+import { Flag, MapPin } from '@phosphor-icons/react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRef, useState } from 'react';
 import { ReportDialog } from '@/components/report-dialog';
 import type { TravelPost } from '@/data/posts';
+import { FavoriteButton } from '@/features/library/favorite-button';
 import styles from './square.module.css';
 
 export function PostCard({ post }: { post: TravelPost }) {
-  const [favorite, setFavorite] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const reportTriggerRef = useRef<HTMLButtonElement>(null);
   const image = post.media[0];
@@ -27,7 +27,7 @@ export function PostCard({ post }: { post: TravelPost }) {
         <footer className={styles.cardFooter}>
           <span className={styles.author}><b aria-hidden>{post.author.avatar}</b>{post.author.name}</span>
           <div className={styles.cardActions}>
-            <button aria-label={`收藏 ${post.title}`} aria-pressed={favorite} onClick={() => setFavorite((value) => !value)} type="button"><Heart aria-hidden size={20} weight={favorite ? 'fill' : 'regular'} /></button>
+            <FavoriteButton label={post.title} slug={post.slug} />
             <button aria-expanded={reportOpen} aria-label={`举报 ${post.title}`} onClick={() => setReportOpen(true)} ref={reportTriggerRef} type="button"><Flag aria-hidden size={19} /></button>
           </div>
         </footer>
