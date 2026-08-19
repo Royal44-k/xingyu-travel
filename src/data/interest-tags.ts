@@ -8,7 +8,7 @@ export const INTEREST_CATEGORIES = [
 ] as const;
 
 export function normalizeInterestTag(raw: string): string {
-  return raw.trim().replace(/^#+/, '').replace(/\s+/g, ' ');
+  return raw.trim().replace(/^#+/, '').replace(/\s+/g, ' ').trim();
 }
 
 export function hasValidInterestTagLength(tag: string): boolean {
@@ -17,5 +17,5 @@ export function hasValidInterestTagLength(tag: string): boolean {
 }
 
 export function interestTagKey(tag: string): string {
-  return normalizeInterestTag(tag).toLocaleLowerCase();
+  return normalizeInterestTag(tag).toLowerCase();
 }
