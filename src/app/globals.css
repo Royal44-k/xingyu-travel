@@ -4,6 +4,11 @@
   --sand: #b79a68;
   --mist: #d8d3ca;
   --pine: #26312b;
+  --lake-jade: #4d6b63;
+  --cinnabar: #a94032;
+  --motion-fast: 160ms;
+  --motion-standard: 320ms;
+  --motion-reveal: 620ms;
   --font-display: var(--font-noto-serif-sc), "Songti SC", serif;
   --font-ui: var(--font-noto-sans-sc), "PingFang SC", sans-serif;
   --content-max: 1320px;
@@ -33,6 +38,49 @@ button,
 input,
 select,
 textarea { font: inherit; }
+
+.hydrationBoundaryState {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  min-height: calc(100vh - 78px);
+  padding: 48px 24px;
+  color: var(--ivory);
+  background: var(--ink);
+  text-align: center;
+}
+
+.hydrationBoundaryPulse {
+  width: 24px;
+  height: 24px;
+  border: 1px solid rgb(183 154 104 / 42%);
+  border-top-color: var(--sand);
+  border-radius: 50%;
+  animation: hydration-pulse 900ms linear infinite;
+}
+
+.hydrationBoundaryState p { margin: 22px 0 7px; font-family: var(--font-display); font-size: 23px; }
+.hydrationBoundaryState small { color: rgb(244 240 232 / 58%); }
+
+.hydrationBoundaryErrors {
+  display: grid;
+  grid-template-columns: minmax(230px, 1fr) minmax(280px, 1.4fr);
+  gap: 28px;
+  width: min(calc(100% - 64px), var(--content-max));
+  margin: 24px auto;
+  padding: 18px 20px;
+  color: var(--ivory);
+  background: var(--ink);
+}
+
+.hydrationBoundaryErrors strong { font-family: var(--font-display); font-size: 17px; font-weight: 500; }
+.hydrationBoundaryErrors p { margin: 5px 0 0; color: rgb(244 240 232 / 62%); font-size: 11px; line-height: 1.6; }
+.hydrationBoundaryErrors ul { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
+.hydrationBoundaryErrors li { display: flex; justify-content: space-between; gap: 12px; align-items: center; color: rgb(244 240 232 / 78%); font-size: 12px; }
+.hydrationBoundaryErrors button { padding: 6px 9px; color: var(--ivory); border: 1px solid rgb(183 154 104 / 62%); background: transparent; cursor: pointer; }
+.hydrationBoundaryErrors button:focus-visible { outline: 2px solid var(--sand); outline-offset: 3px; }
+
+@keyframes hydration-pulse { to { transform: rotate(360deg); } }
 
 .demoBanner {
   position: absolute;
@@ -150,9 +198,16 @@ textarea { font: inherit; }
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+
+  .hydrationBoundaryPulse { animation: none; }
 }
 
 @media (max-width: 600px) {
+  .hydrationBoundaryErrors {
+    grid-template-columns: 1fr;
+    width: calc(100% - 28px);
+    margin: 14px auto;
+  }
   .demoBanner {
     top: 80px;
     width: calc(100% - 32px);

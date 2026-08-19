@@ -1,29 +1,24 @@
 import type { Metadata } from 'next';
 import { SiteHeader } from '@/components/site-header';
-import { PreferenceSettings } from '@/features/profile/preference-settings';
+import { ProfileHub } from '@/features/profile/profile-hub';
 
 export const metadata: Metadata = {
-  title: '演示账户与偏好',
-  description: '管理浏览器本地保存的演示推荐偏好与透明度说明。',
+  title: '个人中心',
+  description: '继续当前浏览器中保存的行程、喜欢、报价、搭子安全与兴趣偏好。',
 };
 
-export default function ProfilePage() {
+export default async function ProfilePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string | string[] }>;
+}) {
+  const params = await searchParams;
+  const initialTab = Array.isArray(params.tab) ? params.tab[0] : params.tab;
+
   return (
     <>
-        <SiteHeader activePath="/profile" variant="solid" />
-      <main className="profilePage">
-        <section aria-labelledby="profile-title" className="profileIntro">
-          <p>XINGYU · DEMO PROFILE</p>
-          <h1 id="profile-title">演示账户与偏好</h1>
-          <p>演示身份状态仅用于说明安全边界，不等同于实名核验，也不收集证件、人脸、联系方式或支付信息。</p>
-          <dl className="profileStatusList">
-            <div><dt>年龄边界</dt><dd>26 岁演示账户（仅作 18+ 功能边界展示）</dd></div>
-            <div><dt>身份状态</dt><dd>演示已验证，不是实名认证结果</dd></div>
-            <div><dt>风险状态</dt><dd>演示状态清晰，不构成安全担保</dd></div>
-          </dl>
-        </section>
-        <PreferenceSettings />
-      </main>
+      <SiteHeader activePath="/profile" variant="solid" />
+      <ProfileHub initialTab={initialTab} />
     </>
   );
 }
