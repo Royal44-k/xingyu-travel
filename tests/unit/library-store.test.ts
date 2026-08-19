@@ -1,7 +1,12 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { offerIdentity } from '@/domain/comparison/offer-identity';
 import type { NormalizedOffer } from '@/domain/comparison/types';
-import { createLibraryStore } from '@/stores/library-store';
+import {
+  createLibraryStore,
+  hydrateLibraryStore,
+  useLibraryStore,
+  useLibraryStoreHydration,
+} from '@/stores/library-store';
 
 const storageKey = 'xingyu-library-demo-v1';
 
@@ -24,6 +29,13 @@ describe('liked guides', () => {
 
     expect(() => store.getState().togglePostLike('guide-over-limit')).toThrow('LIBRARY_LIKED_POST_LIMIT');
     expect(store.getState().likedPostSlugs).toHaveLength(500);
+  });
+
+  it.each(['   ', 'x'.repeat(501)])('rejects a slug that the persisted schema would reject: %s', (slug) => {
+    const store = createLibraryStore();
+
+    expect(() => store.getState().togglePostLike(slug)).toThrow('LIBRARY_INVALID_POST_SLUG');
+    expect(store.getState().likedPostSlugs).toEqual([]);
   });
 });
 
@@ -76,6 +88,33 @@ describe('favorite offer snapshots', () => {
 
     expect(() => store.getState().saveOffer(makeOffer(patch))).toThrow('LIBRARY_INVALID_OFFER');
     expect(store.getState().favoriteOffers).toEqual({});
+  });
+
+  it.each<[string, Partial<NormalizedOffer>]>([
+    ['a whitespace-only provider', { provider: '   ' }],
+    ['an oversized provider', { provider: 'p'.repeat(501) }],
+    ['a whitespace-only destination', { destination: '   ' }],
+    ['an oversized destination', { destination: 'd'.repeat(501) }],
+    ['an identity key longer than the persisted key limit', { provider: 'p'.repeat(300), id: 'i'.repeat(300) }],
+  ])('rejects %s before it can create an unrehydratable snapshot', (_label, patch) => {
+    const store = createLibraryStore();
+
+    expect(() => store.getState().saveOffer(makeOffer(patch))).toThrow('LIBRARY_INVALID_OFFER');
+    expect(store.getState().favoriteOffers).toEqual({});
+  });
+
+  it('canonicalizes surrounding provider and id whitespace before persisting the offer identity', async () => {
+    const source = createLibraryStore();
+    const offer = makeOffer({ provider: '  canonical-provider  ', id: '  canonical-id  ', destination: '  大理  ' });
+    await source.persist.rehydrate();
+
+    source.getState().saveOffer(offer);
+
+    const key = offerIdentity({ provider: 'canonical-provider', id: 'canonical-id' });
+    expect(source.getState().favoriteOffers[key]).toMatchObject({ provider: 'canonical-provider', destination: '大理' });
+    const rehydrated = createLibraryStore();
+    await rehydrated.persist.rehydrate();
+    expect(rehydrated.getState().favoriteOffers[key]).toMatchObject({ provider: 'canonical-provider', destination: '大理' });
   });
 
   it('enforces the 200 saved-offer limit without blocking replacement of an existing offer', () => {
@@ -176,6 +215,39 @@ describe('persistence and recovery', () => {
     expect(window.localStorage.getItem(storageKey)).toBe(malformedBytes);
   });
 
+  it.each([
+    ['an envelope without state', { version: 1 }],
+    ['an envelope with an unknown key', { state: emptyPersistedState(), version: 1, unexpected: true }],
+    ['an envelope without a version', { state: emptyPersistedState() }],
+    ['an envelope with a non-numeric version', { state: emptyPersistedState(), version: '1' }],
+  ])('fails closed and preserves bytes for %s', async (_label, envelope) => {
+    let hydrationError = false;
+    const errorAwareStore = createLibraryStore({ onHydrationError: () => { hydrationError = true; } });
+    errorAwareStore.getState().togglePostLike('in-memory-guide');
+    const malformedBytes = JSON.stringify(envelope);
+    window.localStorage.setItem(storageKey, malformedBytes);
+
+    await errorAwareStore.persist.rehydrate();
+    errorAwareStore.getState().togglePostLike('after-failure');
+
+    expect(hydrationError).toBe(true);
+    expect(errorAwareStore.getState().likedPostSlugs).toEqual(['after-failure']);
+    expect(window.localStorage.getItem(storageKey)).toBe(malformedBytes);
+  });
+
+  it('sets global hydrationError when the persisted envelope is malformed', async () => {
+    const malformedBytes = JSON.stringify({ version: 1 });
+    useLibraryStore.setState({ likedPostSlugs: ['in-memory-guide'], favoriteOffers: {}, priceAlerts: {} });
+    useLibraryStoreHydration.setState({ hydrated: false, hydrationError: false });
+    window.localStorage.setItem(storageKey, malformedBytes);
+
+    await hydrateLibraryStore();
+
+    expect(useLibraryStore.getState().likedPostSlugs).toEqual([]);
+    expect(useLibraryStoreHydration.getState()).toEqual({ hydrated: true, hydrationError: true });
+    expect(window.localStorage.getItem(storageKey)).toBe(malformedBytes);
+  });
+
   it('rejects persisted snapshots with unknown nested keys', async () => {
     const snapshot = {
       key: '["mock-provider","offer-1"]',
@@ -202,6 +274,10 @@ describe('persistence and recovery', () => {
     expect(window.localStorage.getItem(storageKey)).toBe(malformedBytes);
   });
 });
+
+function emptyPersistedState() {
+  return { likedPostSlugs: [], favoriteOffers: {}, priceAlerts: {} };
+}
 
 function makeOffer(patch: Partial<NormalizedOffer> = {}): NormalizedOffer {
   return {

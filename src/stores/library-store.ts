@@ -114,6 +114,11 @@ const persistedLibraryStateSchema = z.object({
   }
 });
 
+const persistedLibraryEnvelopeSchema = z.object({
+  state: persistedLibraryStateSchema,
+  version: z.literal(libraryStorageVersion),
+}).strict();
+
 type PersistedLibraryState = Pick<
   LibraryStoreState,
   'likedPostSlugs' | 'favoriteOffers' | 'priceAlerts'
@@ -137,20 +142,33 @@ function parsePersistedLibraryState(state: unknown): PersistedLibraryState {
   throw new Error('LIBRARY_INVALID_PERSISTED_STATE');
 }
 
+function parsePersistedLibraryEnvelope(value: unknown): { state: PersistedLibraryState; version: number } {
+  const parsed = persistedLibraryEnvelopeSchema.safeParse(value);
+  if (parsed.success) return parsed.data;
+  throw new Error('LIBRARY_INVALID_PERSISTED_ENVELOPE');
+}
+
+function canonicalText(raw: unknown, errorCode: 'LIBRARY_INVALID_OFFER' | 'LIBRARY_INVALID_POST_SLUG'): string {
+  const parsed = nonEmptyText.safeParse(raw);
+  if (parsed.success) return parsed.data;
+  throw new Error(errorCode);
+}
+
 function snapshotFromOffer(offer: NormalizedOffer): FavoriteOfferSnapshot {
-  const destination = offer.destination?.trim();
-  const offerKey = offerIdentity(offer);
+  const provider = canonicalText(offer.provider, 'LIBRARY_INVALID_OFFER');
+  const id = canonicalText(offer.id, 'LIBRARY_INVALID_OFFER');
+  const destination = canonicalText(offer.destination, 'LIBRARY_INVALID_OFFER');
+  const offerKey = offerIdentity({ provider, id });
   const observedAt = offer.updatedAt;
   const observedAtMilliseconds = Date.parse(observedAt);
-  if (!destination || !comparisonProductKinds.includes(offer.kind as ComparisonProductKind) ||
+  if (!comparisonProductKinds.includes(offer.kind as ComparisonProductKind) ||
     !Number.isFinite(offer.totalPrice) || offer.totalPrice < 0 || Number.isNaN(observedAtMilliseconds) ||
-    !z.string().datetime({ offset: true }).safeParse(observedAt).success ||
-    !offer.provider.trim() || !offer.id.trim()) {
+    !isoTimestamp.safeParse(observedAt).success) {
     throw new Error('LIBRARY_INVALID_OFFER');
   }
-  return {
+  const snapshot: FavoriteOfferSnapshot = {
     key: offerKey,
-    provider: offer.provider,
+    provider,
     productKind: offer.kind as ComparisonProductKind,
     destination,
     totalPrice: offer.totalPrice,
@@ -159,6 +177,8 @@ function snapshotFromOffer(offer: NormalizedOffer): FavoriteOfferSnapshot {
     observedAt,
     expiresAt: new Date(observedAtMilliseconds + validityWindowMilliseconds).toISOString(),
   };
+  if (!favoriteOfferSnapshotSchema.safeParse(snapshot).success) throw new Error('LIBRARY_INVALID_OFFER');
+  return snapshot;
 }
 
 function omitRecordEntry<T>(record: Record<string, T>, key: string): Record<string, T> {
@@ -174,8 +194,7 @@ function stateCreator(
   return {
     ...initialLibraryState,
     togglePostLike: (rawSlug) => set((state) => {
-      const slug = rawSlug.trim();
-      if (!slug) throw new Error('LIBRARY_INVALID_POST_SLUG');
+      const slug = canonicalText(rawSlug, 'LIBRARY_INVALID_POST_SLUG');
       if (state.likedPostSlugs.includes(slug)) {
         return { likedPostSlugs: state.likedPostSlugs.filter((existingSlug) => existingSlug !== slug) };
       }
@@ -261,7 +280,11 @@ function createPersistedLibraryState(options: CreateLibraryStoreOptions = {}) {
     {
       ...persistenceOptions(safeOptions),
       storage: {
-        getItem: (name) => libraryStorage.getItem(name),
+        getItem: (name) => {
+          const value = libraryStorage.getItem(name);
+          if (value === null) return null;
+          return parsePersistedLibraryEnvelope(value);
+        },
         setItem: (name, value) => (preserveMalformedBytes ? undefined : libraryStorage.setItem(name, value)),
         removeItem: (name) => (preserveMalformedBytes ? undefined : libraryStorage.removeItem(name)),
       },
