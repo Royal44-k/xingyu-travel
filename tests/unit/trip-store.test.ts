@@ -1,15 +1,25 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { extractTripDraft } from '@/domain/trips/extract-draft';
 import { postsBySlug } from '@/data/posts';
 import {
   createTripStore,
   getBudgetSummary,
+  selectAcceptedTripCount,
+  selectTripBySourceSlug,
+  selectTripRecords,
   transitionTrip,
 } from '@/stores/trip-store';
 
 const daliDraft = extractTripDraft(postsBySlug['dali-slow-5d']);
+const sichuanDraft = extractTripDraft(postsBySlug['sichuan-autumn-road']);
+const canonicalKey = 'xingyu-demo-v1';
+const legacyDraftKey = 'xingyu-demo-trip-drafts';
+const stableMigrationTimestamp = '2026-08-18T00:00:00.000Z';
 
-beforeEach(() => window.localStorage.clear());
+beforeEach(() => {
+  vi.useRealTimers();
+  window.localStorage.clear();
+});
 
 describe('trip state machine', () => {
   it('accepts a reviewed draft and enables guardian only after consent', () => {
@@ -51,9 +61,11 @@ describe('trip editing', () => {
     store.getState().updateTrip(slug, { budget: 6001 });
     store.getState().updateItem(slug, itemId, { estimatedCost: 601 });
     store.getState().toggleAlternative(slug, itemId);
+    store.getState().reorderItem(slug, itemId, 'down');
     store.getState().vote(slug, 'member-lin', 'candidate-a');
     store.getState().enableGuardian(slug, true);
     store.getState().publishPartnerIntent(slug);
+    store.getState().selectGuardianPlan(slug, { id: 'PLAN-A', title: '室内备选' });
 
     expect(Object.entries(store.getState().trips).every(([key, trip]) => key === trip.id)).toBe(true);
     const raw = window.localStorage.getItem('xingyu-demo-v1');
@@ -152,6 +164,30 @@ describe('decision room', () => {
 });
 
 describe('draft merge and persistence', () => {
+  it('saves a converted guide once and returns the same canonical trip on repeat', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-08-19T10:30:00.000Z'));
+    const store = createTripStore();
+
+    const first = store.getState().savePostAsTrip(
+      daliDraft,
+      '/assets/destinations/dali/01.png',
+    );
+    const second = store.getState().savePostAsTrip({ ...daliDraft, id: 'replacement-id' });
+
+    expect(second).toEqual(first);
+    expect(Object.keys(store.getState().trips)).toEqual([first.id]);
+    expect(first).toMatchObject({
+      sourcePostSlug: 'dali-slow-5d',
+      coverImage: '/assets/destinations/dali/01.png',
+      createdAt: '2026-08-19T10:30:00.000Z',
+      updatedAt: '2026-08-19T10:30:00.000Z',
+    });
+    expect(selectTripRecords(store.getState())).toBe(store.getState().trips);
+    expect(selectTripBySourceSlug(store.getState(), daliDraft.sourcePostSlug)).toBe(first);
+    expect(selectAcceptedTripCount(store.getState())).toBe(1);
+  });
+
   it('merges the same source draft without replacing accepted edits', () => {
     const store = createTripStore();
     store.getState().acceptDraft(daliDraft);
@@ -170,12 +206,15 @@ describe('draft merge and persistence', () => {
     store.getState().publishPartnerIntent(daliDraft.id);
 
     expect(window.localStorage.getItem('xingyu-demo-trip-drafts')).toBeNull();
-    const raw = window.localStorage.getItem('xingyu-demo-v1');
+    const raw = window.localStorage.getItem(canonicalKey);
     expect(raw).not.toBeNull();
     expect(raw).not.toMatch(/latitude|longitude|phone|email|coordinates/i);
-    expect(JSON.parse(raw ?? '{}').state).toMatchObject({
+    expect(JSON.parse(raw ?? '{}')).toMatchObject({
+      version: 2,
+      state: {
       trips: { [daliDraft.id]: { sourcePostSlug: 'dali-slow-5d' } },
       partnerIntents: { [daliDraft.id]: true },
+      },
     });
   });
 
@@ -223,29 +262,128 @@ describe('draft merge and persistence', () => {
     store.getState().acceptDraft(daliDraft);
     const safeTrip = structuredClone(store.getState().trips[daliDraft.id]);
     const malformedBytes = JSON.stringify({ state: malformedState, version: 1 });
-    window.localStorage.setItem('xingyu-demo-v1', malformedBytes);
+    window.localStorage.setItem(canonicalKey, malformedBytes);
 
     await store.persist.rehydrate();
 
     expect(hydrationError).toBe(true);
     expect(store.getState().trips).toEqual({ [daliDraft.id]: safeTrip });
-    expect(window.localStorage.getItem('xingyu-demo-v1')).toBe(malformedBytes);
+    expect(window.localStorage.getItem(canonicalKey)).toBe(malformedBytes);
   });
 
-  it('validates and migrates a version-zero workbench without losing its safe trip', async () => {
+  it('migrates v1 trips with stable timestamps and imports legacy drafts once without changing source bytes', async () => {
     const source = createTripStore();
     source.getState().acceptDraft(daliDraft);
-    const legacyTrip = { ...structuredClone(source.getState().trips[daliDraft.id]), budget: 6000 };
-    window.localStorage.setItem('xingyu-demo-v1', JSON.stringify({
-      state: { trips: { [daliDraft.id]: legacyTrip }, partnerIntents: {} },
+    const v1Trip = withoutV2Fields(structuredClone(source.getState().trips[daliDraft.id]));
+    const legacyDraftBytes = JSON.stringify({
+      state: { drafts: { [sichuanDraft.sourcePostSlug]: sichuanDraft } },
       version: 0,
+    });
+    window.localStorage.setItem(canonicalKey, JSON.stringify({
+      state: { trips: { [daliDraft.id]: { ...v1Trip, budget: 6000 } }, partnerIntents: {} },
+      version: 1,
     }));
+    window.localStorage.setItem(legacyDraftKey, legacyDraftBytes);
     const store = createTripStore();
 
     await store.persist.rehydrate();
+    await store.persist.rehydrate();
 
-    expect(store.getState().trips[daliDraft.id].budget).toBe(6000);
-    expect(JSON.parse(window.localStorage.getItem('xingyu-demo-v1') ?? '{}').version).toBe(1);
+    expect(Object.values(store.getState().trips)).toHaveLength(2);
+    expect(store.getState().trips[daliDraft.id]).toMatchObject({
+      budget: 6000,
+      createdAt: stableMigrationTimestamp,
+      updatedAt: stableMigrationTimestamp,
+    });
+    expect(store.getState().trips[sichuanDraft.id]).toMatchObject({
+      sourcePostSlug: sichuanDraft.sourcePostSlug,
+      createdAt: stableMigrationTimestamp,
+      updatedAt: stableMigrationTimestamp,
+    });
+    expect(window.localStorage.getItem(legacyDraftKey)).toBe(legacyDraftBytes);
+    expect(JSON.parse(window.localStorage.getItem(canonicalKey) ?? '{}').version).toBe(2);
+  });
+
+  it('fails closed on malformed canonical bytes and preserves the exact raw value', async () => {
+    const malformedBytes = '{"state":{"trips":';
+    let hydrationError = false;
+    const store = createTripStore({ onHydrationError: () => { hydrationError = true; } });
+    store.getState().acceptDraft(daliDraft);
+    const safeState = structuredClone(store.getState().trips);
+    window.localStorage.setItem(canonicalKey, malformedBytes);
+
+    await store.persist.rehydrate();
+
+    expect(hydrationError).toBe(true);
+    expect(store.getState().trips).toEqual(safeState);
+    expect(window.localStorage.getItem(canonicalKey)).toBe(malformedBytes);
+  });
+
+  it('does not duplicate a legacy draft already represented by source slug', async () => {
+    const canonical = createTripStore();
+    canonical.getState().acceptDraft(daliDraft);
+    const canonicalTrip = structuredClone(canonical.getState().trips[daliDraft.id]);
+    window.localStorage.setItem(canonicalKey, JSON.stringify({
+      state: { trips: { [daliDraft.id]: canonicalTrip }, partnerIntents: {}, guardianPlans: {} },
+      version: 2,
+    }));
+    const changedDraft = { ...daliDraft, budget: 9999 };
+    const legacyBytes = JSON.stringify({
+      state: { drafts: { [daliDraft.sourcePostSlug]: changedDraft } },
+      version: 0,
+    });
+    window.localStorage.setItem(legacyDraftKey, legacyBytes);
+    const store = createTripStore();
+
+    await store.persist.rehydrate();
+    await store.persist.rehydrate();
+
+    expect(Object.keys(store.getState().trips)).toEqual([daliDraft.id]);
+    expect(store.getState().trips[daliDraft.id].budget).toBe(daliDraft.budget);
+    expect(window.localStorage.getItem(legacyDraftKey)).toBe(legacyBytes);
+  });
+
+  it('persists a newly discovered legacy draft into an existing v2 canonical state once', async () => {
+    const canonical = createTripStore();
+    canonical.getState().acceptDraft(daliDraft);
+    const canonicalTrip = structuredClone(canonical.getState().trips[daliDraft.id]);
+    window.localStorage.setItem(canonicalKey, JSON.stringify({
+      state: { trips: { [daliDraft.id]: canonicalTrip }, partnerIntents: {}, guardianPlans: {} },
+      version: 2,
+    }));
+    const legacyBytes = JSON.stringify({
+      state: { drafts: { [sichuanDraft.sourcePostSlug]: sichuanDraft } },
+      version: 0,
+    });
+    window.localStorage.setItem(legacyDraftKey, legacyBytes);
+    const store = createTripStore();
+
+    await store.persist.rehydrate();
+    await store.persist.rehydrate();
+
+    const persisted = JSON.parse(window.localStorage.getItem(canonicalKey) ?? '{}');
+    expect(Object.keys(persisted.state.trips)).toEqual([daliDraft.id, sichuanDraft.id]);
+    expect(Object.keys(store.getState().trips)).toEqual([daliDraft.id, sichuanDraft.id]);
+    expect(window.localStorage.getItem(legacyDraftKey)).toBe(legacyBytes);
+  });
+
+  it('rejects a v1 map whose key is not the canonical trip id', async () => {
+    const source = createTripStore();
+    source.getState().acceptDraft(daliDraft);
+    const v1Trip = withoutV2Fields(structuredClone(source.getState().trips[daliDraft.id]));
+    const raw = JSON.stringify({
+      state: { trips: { [daliDraft.id]: v1Trip }, partnerIntents: {} },
+      version: 1,
+    }).replace(daliDraft.id, 'wrong-map-key');
+    window.localStorage.setItem(canonicalKey, raw);
+    let hydrationError = false;
+    const store = createTripStore({ onHydrationError: () => { hydrationError = true; } });
+
+    await store.persist.rehydrate();
+
+    expect(hydrationError).toBe(true);
+    expect(store.getState().trips).toEqual({});
+    expect(window.localStorage.getItem(canonicalKey)).toBe(raw);
   });
 });
 
@@ -253,4 +391,10 @@ function acceptedTrip() {
   const store = createTripStore();
   store.getState().acceptDraft(daliDraft);
   return structuredClone(store.getState().trips[daliDraft.id]);
+}
+
+function withoutV2Fields(trip: ReturnType<typeof acceptedTrip>) {
+  return Object.fromEntries(Object.entries(trip).filter(
+    ([key]) => key !== 'createdAt' && key !== 'updatedAt' && key !== 'coverImage',
+  ));
 }

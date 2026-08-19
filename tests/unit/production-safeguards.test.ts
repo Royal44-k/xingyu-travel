@@ -21,6 +21,7 @@ describe('production safeguards', () => {
     expect(serialized).not.toContain('localhost');
     expect(pages).toEqual(expect.arrayContaining([
       expect.objectContaining({ url: expect.stringMatching(/^https:\/\//) }),
+      expect.objectContaining({ url: expect.stringMatching(/\/trips$/) }),
     ]));
     expect(appManifest).toMatchObject({ name: '行屿 XINGYU', display: 'standalone' });
   });

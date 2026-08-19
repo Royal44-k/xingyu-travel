@@ -3,17 +3,19 @@
 import Link from 'next/link';
 import { useEffect } from 'react';
 import { postsBySlug } from '@/data/posts';
-import { hydrateTripStore, useTripHydrationStore, useTripStore } from '@/domain/trips/trip-store';
+import { hydrateWorkbenchTripStore, useTripStore, useTripStoreHydration } from '@/stores/trip-store';
 import styles from '@/features/square/square.module.css';
 
 export function TripDraftHandoff({ slug }: { slug: string }) {
-  const draft = useTripStore((state) => state.drafts[slug]);
-  const hydrated = useTripHydrationStore((state) => state.hydrated);
-  const hydrationError = useTripHydrationStore((state) => state.hydrationError);
+  const trip = useTripStore((state) => Object.values(state.trips).find(
+    (candidate) => candidate.sourcePostSlug === slug,
+  ));
+  const hydrated = useTripStoreHydration((state) => state.hydrated);
+  const hydrationError = useTripStoreHydration((state) => state.hydrationError);
   const sourceHref = postsBySlug[slug] ? `/square/${slug}` : '/square';
 
   useEffect(() => {
-    void hydrateTripStore();
+    void hydrateWorkbenchTripStore();
   }, []);
 
   if (!hydrated) {
@@ -40,7 +42,7 @@ export function TripDraftHandoff({ slug }: { slug: string }) {
     );
   }
 
-  if (!draft) {
+  if (!trip) {
     return (
       <main className={styles.detailPage}>
         <section className={styles.handoffPanel}>
@@ -57,11 +59,11 @@ export function TripDraftHandoff({ slug }: { slug: string }) {
     <main className={styles.detailPage}>
       <section className={styles.handoffPanel}>
         <p>LOCAL DRAFT</p>
-        <h1>{draft.destination} · {draft.days} 天行程草稿已保存</h1>
+        <h1>{trip.destination} · {trip.items.length} 天行程已保存</h1>
         <span>已完成攻略到本地草稿的交接。完整行程工作台将继续在此草稿上编辑。</span>
-        <dl className={styles.draftSummary}><div><dt>预算</dt><dd>¥{draft.budget.toLocaleString('zh-CN')}</dd></div><div><dt>行程节点</dt><dd>{draft.items.length} 个</dd></div><div><dt>状态</dt><dd>待编辑</dd></div></dl>
-        <ol className={styles.handoffItems}>{draft.items.map((item) => <li key={item.id}><strong>{item.title}</strong><span>{item.location} · {item.description}</span></li>)}</ol>
-        <Link href={`/square/${draft.sourcePostSlug}`}>返回原攻略</Link>
+        <dl className={styles.draftSummary}><div><dt>预算</dt><dd>¥{trip.budget.toLocaleString('zh-CN')}</dd></div><div><dt>行程节点</dt><dd>{trip.items.length} 个</dd></div><div><dt>状态</dt><dd>可继续规划</dd></div></dl>
+        <ol className={styles.handoffItems}>{trip.items.map((item) => <li key={item.id}><strong>{item.title}</strong><span>{item.location} · {item.description}</span></li>)}</ol>
+        <Link href={`/square/${trip.sourcePostSlug}`}>返回原攻略</Link>
       </section>
     </main>
   );

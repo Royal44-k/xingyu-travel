@@ -77,7 +77,7 @@ export function SiteHeader({ activePath = '/', variant = 'overlay' }: SiteHeader
           })}
         </nav>
 
-        <Link className={styles.tripLink} href="/trips/demo">
+        <Link aria-current={activePath === '/trips' ? 'page' : undefined} className={styles.tripLink} href="/trips">
           我的行程
         </Link>
       </div>

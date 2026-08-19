@@ -96,7 +96,7 @@ export function ItineraryEditor(props: ItineraryEditorProps) {
     <section aria-labelledby="itinerary-title" className={styles.itinerarySection}>
       <div className={styles.sectionHeading}>
         <div><p>ITINERARY / 01</p><h2 id="itinerary-title">路线编排</h2></div>
-        <span>五个节点 · 自动保存至本浏览器</span>
+        <span>{props.items.length} 个节点 · 自动保存至本浏览器</span>
       </div>
       <div className={styles.itineraryList}>
         {props.items.map((item, index) => (

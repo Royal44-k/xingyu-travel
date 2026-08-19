@@ -4,11 +4,6 @@ import { ArrowRight, CalendarBlank, Coins, MapPin, UsersThree } from '@phosphor-
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import {
-  hydrateTripStore as hydrateDraftTripStore,
-  useTripHydrationStore as useDraftHydrationStore,
-  useTripStore as useDraftTripStore,
-} from '@/domain/trips/trip-store';
-import {
   getBudgetSummary,
   hydrateWorkbenchTripStore,
   type WorkbenchTrip,
@@ -23,9 +18,6 @@ import { tripToPartnerIntent } from '@/features/partners/trip-to-partner-intent'
 import { hydratePartnerStore, usePartnerStore, usePartnerStoreHydration } from '@/stores/partner-store';
 
 export function TripWorkbench({ slug }: { slug: string }) {
-  const draft = useDraftTripStore((state) => state.drafts[slug]);
-  const draftHydrated = useDraftHydrationStore((state) => state.hydrated);
-  const draftHydrationError = useDraftHydrationStore((state) => state.hydrationError);
   const workbenchHydrated = useTripStoreHydration((state) => state.hydrated);
   const workbenchHydrationError = useTripStoreHydration((state) => state.hydrationError);
   const partnerHydrated = usePartnerStoreHydration((state) => state.hydrated);
@@ -36,7 +28,6 @@ export function TripWorkbench({ slug }: { slug: string }) {
   );
   const trip = useTripStore((state) => tripId ? state.trips[tripId] : undefined);
   const partnerIntentPublished = useTripStore((state) => tripId ? Boolean(state.partnerIntents[tripId]) : false);
-  const acceptDraft = useTripStore((state) => state.acceptDraft);
   const updateTrip = useTripStore((state) => state.updateTrip);
   const updateItem = useTripStore((state) => state.updateItem);
   const reorderItem = useTripStore((state) => state.reorderItem);
@@ -45,14 +36,8 @@ export function TripWorkbench({ slug }: { slug: string }) {
   const enableGuardian = useTripStore((state) => state.enableGuardian);
   const publishPartnerIntent = useTripStore((state) => state.publishPartnerIntent);
   useEffect(() => {
-    void Promise.all([hydrateDraftTripStore(), hydrateWorkbenchTripStore(), hydratePartnerStore()]);
+    void Promise.all([hydrateWorkbenchTripStore(), hydratePartnerStore()]);
   }, []);
-
-  useEffect(() => {
-    if (draftHydrated && workbenchHydrated && !draftHydrationError && !workbenchHydrationError && draft && !trip) {
-      acceptDraft(draft);
-    }
-  }, [acceptDraft, draft, draftHydrated, draftHydrationError, trip, workbenchHydrated, workbenchHydrationError]);
 
   const compareHref = useMemo(() => {
     if (!trip) return '/compare';
@@ -65,34 +50,29 @@ export function TripWorkbench({ slug }: { slug: string }) {
     return `/compare?${query.toString()}`;
   }, [trip]);
 
-  if (!workbenchHydrated || !partnerHydrated || (!trip && !draftHydrated)) {
-    return <WorkbenchState title="正在读取本地行程…" message="正在合并攻略草稿与浏览器中的工作台状态。" />;
+  if (!workbenchHydrated || !partnerHydrated) {
+    return <WorkbenchState title="正在读取本地行程…" message="正在读取浏览器中的行程工作台状态。" />;
   }
 
-  if (!trip && (draftHydrationError || workbenchHydrationError)) {
+  if (!trip && workbenchHydrationError) {
     return <WorkbenchState title="本地行程暂时无法读取" message="浏览器中的数据未被覆盖。请返回原攻略，稍后再试。" sourceHref={`/square/${slug}`} />;
   }
 
-  if (!draft && !trip) {
-    return <WorkbenchState title="未找到本地行程草稿" message="草稿只保存在创建它的浏览器中。请返回攻略重新生成。" sourceHref={`/square/${slug}`} />;
-  }
-
   if (!trip) {
-    return <WorkbenchState title="正在准备行程工作台…" message="本地草稿已读取，正在创建可编辑版本。" />;
+    return <WorkbenchState title="未找到本地行程" message="行程只保存在创建它的浏览器中。请返回攻略重新保存。" sourceHref={`/square/${slug}`} />;
   }
 
   const budgetSummary = getBudgetSummary(trip);
   return (
     <main className={styles.page}>
-      {draftHydrationError && <p className={styles.hydrationWarning} role="status">攻略草稿读取失败，继续使用已保存的本地工作台。</p>}
       {workbenchHydrationError && <p className={styles.hydrationWarning} role="status">工作台存储校验失败，继续使用当前安全的内存状态；原存储未被覆盖。</p>}
       <header className={styles.hero}>
-        <div className={styles.eyebrow}><span>LOCAL TRIP / DALI</span><span>本地演示工作台</span></div>
+        <div className={styles.eyebrow}><span>LOCAL TRIP / {trip.destination}</span><span>本地演示工作台</span></div>
         <div className={styles.heroTitle}>
           <div><p>{trip.destination} · {trip.items.length} DAYS</p><h1>{trip.title}</h1></div>
           <span className={styles.statusPill}>{trip.guardianEnabled ? '守护演示中' : '共同规划中'}</span>
         </div>
-        <p className={styles.heroLead}>把来自攻略的灵感拆成可以讨论、调整与核算的五天。所有编辑仅保存在当前浏览器。</p>
+        <p className={styles.heroLead}>把来自攻略的灵感拆成可以讨论、调整与核算的 {trip.items.length} 天。所有编辑仅保存在当前浏览器。</p>
         <div className={styles.tripMeta}>
           <span><MapPin aria-hidden size={18} />{trip.destination}</span>
           <span><CalendarBlank aria-hidden size={18} />{trip.startDate} — {trip.endDate}</span>
@@ -116,7 +96,7 @@ export function TripWorkbench({ slug }: { slug: string }) {
       <section aria-labelledby="budget-title" className={styles.budgetPanel}>
         <div><p>BUDGET / 03</p><h2 id="budget-title">预算核算</h2></div>
         <div className={styles.budgetNumbers}>
-          <span><small>五项预计花费</small><strong>¥{budgetSummary.overall.toLocaleString('zh-CN')}</strong></span>
+          <span><small>{trip.items.length} 项预计花费</small><strong>¥{budgetSummary.overall.toLocaleString('zh-CN')}</strong></span>
           <span><small>行程总预算</small><strong>¥{trip.budget.toLocaleString('zh-CN')}</strong></span>
           <span><small>剩余弹性</small><strong>¥{Math.max(0, trip.budget - budgetSummary.overall).toLocaleString('zh-CN')}</strong></span>
         </div>

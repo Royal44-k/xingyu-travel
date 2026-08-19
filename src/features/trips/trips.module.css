@@ -323,8 +323,101 @@
 
 .srOnly { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
+.collectionPage {
+  width: min(100% - 40px, var(--content-max));
+  margin: 0 auto;
+  padding: 126px 0 86px;
+}
+
+.collectionHero {
+  display: grid;
+  grid-template-columns: minmax(260px, .8fr) minmax(300px, 1.2fr);
+  gap: 42px;
+  align-items: end;
+  padding: 40px 0 44px;
+  border-bottom: 1px solid rgb(16 16 15 / 18%);
+}
+
+.collectionHero > div > p,
+.collectionToolbar > div > p,
+.collectionState > p {
+  margin: 0 0 9px;
+  color: #72572f;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .17em;
+}
+
+.collectionHero h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(44px, 7vw, 88px);
+  font-weight: 500;
+  letter-spacing: -.05em;
+  line-height: 1;
+}
+
+.collectionHero > p {
+  max-width: 620px;
+  margin: 0 0 4px;
+  color: rgb(16 16 15 / 66%);
+  font-size: 15px;
+  line-height: 1.85;
+}
+
+.collectionSection { padding-top: 32px; }
+.collectionToolbar { display: flex; align-items: end; justify-content: space-between; gap: 30px; }
+.collectionToolbar h2 { margin: 0; font-family: var(--font-display); font-size: 30px; font-weight: 500; }
+.collectionToolbar > div:first-child > span { display: block; margin-top: 7px; color: rgb(16 16 15 / 58%); font-size: 12px; }
+.collectionFilters { display: flex; flex-wrap: wrap; justify-content: end; gap: 7px; }
+.collectionFilters button {
+  min-height: 38px;
+  padding: 8px 13px;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid rgb(16 16 15 / 20%);
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.collectionFilters button[aria-pressed="true"] { color: var(--ivory); background: var(--pine); border-color: var(--pine); }
+
+.tripCardGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; margin-top: 30px; }
+.tripCollectionCard {
+  display: grid;
+  grid-template-columns: minmax(150px, .62fr) minmax(0, 1fr);
+  min-height: 278px;
+  overflow: hidden;
+  background: rgb(255 255 255 / 31%);
+  border: 1px solid rgb(16 16 15 / 13%);
+  border-radius: 2px 20px 2px 2px;
+}
+.tripCollectionCard[data-has-cover="false"] { grid-template-columns: 1fr; }
+.tripCardCover { position: relative; min-height: 210px; overflow: hidden; background: #d7d0c4; }
+.tripCardCover::after { position: absolute; inset: 0; content: ""; background: linear-gradient(180deg, transparent 48%, rgb(20 25 22 / 42%)); }
+.tripCardCover img { object-fit: cover; }
+.tripCardBody { display: flex; min-width: 0; flex-direction: column; padding: 24px; }
+.tripCardMeta { display: flex; flex-wrap: wrap; gap: 8px 14px; color: #6f5a38; font-size: 11px; }
+.tripCardMeta span { display: inline-flex; align-items: center; gap: 5px; }
+.tripCardMeta small { padding: 4px 7px; color: var(--ivory); background: var(--pine); font-size: 10px; }
+.tripCardBody h3 { margin: 24px 0 8px; font-family: var(--font-display); font-size: clamp(22px, 2.2vw, 30px); font-weight: 500; line-height: 1.25; }
+.tripCardBody > p { margin: 0; color: rgb(16 16 15 / 59%); font-size: 12px; }
+.tripCardFooter { display: flex; align-items: end; justify-content: space-between; gap: 14px; margin-top: auto; padding-top: 24px; }
+.tripCardFooter > span { display: inline-flex; align-items: center; gap: 5px; color: rgb(16 16 15 / 54%); font-size: 10px; }
+.tripCardFooter a { display: inline-flex; align-items: center; gap: 6px; color: #584322; font-size: 12px; font-weight: 700; text-decoration: none; }
+
+.collectionStatePage { display: grid; min-height: 76vh; place-items: center; padding: 132px 20px 60px; }
+.collectionState { width: min(100%, 700px); padding: clamp(34px, 7vw, 64px); text-align: center; background: #e9e2d6; border: 1px solid #d0c6b7; }
+.collectionState h1 { margin: 0 0 14px; font-family: var(--font-display); font-size: clamp(30px, 5vw, 46px); font-weight: 500; }
+.collectionState > span { display: block; color: rgb(16 16 15 / 64%); line-height: 1.75; }
+.collectionState > div { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 26px; }
+.collectionState a { padding: 11px 15px; color: var(--ivory); background: var(--pine); border: 1px solid var(--pine); border-radius: 7px; font-size: 13px; text-decoration: none; }
+.collectionState a + a { color: var(--ink); background: transparent; border-color: rgb(16 16 15 / 24%); }
+
 .page :is(button, a, input):focus-visible,
-.guardianDialog :is(button, input):focus-visible { outline: 3px solid #be8d3b; outline-offset: 3px; }
+.guardianDialog :is(button, input):focus-visible,
+.collectionPage :is(button, a):focus-visible,
+.collectionState a:focus-visible { outline: 3px solid #be8d3b; outline-offset: 3px; }
 
 @media (max-width: 900px) {
   .settingsPanel,
@@ -335,6 +428,7 @@
   .decisionGrid { grid-template-columns: 1fr; }
   .roomSidebar { grid-template-columns: 1fr 1fr; }
   .budgetNumbers { justify-content: flex-start; flex-wrap: wrap; }
+  .tripCardGrid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 640px) {
@@ -356,4 +450,14 @@
   .localActions, .compareCta { align-items: flex-start; flex-direction: column; }
   .compareCta a { width: 100%; justify-content: center; }
   .statePanel { padding: 36px 22px; }
+  .collectionPage { width: min(100% - 24px, var(--content-max)); padding-top: 108px; }
+  .collectionHero { grid-template-columns: 1fr; gap: 24px; padding-top: 30px; }
+  .collectionToolbar { align-items: flex-start; flex-direction: column; }
+  .collectionFilters { width: 100%; justify-content: flex-start; }
+  .collectionFilters button { flex: 1 0 calc(50% - 7px); }
+  .tripCollectionCard { grid-template-columns: 1fr; }
+  .tripCardCover { min-height: 190px; }
+  .tripCardFooter { align-items: flex-start; flex-direction: column; }
+  .tripCardFooter a { min-height: 40px; align-items: center; }
+  .collectionStatePage { padding-inline: 12px; }
 }

@@ -3,19 +3,14 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { postsBySlug } from '@/data/posts';
 import { extractTripDraft } from '@/domain/trips/extract-draft';
-import {
-  useTripHydrationStore as useDraftHydrationStore,
-  useTripStore as useDraftTripStore,
-} from '@/domain/trips/trip-store';
 import { TripWorkbench } from '@/features/trips/trip-workbench';
 import { createTripStore, useTripStore, useTripStoreHydration } from '@/stores/trip-store';
 
 const draft = extractTripDraft(postsBySlug['dali-slow-5d']);
 
 function readyStores() {
-  useDraftTripStore.setState({ drafts: { [draft.sourcePostSlug]: draft } });
-  useDraftHydrationStore.setState({ hydrated: true, hydrationError: false });
-  useTripStore.setState({ trips: {}, partnerIntents: {} });
+  useTripStore.setState({ trips: {}, partnerIntents: {}, guardianPlans: {} });
+  useTripStore.getState().savePostAsTrip(draft, postsBySlug['dali-slow-5d'].media[0].src);
   useTripStoreHydration.setState({ hydrated: true, hydrationError: false });
 }
 
@@ -26,19 +21,31 @@ beforeEach(() => {
 
 afterEach(() => {
   window.localStorage.clear();
-  useDraftTripStore.setState({ drafts: {} });
-  useDraftHydrationStore.setState({ hydrated: false, hydrationError: false });
-  useTripStore.setState({ trips: {}, partnerIntents: {} });
+  useTripStore.setState({ trips: {}, partnerIntents: {}, guardianPlans: {} });
   useTripStoreHydration.setState({ hydrated: false, hydrationError: false });
 });
 
 describe('TripWorkbench', () => {
-  it('accepts the hydrated local draft and renders all five editable itinerary nodes', async () => {
+  it('renders the hydrated canonical trip with all five editable itinerary nodes', async () => {
     render(<TripWorkbench slug="dali-slow-5d" />);
 
     expect(await screen.findByRole('heading', { name: /大理慢行计划/ })).toBeInTheDocument();
     expect(screen.getAllByRole('group', { name: /第 [1-5] 天行程/ })).toHaveLength(5);
     expect(screen.getByText('本地演示工作台')).toBeInTheDocument();
+  });
+
+  it('uses the canonical destination and day count for every accepted guide route', async () => {
+    const sichuanPost = postsBySlug['sichuan-autumn-road'];
+    useTripStore.setState({ trips: {}, partnerIntents: {}, guardianPlans: {} });
+    useTripStore.getState().savePostAsTrip(extractTripDraft(sichuanPost), sichuanPost.media[0].src);
+
+    render(<TripWorkbench slug={sichuanPost.slug} />);
+
+    expect(await screen.findByRole('heading', { name: '川西慢行计划' })).toBeInTheDocument();
+    expect(screen.getByText('LOCAL TRIP / 川西')).toBeInTheDocument();
+    expect(screen.getByText(/拆成可以讨论、调整与核算的 4 天/)).toBeInTheDocument();
+    expect(screen.getByText('4 个节点 · 自动保存至本浏览器')).toBeInTheDocument();
+    expect(screen.queryByText('LOCAL TRIP / DALI')).not.toBeInTheDocument();
   });
 
   it('edits dates, budget and an itinerary item with validation', async () => {
@@ -179,21 +186,21 @@ describe('TripWorkbench', () => {
     await expectResetOnReopen();
   });
 
-  it('renders and edits an accepted workbench when legacy draft hydration fails', async () => {
+  it('renders and edits an in-memory canonical workbench when persisted hydration fails', async () => {
     const user = userEvent.setup();
-    useTripStore.setState({ trips: {}, partnerIntents: {} });
+    useTripStore.setState({ trips: {}, partnerIntents: {}, guardianPlans: {} });
     const persistedStore = createTripStore();
     persistedStore.getState().acceptDraft(draft);
     persistedStore.getState().updateTrip(draft.id, { budget: 6100 });
+    useTripStore.setState({ trips: persistedStore.getState().trips });
     useTripStoreHydration.setState({ hydrated: false, hydrationError: false });
-    useDraftTripStore.setState({ drafts: {} });
-    useDraftHydrationStore.setState({ hydrated: true, hydrationError: true });
+    window.localStorage.setItem('xingyu-demo-v1', '{broken');
 
     render(<TripWorkbench slug="dali-slow-5d" />);
 
     expect(await screen.findByRole('heading', { name: /大理慢行计划/ })).toBeInTheDocument();
     expect(screen.getByLabelText('总预算')).toHaveValue(6100);
-    expect(screen.getByText(/攻略草稿读取失败/)).toBeInTheDocument();
+    expect(screen.getByText(/工作台存储校验失败/)).toBeInTheDocument();
     await user.clear(screen.getByLabelText('总预算'));
     await user.type(screen.getByLabelText('总预算'), '6200');
     await user.click(screen.getByRole('button', { name: '保存行程设置' }));
@@ -201,7 +208,7 @@ describe('TripWorkbench', () => {
   });
 
   it('recovers without crashing or overwriting valid JSON with malformed workbench structure', async () => {
-    useTripStore.setState({ trips: {}, partnerIntents: {} });
+    useTripStore.setState({ trips: {}, partnerIntents: {}, guardianPlans: {} });
     useTripStoreHydration.setState({ hydrated: false, hydrationError: false });
     const malformedBytes = JSON.stringify({
       state: { trips: null, partnerIntents: {} },
@@ -215,13 +222,13 @@ describe('TripWorkbench', () => {
     expect(window.localStorage.getItem('xingyu-demo-v1')).toBe(malformedBytes);
   });
 
-  it('keeps loading and recovery states stable around draft hydration', async () => {
-    useDraftTripStore.setState({ drafts: {} });
-    useDraftHydrationStore.setState({ hydrated: false, hydrationError: false });
+  it('keeps loading and recovery states stable around canonical hydration', async () => {
+    useTripStore.setState({ trips: {}, partnerIntents: {}, guardianPlans: {} });
+    useTripStoreHydration.setState({ hydrated: false, hydrationError: false });
     render(<TripWorkbench slug="dali-slow-5d" />);
     expect(screen.getByText('正在读取本地行程…')).toBeInTheDocument();
 
-    useDraftHydrationStore.setState({ hydrated: true, hydrationError: true });
+    useTripStoreHydration.setState({ hydrated: true, hydrationError: true });
     await waitFor(() => expect(screen.getByText('本地行程暂时无法读取')).toBeInTheDocument());
     expect(screen.getByRole('link', { name: '返回原攻略' })).toHaveAttribute('href', '/square/dali-slow-5d');
   });

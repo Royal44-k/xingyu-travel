@@ -32,7 +32,7 @@ it('renders usable primary navigation with the homepage marked current', () => {
   );
   expect(screen.getByRole('link', { name: '我的行程' })).toHaveAttribute(
     'href',
-    '/trips/demo',
+    '/trips',
   );
 });
 
