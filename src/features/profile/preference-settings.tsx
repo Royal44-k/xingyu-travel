@@ -1,7 +1,8 @@
 'use client';
 
-import { Sparkle, X } from '@phosphor-icons/react';
+import { Sparkle } from '@phosphor-icons/react';
 import { useEffect } from 'react';
+import { InterestTagPicker } from '@/features/profile/interest-tag-picker';
 import {
   hydrateProfileStore,
   useProfileStore,
@@ -12,6 +13,8 @@ export function PreferenceSettings() {
   const personalizedFeed = useProfileStore((state) => state.personalizedFeed);
   const interestTags = useProfileStore((state) => state.interestTags);
   const setPersonalizedFeed = useProfileStore((state) => state.setPersonalizedFeed);
+  const addInterestTag = useProfileStore((state) => state.addInterestTag);
+  const removeInterestTag = useProfileStore((state) => state.removeInterestTag);
   const clearInterestTags = useProfileStore((state) => state.clearInterestTags);
   const resetProfilePreferences = useProfileStore((state) => state.resetProfilePreferences);
   const hydrated = useProfileStoreHydration((state) => state.hydrated);
@@ -53,12 +56,12 @@ export function PreferenceSettings() {
       {!canPersonalize ? (
         <p id="personalization-disabled">兴趣标签已清除；添加兴趣后才可重新开启个性化推荐。</p>
       ) : null}
-      <div aria-label="当前兴趣标签" className="preferenceTags">
-        {interestTags.length ? interestTags.map((tag) => <span key={tag}>#{tag}</span>) : <span>尚无兴趣标签</span>}
-      </div>
-      <button className="preferenceClear" disabled={!interestTags.length} onClick={clearInterestTags} type="button">
-        <X aria-hidden size={16} /> 清除兴趣标签
-      </button>
+      <InterestTagPicker
+        interestTags={interestTags}
+        onAddInterestTag={addInterestTag}
+        onClearInterestTags={clearInterestTags}
+        onRemoveInterestTag={removeInterestTag}
+      />
       <p role="status">{personalizedFeed && canPersonalize ? '当前使用个性化推荐排序' : '当前使用按时间排序'}</p>
     </section>
   );

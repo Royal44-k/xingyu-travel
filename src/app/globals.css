@@ -114,7 +114,33 @@ textarea { font: inherit; }
 .preferenceTags { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0; }
 .preferenceTags span { padding: 6px 9px; border-radius: 999px; background: #e7e1d5; font-size: 13px; }
 .preferenceSwitchRow button:focus-visible,
-.preferenceClear:focus-visible { outline: 2px solid var(--sand); outline-offset: 3px; }
+.preferenceClear:focus-visible,
+.interestTagPicker button:focus-visible,
+.customInterestForm input:focus-visible { outline: 2px solid var(--sand); outline-offset: 3px; }
+
+.interestTagPicker { margin-top: 28px; padding-top: 24px; border-top: 1px solid rgb(16 16 15 / 13%); }
+.interestPickerHeader { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
+.interestPickerEyebrow { margin: 0; color: var(--sand); font-size: 10px; letter-spacing: 0.15em; }
+.interestPickerHeader h3 { margin: 6px 0 5px; font-family: var(--font-display); font-size: 22px; font-weight: 500; }
+.interestPickerHeader p:not(.interestPickerEyebrow) { margin: 0; color: rgb(16 16 15 / 70%); font-size: 13px; line-height: 1.65; }
+.interestClearConfirm { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 8px; color: rgb(16 16 15 / 72%); font-size: 12px; }
+.interestClearConfirm button,
+.customInterestForm button { min-height: 36px; padding: 0 11px; color: var(--ivory); border: 1px solid var(--pine); border-radius: var(--radius-control); background: var(--pine); cursor: pointer; }
+.interestClearConfirm button:last-child { color: var(--ink); border-color: rgb(16 16 15 / 20%); background: transparent; }
+.selectedInterestTag { display: inline-flex; align-items: center; gap: 4px; }
+.selectedInterestTag button { display: inline-flex; padding: 0; color: rgb(16 16 15 / 65%); border: 0; background: transparent; cursor: pointer; }
+.interestCategoryList { display: grid; gap: 16px; margin-top: 24px; }
+.interestCategory { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 12px; align-items: start; }
+.interestCategory h4 { margin: 7px 0 0; color: rgb(16 16 15 / 68%); font-size: 12px; font-weight: 700; }
+.interestChipList { display: flex; flex-wrap: wrap; gap: 8px; }
+.interestChip { display: inline-flex; align-items: center; gap: 5px; min-height: 34px; padding: 0 11px; color: var(--ink); border: 1px solid rgb(16 16 15 / 20%); border-radius: 999px; background: transparent; cursor: pointer; font-size: 13px; }
+.interestChip[aria-pressed='true'] { border-color: var(--sand); background: #e7e1d5; box-shadow: inset 0 0 0 1px rgb(183 154 104 / 25%); }
+.customInterestForm { margin-top: 24px; }
+.customInterestForm label { display: block; margin-bottom: 8px; font-size: 13px; font-weight: 700; }
+.customInterestForm > div { display: flex; gap: 8px; }
+.customInterestForm input { width: min(100%, 280px); min-height: 38px; padding: 0 11px; color: var(--ink); border: 1px solid rgb(16 16 15 / 25%); border-radius: var(--radius-control); background: rgb(244 240 232 / 65%); }
+.customInterestForm p { margin: 7px 0 0; color: #a94032; font-size: 12px; }
+.interestPickerStatus { min-height: 20px; margin: 12px 0 0; color: rgb(16 16 15 / 68%); font-size: 12px; }
 
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -142,4 +168,11 @@ textarea { font: inherit; }
   .profilePage { width: min(calc(100% - 28px), 860px); padding: 94px 0 70px; }
   .preferenceSwitchRow { align-items: flex-start; flex-direction: column; }
   .preferenceSwitchRow button { width: 100%; }
+  .interestPickerHeader { flex-direction: column; }
+  .interestClearConfirm { justify-content: flex-start; }
+  .interestCategory { grid-template-columns: 1fr; gap: 7px; }
+  .interestCategory h4 { margin-top: 0; }
+  .customInterestForm > div { flex-direction: column; }
+  .customInterestForm input,
+  .customInterestForm button { width: 100%; }
 }

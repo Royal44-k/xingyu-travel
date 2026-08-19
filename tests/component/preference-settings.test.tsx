@@ -40,12 +40,13 @@ describe('PreferenceSettings', () => {
     expect(window.localStorage.getItem('xingyu-profile-demo-v1')).not.toBe(malformed);
   });
 
-  it('clears interest labels and disables personalized recommendations', async () => {
+  it('clears interest labels and disables personalized recommendations after confirmation', async () => {
     const user = userEvent.setup();
     render(<PreferenceSettings />);
 
     await user.click(screen.getByRole('switch', { name: '个性化推荐' }));
-    await user.click(screen.getByRole('button', { name: '清除兴趣标签' }));
+    await user.click(screen.getByRole('button', { name: '清除全部兴趣' }));
+    await user.click(screen.getByRole('button', { name: '确认清除' }));
 
     expect(screen.getByText('当前使用按时间排序')).toBeInTheDocument();
     expect(useProfileStore.getState().personalizedFeed).toBe(false);
