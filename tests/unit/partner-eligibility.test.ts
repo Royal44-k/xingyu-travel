@@ -284,6 +284,29 @@ describe('partner match and chat state', () => {
     expect(window.localStorage.getItem('xingyu-partner-demo-v1')).toBe(malformedBytes);
   });
 
+  it('preserves malformed bytes through later mutations until the owner explicitly resets', async () => {
+    const storageKey = 'xingyu-partner-demo-v1';
+    const malformedBytes = '{"state":{"matches":';
+    window.localStorage.setItem(storageKey, malformedBytes);
+    const store = createPartnerStore();
+
+    await store.persist.rehydrate();
+    store.getState().publishIntent(eligibleProfile, daliPartnerIntent);
+
+    expect(window.localStorage.getItem(storageKey)).toBe(malformedBytes);
+
+    store.getState().resetPartnerStore();
+
+    expect(store.getState()).toMatchObject({
+      intents: {}, matches: {}, visibleMatchIds: [], blockedCandidateIds: [],
+    });
+    const resetEnvelope = JSON.parse(window.localStorage.getItem(storageKey) ?? '{}');
+    expect(resetEnvelope).toMatchObject({
+      state: { intents: {}, matches: {}, visibleMatchIds: [], blockedCandidateIds: [] },
+      version: 2,
+    });
+  });
+
   it('migrates a valid v1 terminal match by revoking consent and repersisting safe v2 state', async () => {
     const source = matchedStore();
     const matchId = Object.keys(source.getState().matches)[0];

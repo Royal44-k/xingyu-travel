@@ -118,7 +118,7 @@ textarea { font: inherit; }
 
 .profileIntro > p:first-child,
 .preferenceSettings > p:first-child {
-  color: var(--sand);
+  color: var(--profile-accent-on-light, #6f5732);
   font-size: 11px;
   letter-spacing: 0.17em;
 }
@@ -164,11 +164,11 @@ textarea { font: inherit; }
 .preferenceSwitchRow button:focus-visible,
 .preferenceClear:focus-visible,
 .interestTagPicker button:focus-visible,
-.customInterestForm input:focus-visible { outline: 2px solid var(--sand); outline-offset: 3px; }
+.customInterestForm input:focus-visible { outline: 2px solid var(--profile-focus-on-light, #6f5732); outline-offset: 3px; }
 
 .interestTagPicker { margin-top: 28px; padding-top: 24px; border-top: 1px solid rgb(16 16 15 / 13%); }
 .interestPickerHeader { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
-.interestPickerEyebrow { margin: 0; color: var(--sand); font-size: 10px; letter-spacing: 0.15em; }
+.interestPickerEyebrow { margin: 0; color: var(--profile-accent-on-light, #6f5732); font-size: 10px; letter-spacing: 0.15em; }
 .interestPickerHeader h3 { margin: 6px 0 5px; font-family: var(--font-display); font-size: 22px; font-weight: 500; }
 .interestPickerHeader p:not(.interestPickerEyebrow) { margin: 0; color: rgb(16 16 15 / 70%); font-size: 13px; line-height: 1.65; }
 .interestClearConfirm { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 8px; color: rgb(16 16 15 / 72%); font-size: 12px; }

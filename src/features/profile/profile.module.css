@@ -49,17 +49,18 @@
 .tabList button:focus-visible,
 .summaryCard:focus-visible,
 .featureCard a:focus-visible,
-.safetyDisclosure a:focus-visible,
 .guideCard a:focus-visible,
 .unavailableGuide button:focus-visible,
 .offerCard a:focus-visible,
 .safetyGrid a:focus-visible,
-.emptyState a:focus-visible { outline: 2px solid var(--sand); outline-offset: 4px; }
+.emptyState a:focus-visible { outline: 2px solid var(--profile-focus-on-light, #6f5732); outline-offset: 4px; }
+.safetyDisclosure a:focus-visible { outline: 2px solid var(--profile-focus-on-dark, #b79a68); outline-offset: 4px; }
 
 .tabPanel { padding-top: clamp(38px, 5vw, 66px); outline: none; }
+.tabPanel:focus-visible { outline: 3px solid var(--profile-focus-on-light, #6f5732); outline-offset: 5px; }
 .panelStack { display: grid; gap: 30px; }
 .sectionHeading { display: flex; justify-content: space-between; gap: 24px; align-items: flex-end; }
-.sectionHeading p { margin: 0 0 8px; color: var(--sand); font-size: 10px; letter-spacing: 0.17em; }
+.sectionHeading p { margin: 0 0 8px; color: var(--profile-accent-on-light, #6f5732); font-size: 10px; letter-spacing: 0.17em; }
 .sectionHeading h2 { margin: 0; font-family: var(--font-display); font-size: clamp(28px, 4vw, 38px); font-weight: 500; }
 .sectionHeading > span { max-width: 430px; color: rgb(16 16 15 / 58%); font-size: 13px; line-height: 1.7; text-align: right; }
 
@@ -74,7 +75,7 @@
 .overviewColumns { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr); gap: 16px; }
 .featureCard,
 .safetyDisclosure { min-height: 245px; padding: clamp(24px, 4vw, 36px); border: 1px solid rgb(16 16 15 / 11%); }
-.featureCard > p:first-child,
+.featureCard > p:first-child { margin: 0 0 20px; color: var(--profile-accent-on-light, #6f5732); font-size: 10px; letter-spacing: 0.15em; }
 .safetyDisclosure > div > p { margin: 0 0 20px; color: var(--sand); font-size: 10px; letter-spacing: 0.15em; }
 .featureCard > span { display: inline-flex; align-items: center; gap: 6px; color: rgb(16 16 15 / 58%); font-size: 12px; }
 .featureCard h3,
@@ -95,7 +96,7 @@
 .guideCover img { object-fit: cover; transition: transform 320ms cubic-bezier(.22, .61, .36, 1); }
 .guideCard:hover .guideCover img { transform: scale(1.025); }
 .guideCard > div:last-child { position: relative; padding: 20px; }
-.guideCard span { color: var(--sand); font-size: 10px; letter-spacing: .08em; }
+.guideCard span { color: var(--profile-accent-on-light, #6f5732); font-size: 10px; letter-spacing: .08em; }
 .guideCard h3 { min-height: 3.2em; margin: 10px 0 8px; font-family: var(--font-display); font-size: 19px; font-weight: 500; line-height: 1.55; }
 .guideCard h3 a { text-decoration: none; }
 .guideCard p { display: -webkit-box; overflow: hidden; margin: 0; color: rgb(16 16 15 / 58%); font-size: 12px; line-height: 1.7; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
@@ -109,11 +110,11 @@
 .offerFilters { display: flex; flex-wrap: wrap; gap: 8px; }
 .offerFilters button { min-height: 34px; padding: 0 12px; color: rgb(16 16 15 / 64%); border: 1px solid rgb(16 16 15 / 16%); background: transparent; cursor: pointer; font-size: 12px; }
 .offerFilters button[aria-pressed='true'] { color: var(--ink); border-color: var(--sand); background: rgb(183 154 104 / 12%); }
-.offerFilters button:focus-visible { outline: 2px solid var(--sand); outline-offset: 3px; }
+.offerFilters button:focus-visible { outline: 2px solid var(--profile-focus-on-light, #6f5732); outline-offset: 3px; }
 .alertBoundary { margin: -14px 0 0; color: var(--lake-jade); font-size: 12px; }
 .filteredEmpty { margin: 0; padding: 28px; border: 1px dashed rgb(16 16 15 / 20%); color: rgb(16 16 15 / 58%); font-size: 13px; }
 .offerCard { display: grid; grid-template-columns: minmax(180px, 1fr) auto minmax(300px, 1.35fr) auto; gap: 24px; align-items: center; padding: 24px; border: 1px solid rgb(16 16 15 / 11%); background: rgb(255 255 255 / 25%); }
-.offerCard span { color: var(--sand); font-size: 10px; letter-spacing: .08em; }
+.offerCard span { color: var(--profile-accent-on-light, #6f5732); font-size: 10px; letter-spacing: .08em; }
 .offerCard h3 { margin: 8px 0; font-family: var(--font-display); font-size: 22px; font-weight: 500; }
 .offerCard p { margin: 0; color: rgb(16 16 15 / 58%); font-size: 12px; }
 .offerPrice { text-align: right; }

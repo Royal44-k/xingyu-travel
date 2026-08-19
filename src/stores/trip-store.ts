@@ -67,6 +67,7 @@ export interface TripStoreState {
   enableGuardian: (tripId: string, consent: boolean) => void;
   publishPartnerIntent: (tripId: string) => void;
   selectGuardianPlan: (tripId: string, plan: GuardianPlanSelection) => void;
+  resetTripStore: () => void;
 }
 
 interface TripStoreHydrationState {
@@ -90,6 +91,7 @@ const initialItemCosts = [520, 420, 680, 980, 370] as const;
 const tripStorageKey = 'xingyu-demo-v1';
 const tripStorageVersion = 2;
 const stableMigrationTimestamp = '2026-08-18T00:00:00.000Z';
+const initialTripState = { trips: {}, partnerIntents: {}, guardianPlans: {} } as const;
 
 export const demoMembers = [
   { id: 'member-lin', name: '林见山' },
@@ -362,11 +364,10 @@ function updatedTrip(trip: WorkbenchTrip, patch: Partial<WorkbenchTrip>): Workbe
 function stateCreator(
   set: (recipe: (state: TripStoreState) => Partial<TripStoreState>) => void,
   get: () => TripStoreState,
+  allowPersistence: () => void = () => {},
 ) {
   return {
-    trips: {},
-    partnerIntents: {},
-    guardianPlans: {},
+    ...initialTripState,
     acceptDraft: (draft: TripDraft) => { get().savePostAsTrip(draft); },
     savePostAsTrip: (draft: TripDraft, coverImage?: string) => {
       let canonicalTrip: WorkbenchTrip | undefined;
@@ -478,6 +479,10 @@ function stateCreator(
         guardianPlans: { ...state.guardianPlans, [trip.id]: plan },
       };
     }),
+    resetTripStore: () => {
+      allowPersistence();
+      set(() => ({ trips: {}, partnerIntents: {}, guardianPlans: {} }));
+    },
   } satisfies TripStoreState;
 }
 
@@ -515,6 +520,7 @@ function persistenceOptions(options: CreateTripStoreOptions = {}) {
 
 function createPersistedTripState(options: CreateTripStoreOptions = {}) {
   let preserveMalformedBytes = false;
+  const allowPersistence = () => { preserveMalformedBytes = false; };
   const jsonStorage = createJSONStorage<PersistedTripState>(() => localStorage) ?? {
     getItem: () => null,
     setItem: () => {},
@@ -528,7 +534,9 @@ function createPersistedTripState(options: CreateTripStoreOptions = {}) {
     },
   };
 
-  return persist<TripStoreState, [], [], PersistedTripState>(stateCreator, {
+  return persist<TripStoreState, [], [], PersistedTripState>(
+    (set, get) => stateCreator(set, get, allowPersistence),
+    {
     ...persistenceOptions(safeOptions),
     storage: {
       getItem: (name) => {
@@ -557,7 +565,8 @@ function createPersistedTripState(options: CreateTripStoreOptions = {}) {
       setItem: (name, value) => preserveMalformedBytes ? undefined : jsonStorage.setItem(name, value),
       removeItem: (name) => preserveMalformedBytes ? undefined : jsonStorage.removeItem(name),
     },
-  });
+    },
+  );
 }
 
 export function createTripStore(options: CreateTripStoreOptions = {}) {

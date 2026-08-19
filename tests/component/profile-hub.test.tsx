@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { postsBySlug } from '@/data/posts';
@@ -85,6 +85,9 @@ describe('ProfileHub', () => {
 
     const tablist = screen.getByRole('tablist', { name: '个人中心内容' });
     expect(tablist).toBeInTheDocument();
+    for (const tab of screen.getAllByRole('tab')) {
+      expect(document.getElementById(tab.getAttribute('aria-controls') ?? '')).not.toBeNull();
+    }
     expect(screen.getByRole('tab', { name: '概览' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tabpanel', { name: '概览' })).toBeInTheDocument();
 
@@ -105,6 +108,7 @@ describe('ProfileHub', () => {
     await user.click(screen.getByText('喜欢的攻略'));
     expect(screen.getByRole('tab', { name: '喜欢' })).toHaveAttribute('aria-selected', 'true');
     expect(window.location.search).toBe('?tab=likes');
+    expect(screen.getByRole('tabpanel', { name: '喜欢' })).toHaveFocus();
   });
 
   it('supports arrow, Home, and End navigation with a roving tab stop', async () => {
@@ -134,6 +138,24 @@ describe('ProfileHub', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('喜欢与收藏资料暂时无法读取');
     expect(screen.getByRole('tablist', { name: '个人中心内容' })).toBeInTheDocument();
     expect(screen.queryByText('行程资料暂时无法读取')).not.toBeInTheDocument();
+  });
+
+  it('lets each owning store deliberately reset and recover its failed hydration domain', async () => {
+    const user = userEvent.setup();
+    seedAcceptedTrip();
+    usePartnerStore.setState({ blockedCandidateIds: ['candidate-a'] });
+    useTripStoreHydration.setState({ hydrated: true, hydrationError: true });
+    usePartnerStoreHydration.setState({ hydrated: true, hydrationError: true });
+
+    render(<ProfileHub initialTab="overview" />);
+
+    await user.click(screen.getByRole('button', { name: '重置行程' }));
+    expect(useTripStore.getState().trips).toEqual({});
+    expect(useTripStoreHydration.getState().hydrationError).toBe(false);
+
+    await user.click(screen.getByRole('button', { name: '重置搭子与安全' }));
+    expect(usePartnerStore.getState().blockedCandidateIds).toEqual([]);
+    expect(usePartnerStoreHydration.getState().hydrationError).toBe(false);
   });
 
   it('keeps unavailable likes removable and provides useful empty states', async () => {
@@ -173,6 +195,43 @@ describe('ProfileHub', () => {
     expect(screen.getByText('桂林')).toBeInTheDocument();
   });
 
+  it('transitions a live offer to stale exactly at its expiry boundary without polling', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2099-01-01T00:00:00.000Z'));
+    const boundaryOffer = {
+      ...hotelOffer,
+      observedAt: '2098-12-31T23:45:01.000Z',
+      expiresAt: '2099-01-01T00:00:01.000Z',
+    };
+    useLibraryStore.setState({ favoriteOffers: { [boundaryOffer.key]: boundaryOffer } });
+
+    render(<ProfileHub initialTab="offers" />);
+    expect(screen.getByText(/有效至/)).toBeInTheDocument();
+
+    act(() => vi.advanceTimersByTime(1000));
+    expect(screen.getByText('报价可能已变化')).toBeInTheDocument();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('re-evaluates offer expiry when the offers panel remounts after time passed', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2099-01-01T00:00:00.000Z'));
+    const boundaryOffer = {
+      ...hotelOffer,
+      observedAt: '2098-12-31T23:45:01.000Z',
+      expiresAt: '2099-01-01T00:00:01.000Z',
+    };
+    useLibraryStore.setState({ favoriteOffers: { [boundaryOffer.key]: boundaryOffer } });
+    const view = render(<ProfileHub initialTab="offers" />);
+    expect(screen.getByText(/有效至/)).toBeInTheDocument();
+
+    view.unmount();
+    act(() => vi.advanceTimersByTime(2000));
+    render(<ProfileHub initialTab="offers" />);
+
+    expect(screen.getByText('报价可能已变化')).toBeInTheDocument();
+  });
+
   it('summarizes partner and guardian safety state without turning it into a guarantee', async () => {
     const user = userEvent.setup();
     const trip = seedAcceptedTrip();
@@ -188,6 +247,20 @@ describe('ProfileHub', () => {
     expect(screen.getByRole('link', { name: '继续寻找搭子' })).toHaveAttribute('href', '/partners');
     await user.click(screen.getByRole('tab', { name: '兴趣偏好' }));
     expect(screen.getByRole('heading', { name: '推荐与兴趣偏好' })).toBeInTheDocument();
+  });
+
+  it('does not expose a false missed-check-in count when partner hydration failed', () => {
+    const trip = seedAcceptedTrip();
+    useTripStore.setState({
+      trips: { [trip.id]: { ...trip, status: 'guarded', guardianEnabled: true } },
+    });
+    usePartnerStoreHydration.setState({ hydrated: true, hydrationError: true });
+
+    render(<ProfileHub initialTab="safety" />);
+
+    expect(screen.getByText('1 个守护中行程')).toBeInTheDocument();
+    expect(screen.getByText('搭子安全状态暂不可用')).toBeInTheDocument();
+    expect(screen.queryByText(/个错过签到状态/)).not.toBeInTheDocument();
   });
 });
 

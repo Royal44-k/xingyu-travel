@@ -2,7 +2,7 @@
 
 import { create } from 'zustand';
 import { createStore } from 'zustand/vanilla';
-import { persist } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
 import { z } from 'zod';
 import {
   demoPartnerCandidates,
@@ -56,10 +56,18 @@ export interface PartnerStoreState {
   recordCheckIn: (profile: PartnerProfile, matchId: string, status: Exclude<CheckInStatus, 'none'>) => void;
   blockMatch: (profile: PartnerProfile, matchId: string) => void;
   reportMatch: (profile: PartnerProfile, matchId: string) => void;
+  resetPartnerStore: () => void;
 }
 
 interface CreatePartnerStoreOptions { onHydrationError?: (error: unknown) => void }
 interface PartnerStoreHydrationState { hydrated: boolean; hydrationError: boolean }
+
+const initialPartnerState: Pick<
+  PartnerStoreState,
+  'intents' | 'matches' | 'visibleMatchIds' | 'blockedCandidateIds'
+> = {
+  intents: {}, matches: {}, visibleMatchIds: [], blockedCandidateIds: [],
+};
 
 const allowedTransitions: Readonly<Record<PartnerMatchStatus, readonly PartnerMatchStatus[]>> = {
   pending_mutual: ['matched', 'blocked', 'reported'],
@@ -163,9 +171,10 @@ function collisionSafeId(prefix: string, existing: Record<string, unknown>) {
 function stateCreator(
   set: (recipe: (state: PartnerStoreState) => Partial<PartnerStoreState>) => void,
   get: () => PartnerStoreState,
+  allowPersistence: () => void = () => {},
 ): PartnerStoreState {
   return {
-    intents: {}, matches: {}, visibleMatchIds: [], blockedCandidateIds: [],
+    ...initialPartnerState,
     publishIntent: (profile, intent) => {
       requireEligibility(profile);
       const parsed = validatePartnerIntent(intent);
@@ -241,6 +250,10 @@ function stateCreator(
     }),
     blockMatch: (profile, matchId) => set((state) => lockMatch(state, profile, matchId, 'blocked')),
     reportMatch: (profile, matchId) => set((state) => lockMatch(state, profile, matchId, 'reported')),
+    resetPartnerStore: () => {
+      allowPersistence();
+      set(() => ({ intents: {}, matches: {}, visibleMatchIds: [], blockedCandidateIds: [] }));
+    },
   };
 }
 
@@ -308,17 +321,44 @@ function persistenceOptions(options: CreatePartnerStoreOptions = {}) {
   };
 }
 
-export function createPartnerStore(options: CreatePartnerStoreOptions = {}) {
-  return createStore<PartnerStoreState>()(
-    persist<PartnerStoreState, [], [], PersistedPartnerState>(stateCreator, persistenceOptions(options)),
+function createPersistedPartnerState(options: CreatePartnerStoreOptions = {}) {
+  let preserveMalformedBytes = false;
+  const allowPersistence = () => { preserveMalformedBytes = false; };
+  const jsonStorage = createJSONStorage<PersistedPartnerState>(() => localStorage) ?? {
+    getItem: () => null,
+    setItem: () => {},
+    removeItem: () => {},
+  };
+  const safeOptions = {
+    ...options,
+    onHydrationError: (error: unknown) => {
+      preserveMalformedBytes = true;
+      options.onHydrationError?.(error);
+    },
+  };
+
+  return persist<PartnerStoreState, [], [], PersistedPartnerState>(
+    (set, get) => stateCreator(set, get, allowPersistence),
+    {
+      ...persistenceOptions(safeOptions),
+      storage: {
+        getItem: (name) => jsonStorage.getItem(name),
+        setItem: (name, value) => preserveMalformedBytes ? undefined : jsonStorage.setItem(name, value),
+        removeItem: (name) => preserveMalformedBytes ? undefined : jsonStorage.removeItem(name),
+      },
+    },
   );
+}
+
+export function createPartnerStore(options: CreatePartnerStoreOptions = {}) {
+  return createStore<PartnerStoreState>()(createPersistedPartnerState(options));
 }
 
 export const usePartnerStoreHydration = create<PartnerStoreHydrationState>(() => ({ hydrated: false, hydrationError: false }));
 export const usePartnerStore = create<PartnerStoreState>()(
-  persist<PartnerStoreState, [], [], PersistedPartnerState>(stateCreator, persistenceOptions({
+  createPersistedPartnerState({
     onHydrationError: () => usePartnerStoreHydration.setState({ hydrationError: true }),
-  })),
+  }),
 );
 
 export async function hydratePartnerStore() {

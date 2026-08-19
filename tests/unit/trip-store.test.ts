@@ -319,6 +319,26 @@ describe('draft merge and persistence', () => {
     expect(window.localStorage.getItem(canonicalKey)).toBe(malformedBytes);
   });
 
+  it('preserves malformed bytes through later mutations until the owner explicitly resets', async () => {
+    const malformedBytes = '{"state":{"trips":';
+    const store = createTripStore();
+    window.localStorage.setItem(canonicalKey, malformedBytes);
+
+    await store.persist.rehydrate();
+    store.getState().acceptDraft(daliDraft);
+
+    expect(window.localStorage.getItem(canonicalKey)).toBe(malformedBytes);
+
+    store.getState().resetTripStore();
+
+    expect(store.getState()).toMatchObject({ trips: {}, partnerIntents: {}, guardianPlans: {} });
+    const resetEnvelope = JSON.parse(window.localStorage.getItem(canonicalKey) ?? '{}');
+    expect(resetEnvelope).toMatchObject({
+      state: { trips: {}, partnerIntents: {}, guardianPlans: {} },
+      version: 2,
+    });
+  });
+
   it('rejects duplicate source slugs in an exact v2 envelope and preserves its raw bytes', async () => {
     const first = acceptedTrip();
     const duplicateId = 'draft-dali-duplicate';

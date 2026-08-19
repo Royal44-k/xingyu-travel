@@ -11,11 +11,23 @@ import {
 } from '@phosphor-icons/react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { type KeyboardEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  type KeyboardEvent,
+  type CSSProperties,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import { HydrationBoundary, type HydrationDomain } from '@/components/hydration-boundary';
 import { postsBySlug } from '@/data/posts';
 import { FavoriteButton } from '@/features/library/favorite-button';
 import { PreferenceSettings } from '@/features/profile/preference-settings';
+import { profileAccessibleColors } from '@/features/profile/profile-colors';
 import { TripCollectionCard } from '@/features/trips/trip-collection';
 import {
   hydrateLibraryStore,
@@ -63,7 +75,51 @@ const offerKindLabels = { flight: '机票', hotel: '酒店', ticket: '门票' } 
 const timestampFormatter = new Intl.DateTimeFormat('zh-CN', {
   year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
 });
-const profileSessionTime = Date.now();
+const profileColorProperties = {
+  '--profile-accent-on-light': profileAccessibleColors.accentOnLight,
+  '--profile-focus-on-light': profileAccessibleColors.focusOnLight,
+  '--profile-focus-on-dark': profileAccessibleColors.focusOnDark,
+} as CSSProperties;
+
+type ClockListener = () => void;
+
+const offerClock = (() => {
+  let currentTime = Date.now();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const subscriptions = new Map<ClockListener, readonly number[]>();
+
+  function scheduleNextBoundary() {
+    if (timer) clearTimeout(timer);
+    timer = undefined;
+    const nextBoundary = [...subscriptions.values()]
+      .flat()
+      .filter((timestamp) => timestamp > currentTime)
+      .reduce((nearest, timestamp) => Math.min(nearest, timestamp), Number.POSITIVE_INFINITY);
+    if (!Number.isFinite(nextBoundary)) return;
+    timer = setTimeout(refresh, Math.max(0, nextBoundary - currentTime));
+  }
+
+  function refresh() {
+    const nextTime = Date.now();
+    if (nextTime !== currentTime) {
+      currentTime = nextTime;
+      for (const listener of subscriptions.keys()) listener();
+    }
+    scheduleNextBoundary();
+  }
+
+  return {
+    getSnapshot: () => currentTime,
+    subscribe(expirationTimes: readonly number[], listener: ClockListener) {
+      subscriptions.set(listener, expirationTimes);
+      refresh();
+      return () => {
+        subscriptions.delete(listener);
+        scheduleNextBoundary();
+      };
+    },
+  };
+})();
 
 function normalizeProfileTab(tab: string | null | undefined): ProfileTab {
   return tab && acceptedTabs.has(tab as ProfileTab) ? tab as ProfileTab : 'overview';
@@ -71,7 +127,11 @@ function normalizeProfileTab(tab: string | null | undefined): ProfileTab {
 
 export function ProfileHub({ initialTab }: ProfileHubProps) {
   const [activeTab, setActiveTab] = useState<ProfileTab>(() => normalizeProfileTab(initialTab));
+  const pendingFocus = useRef<{ tab: ProfileTab; target: 'tab' | 'panel' } | null>(null);
   const tabRefs = useRef<Record<ProfileTab, HTMLButtonElement | null>>({
+    overview: null, trips: null, likes: null, offers: null, safety: null, preferences: null,
+  });
+  const panelRefs = useRef<Record<ProfileTab, HTMLElement | null>>({
     overview: null, trips: null, likes: null, offers: null, safety: null, preferences: null,
   });
   const profileHydration = useProfileStoreHydration();
@@ -80,6 +140,8 @@ export function ProfileHub({ initialTab }: ProfileHubProps) {
   const partnerHydration = usePartnerStoreHydration();
   const resetProfilePreferences = useProfileStore((state) => state.resetProfilePreferences);
   const resetLibrary = useLibraryStore((state) => state.resetLibrary);
+  const resetTrips = useTripStore((state) => state.resetTripStore);
+  const resetPartner = usePartnerStore((state) => state.resetPartnerStore);
 
   useEffect(() => {
     void Promise.all([
@@ -98,14 +160,26 @@ export function ProfileHub({ initialTab }: ProfileHubProps) {
     return () => window.removeEventListener('popstate', restoreTabFromHistory);
   }, []);
 
-  function selectTab(tab: ProfileTab, moveFocus = false) {
+  useLayoutEffect(() => {
+    const request = pendingFocus.current;
+    if (!request || request.tab !== activeTab) return;
+    const target = request.target === 'tab' ? tabRefs.current[activeTab] : panelRefs.current[activeTab];
+    pendingFocus.current = null;
+    target?.focus();
+  }, [activeTab]);
+
+  function selectTab(tab: ProfileTab, focusTarget?: 'tab' | 'panel') {
+    if (focusTarget) pendingFocus.current = { tab, target: focusTarget };
     if (tab !== activeTab) {
       const url = new URL(window.location.href);
       url.searchParams.set('tab', tab);
       window.history.pushState({}, '', `${url.pathname}${url.search}${url.hash}`);
       setActiveTab(tab);
+    } else if (focusTarget === 'tab') {
+      tabRefs.current[tab]?.focus();
+    } else if (focusTarget === 'panel') {
+      panelRefs.current[tab]?.focus();
     }
-    if (moveFocus) tabRefs.current[tab]?.focus();
   }
 
   function handleTabKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
@@ -117,7 +191,7 @@ export function ProfileHub({ initialTab }: ProfileHubProps) {
     if (event.key === 'End') nextIndex = tabs.length - 1;
     if (nextIndex === undefined) return;
     event.preventDefault();
-    selectTab(tabs[nextIndex].id, true);
+    selectTab(tabs[nextIndex].id, 'tab');
   }
 
   const domains: HydrationDomain[] = [
@@ -135,12 +209,24 @@ export function ProfileHub({ initialTab }: ProfileHubProps) {
         useLibraryStoreHydration.setState({ hydrationError: false });
       },
     },
-    { id: 'trips', label: '行程', ...tripHydration },
-    { id: 'partner', label: '搭子与安全', ...partnerHydration },
+    {
+      id: 'trips', label: '行程', ...tripHydration,
+      onReset: () => {
+        resetTrips();
+        useTripStoreHydration.setState({ hydrationError: false });
+      },
+    },
+    {
+      id: 'partner', label: '搭子与安全', ...partnerHydration,
+      onReset: () => {
+        resetPartner();
+        usePartnerStoreHydration.setState({ hydrationError: false });
+      },
+    },
   ];
 
   return (
-    <main className={styles.profileHub}>
+    <main className={styles.profileHub} style={profileColorProperties}>
       <HydrationBoundary domains={domains} loadingMessage="正在整理当前浏览器里的旅行资料…">
         <ProfileIdentityHeader
           libraryError={libraryHydration.hydrationError}
@@ -166,21 +252,28 @@ export function ProfileHub({ initialTab }: ProfileHubProps) {
               </button>
             ))}
           </div>
-          <section
-            aria-labelledby={`profile-tab-${activeTab}`}
-            className={styles.tabPanel}
-            id={`profile-panel-${activeTab}`}
-            role="tabpanel"
-            tabIndex={0}
-          >
-            <ProfilePanel
-              activeTab={activeTab}
-              libraryError={libraryHydration.hydrationError}
-              onSelectTab={selectTab}
-              partnerError={partnerHydration.hydrationError}
-              tripError={tripHydration.hydrationError}
-            />
-          </section>
+          {tabs.map(({ id }) => (
+            <section
+              aria-labelledby={`profile-tab-${id}`}
+              className={styles.tabPanel}
+              hidden={activeTab !== id}
+              id={`profile-panel-${id}`}
+              key={id}
+              ref={(node) => { panelRefs.current[id] = node; }}
+              role="tabpanel"
+              tabIndex={activeTab === id ? 0 : -1}
+            >
+              {activeTab === id ? (
+                <ProfilePanel
+                  activeTab={activeTab}
+                  libraryError={libraryHydration.hydrationError}
+                  onSelectTab={selectTab}
+                  partnerError={partnerHydration.hydrationError}
+                  tripError={tripHydration.hydrationError}
+                />
+              ) : null}
+            </section>
+          ))}
         </div>
       </HydrationBoundary>
     </main>
@@ -244,7 +337,7 @@ function ProfilePanel({
 }: {
   activeTab: ProfileTab;
   libraryError: boolean;
-  onSelectTab: (tab: ProfileTab) => void;
+  onSelectTab: (tab: ProfileTab, focusTarget?: 'tab' | 'panel') => void;
   partnerError: boolean;
   tripError: boolean;
 }) {
@@ -265,7 +358,7 @@ function OverviewPanel({
   tripError,
 }: {
   libraryError: boolean;
-  onSelectTab: (tab: ProfileTab) => void;
+  onSelectTab: (tab: ProfileTab, focusTarget?: 'tab' | 'panel') => void;
   partnerError: boolean;
   tripError: boolean;
 }) {
@@ -292,14 +385,14 @@ function OverviewPanel({
         <SummaryCard
           icon={<Heart aria-hidden size={24} />}
           label="喜欢的攻略"
-          onClick={() => onSelectTab('likes')}
+          onClick={() => onSelectTab('likes', 'panel')}
           unavailable={libraryError}
           value={`${likedCount} 篇喜欢`}
         />
         <SummaryCard
           icon={<Compass aria-hidden size={24} />}
           label="收藏报价"
-          onClick={() => onSelectTab('offers')}
+          onClick={() => onSelectTab('offers', 'panel')}
           unavailable={libraryError}
           value={`${offerCount} 条收藏报价`}
         />
@@ -428,6 +521,7 @@ function OffersPanel() {
   const favoriteOffers = useLibraryStore((state) => state.favoriteOffers);
   const priceAlerts = useLibraryStore((state) => state.priceAlerts);
   const offers = Object.values(favoriteOffers);
+  const currentTime = useOfferClock(offers);
   const [filter, setFilter] = useState<'all' | FavoriteOfferSnapshot['productKind']>('all');
   if (offers.length === 0) {
     return <EmptyState actionHref="/compare" actionLabel="开始比价" message="收藏一条报价后，可在这里核对数据时间与提醒状态。" title="收藏的报价会保存在这里" />;
@@ -451,15 +545,36 @@ function OffersPanel() {
       {hasEnabledAlert ? <p className={styles.alertBoundary}>已保存提醒设置；本演示不会在关闭页面后推送</p> : null}
       <div className={styles.offerList}>
         {filteredOffers.length > 0
-          ? filteredOffers.map((offer) => <OfferCard alertEnabled={Boolean(priceAlerts[offer.key]?.enabled)} key={offer.key} offer={offer} />)
+          ? filteredOffers.map((offer) => <OfferCard alertEnabled={Boolean(priceAlerts[offer.key]?.enabled)} currentTime={currentTime} key={offer.key} offer={offer} />)
           : <p className={styles.filteredEmpty}>这一类还没有收藏报价。</p>}
       </div>
     </div>
   );
 }
 
-function OfferCard({ alertEnabled, offer }: { alertEnabled: boolean; offer: FavoriteOfferSnapshot }) {
-  const expired = Date.parse(offer.expiresAt) <= profileSessionTime;
+function useOfferClock(offers: readonly FavoriteOfferSnapshot[]) {
+  const expirationSignature = offers.map((offer) => offer.expiresAt).toSorted().join('|');
+  const expirationTimes = useMemo(
+    () => expirationSignature ? expirationSignature.split('|').map(Date.parse) : [],
+    [expirationSignature],
+  );
+  const subscribe = useCallback(
+    (listener: ClockListener) => offerClock.subscribe(expirationTimes, listener),
+    [expirationTimes],
+  );
+  return useSyncExternalStore(subscribe, offerClock.getSnapshot, offerClock.getSnapshot);
+}
+
+function OfferCard({
+  alertEnabled,
+  currentTime,
+  offer,
+}: {
+  alertEnabled: boolean;
+  currentTime: number;
+  offer: FavoriteOfferSnapshot;
+}) {
+  const expired = Date.parse(offer.expiresAt) <= currentTime;
   const search = new URLSearchParams({ kind: offer.productKind, destination: offer.destination });
   return (
     <article className={styles.offerCard}>
@@ -505,7 +620,11 @@ function SafetyPanel({ partnerError, tripError }: { partnerError: boolean; tripE
           <ShieldCheck aria-hidden size={27} />
           <span>行程守护</span>
           {tripError ? <strong>暂不可用</strong> : <strong>{guardedTrips.length} 个守护中行程</strong>}
-          <p>{tripError ? '行程资料未能安全读取。' : `${missedCheckIns} 个错过签到状态；官方紧急服务始终优先。`}</p>
+          <p>{tripError
+            ? '行程资料未能安全读取。'
+            : partnerError
+              ? '搭子安全状态暂不可用'
+              : `${missedCheckIns} 个错过签到状态；官方紧急服务始终优先。`}</p>
           <Link href="/trips">查看我的行程</Link>
         </article>
       </div>
