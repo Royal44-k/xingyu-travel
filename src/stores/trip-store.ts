@@ -177,6 +177,26 @@ function validateTripIntegrity(
   }
 }
 
+function refineUniqueTripSourceSlugs(
+  trips: Record<string, { sourcePostSlug?: unknown }>,
+  context: z.RefinementCtx,
+) {
+  const firstTripIdBySourceSlug = new Map<string, string>();
+  for (const [tripId, trip] of Object.entries(trips)) {
+    const sourcePostSlug = trip.sourcePostSlug;
+    if (typeof sourcePostSlug !== 'string' || sourcePostSlug.length === 0) continue;
+    if (firstTripIdBySourceSlug.has(sourcePostSlug)) {
+      context.addIssue({
+        code: 'custom',
+        path: ['trips', tripId, 'sourcePostSlug'],
+        message: 'duplicate source post slug',
+      });
+      continue;
+    }
+    firstTripIdBySourceSlug.set(sourcePostSlug, tripId);
+  }
+}
+
 function persistedTripStateSchemaFor(tripSchema: typeof workbenchTripSchema | typeof workbenchTripV1Schema) {
   return z.object({
   trips: z.record(z.string(), tripSchema),
@@ -201,6 +221,7 @@ function persistedTripStateSchemaFor(tripSchema: typeof workbenchTripSchema | ty
       context.addIssue({ code: 'custom', path: ['guardianPlans', tripId], message: 'orphan guardian plan' });
     }
   }
+  refineUniqueTripSourceSlugs(state.trips, context);
   });
 }
 

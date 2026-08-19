@@ -319,6 +319,80 @@ describe('draft merge and persistence', () => {
     expect(window.localStorage.getItem(canonicalKey)).toBe(malformedBytes);
   });
 
+  it('rejects duplicate source slugs in an exact v2 envelope and preserves its raw bytes', async () => {
+    const first = acceptedTrip();
+    const duplicateId = 'draft-dali-duplicate';
+    const duplicate = { ...structuredClone(first), id: duplicateId };
+    const raw = JSON.stringify({
+      state: {
+        trips: { [first.id]: first, [duplicate.id]: duplicate },
+        partnerIntents: { [duplicate.id]: true },
+        guardianPlans: { [first.id]: { id: 'PLAN-A', title: '室内备选' } },
+      },
+      version: 2,
+    });
+    window.localStorage.setItem(canonicalKey, raw);
+    let hydrationError = false;
+    const store = createTripStore({ onHydrationError: () => { hydrationError = true; } });
+
+    await store.persist.rehydrate();
+
+    expect(hydrationError).toBe(true);
+    expect(store.getState().trips).toEqual({});
+    expect(store.getState().partnerIntents).toEqual({});
+    expect(store.getState().guardianPlans).toEqual({});
+    expect(window.localStorage.getItem(canonicalKey)).toBe(raw);
+  });
+
+  it.each([0, 1])('rejects duplicate source slugs during version-%i migration', async (version) => {
+    const first = withoutV2Fields(acceptedTrip());
+    const duplicateId = 'draft-dali-duplicate';
+    const duplicate = { ...structuredClone(first), id: duplicateId };
+    const raw = JSON.stringify({
+      state: {
+        trips: { [daliDraft.id]: first, [duplicateId]: duplicate },
+        partnerIntents: { [duplicateId]: true },
+        guardianPlans: {},
+      },
+      version,
+    });
+    window.localStorage.setItem(canonicalKey, raw);
+    let hydrationError = false;
+    const store = createTripStore({ onHydrationError: () => { hydrationError = true; } });
+
+    await store.persist.rehydrate();
+
+    expect(hydrationError).toBe(true);
+    expect(store.getState().trips).toEqual({});
+    expect(store.getState().partnerIntents).toEqual({});
+    expect(window.localStorage.getItem(canonicalKey)).toBe(raw);
+  });
+
+  it('reports missing source slugs independently instead of treating absence as a duplicate', async () => {
+    const first = acceptedTrip() as unknown as Record<string, unknown>;
+    const second = { ...acceptedTrip(), id: 'draft-without-source-two' } as unknown as Record<string, unknown>;
+    delete first.sourcePostSlug;
+    delete second.sourcePostSlug;
+    const raw = JSON.stringify({
+      state: {
+        trips: { [String(first.id)]: first, [String(second.id)]: second },
+        partnerIntents: {},
+        guardianPlans: {},
+      },
+      version: 2,
+    });
+    window.localStorage.setItem(canonicalKey, raw);
+    let hydrationFailure: unknown;
+    const store = createTripStore({ onHydrationError: (error) => { hydrationFailure = error; } });
+
+    await store.persist.rehydrate();
+
+    const issues = hydrationIssues(hydrationFailure);
+    expect(issues.filter((issue) => issue.path.at(-1) === 'sourcePostSlug')).toHaveLength(2);
+    expect(issues.map((issue) => issue.message)).not.toContain('duplicate source post slug');
+    expect(window.localStorage.getItem(canonicalKey)).toBe(raw);
+  });
+
   it('does not duplicate a legacy draft already represented by source slug', async () => {
     const canonical = createTripStore();
     canonical.getState().acceptDraft(daliDraft);
@@ -340,6 +414,8 @@ describe('draft merge and persistence', () => {
 
     expect(Object.keys(store.getState().trips)).toEqual([daliDraft.id]);
     expect(store.getState().trips[daliDraft.id].budget).toBe(daliDraft.budget);
+    const persisted = JSON.parse(window.localStorage.getItem(canonicalKey) ?? '{}');
+    expect(Object.keys(persisted.state.trips)).toEqual([daliDraft.id]);
     expect(window.localStorage.getItem(legacyDraftKey)).toBe(legacyBytes);
   });
 
@@ -397,4 +473,9 @@ function withoutV2Fields(trip: ReturnType<typeof acceptedTrip>) {
   return Object.fromEntries(Object.entries(trip).filter(
     ([key]) => key !== 'createdAt' && key !== 'updatedAt' && key !== 'coverImage',
   ));
+}
+
+function hydrationIssues(error: unknown): Array<{ message: string; path: PropertyKey[] }> {
+  const cause = (error as { cause?: { issues?: Array<{ message: string; path: PropertyKey[] }> } })?.cause;
+  return cause?.issues ?? [];
 }
