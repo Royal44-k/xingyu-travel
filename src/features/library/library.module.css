@@ -1,5 +1,6 @@
 .favoriteControl {
   display: inline-flex;
+  align-items: center;
 }
 
 .favoriteButton {
@@ -35,6 +36,17 @@
 .favoriteButton:focus-visible {
   outline: 2px solid var(--sand);
   outline-offset: 3px;
+}
+
+.errorMessage {
+  margin-left: 3px;
+  padding: 3px 6px;
+  color: #6d532a;
+  border-radius: 999px;
+  background: rgb(183 154 104 / 14%);
+  font-size: 10px;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .visuallyHidden {

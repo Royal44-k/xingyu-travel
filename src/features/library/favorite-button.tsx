@@ -1,7 +1,7 @@
 'use client';
 
 import { Heart } from '@phosphor-icons/react';
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import {
   hydrateLibraryStore,
   useLibraryStore,
@@ -19,6 +19,7 @@ export function FavoriteButton({ slug, label }: FavoriteButtonProps) {
   const togglePostLike = useLibraryStore((state) => state.togglePostLike);
   const hydrated = useLibraryStoreHydration((state) => state.hydrated);
   const hydrationError = useLibraryStoreHydration((state) => state.hydrationError);
+  const hydrationErrorId = useId();
   const [message, setMessage] = useState('');
   const [justLiked, setJustLiked] = useState(false);
   const unavailable = !hydrated || hydrationError;
@@ -37,6 +38,7 @@ export function FavoriteButton({ slug, label }: FavoriteButtonProps) {
   return (
     <span className={styles.favoriteControl}>
       <button
+        aria-describedby={hydrationError ? hydrationErrorId : undefined}
         aria-label={`喜欢 ${label}`}
         aria-pressed={liked}
         className={styles.favoriteButton}
@@ -52,7 +54,7 @@ export function FavoriteButton({ slug, label }: FavoriteButtonProps) {
         <span className={styles.visuallyHidden} role="status">正在读取本地喜欢状态…</span>
       ) : null}
       {hydrationError ? (
-        <span className={styles.visuallyHidden} role="alert">本地喜欢状态无法安全读取，暂时无法更改。</span>
+        <span className={styles.errorMessage} id={hydrationErrorId} role="alert">本地喜欢暂不可用</span>
       ) : null}
       {message ? (
         <span aria-live="polite" className={styles.visuallyHidden} role="status">{message}</span>

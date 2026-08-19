@@ -57,12 +57,16 @@ describe('FavoriteButton', () => {
     rehydrate.mockRestore();
   });
 
-  it('fails closed when library hydration cannot be completed', () => {
+  it('fails closed with a visible explanation associated with the disabled favorite control', () => {
     useLibraryStoreHydration.setState({ hydrated: true, hydrationError: true });
 
     render(<FavoriteButton label="大理攻略" slug="dali-slow-5d" />);
 
-    expect(screen.getByRole('button', { name: '喜欢 大理攻略' })).toBeDisabled();
-    expect(screen.getByRole('alert')).toHaveTextContent('本地喜欢状态无法安全读取');
+    const favorite = screen.getByRole('button', { name: '喜欢 大理攻略' });
+    const explanation = screen.getByRole('alert');
+    expect(favorite).toBeDisabled();
+    expect(explanation).toBeVisible();
+    expect(explanation).toHaveTextContent('本地喜欢暂不可用');
+    expect(favorite).toHaveAccessibleDescription('本地喜欢暂不可用');
   });
 });
