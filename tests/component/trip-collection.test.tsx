@@ -76,6 +76,26 @@ describe('TripCollection', () => {
     expect(screen.getByRole('link', { name: '去灵感广场' })).toHaveAttribute('href', '/square');
     expect(screen.getByRole('link', { name: '先做一次比价' })).toHaveAttribute('href', '/compare');
   });
+
+  it('explains how to create and enable guardian when guardian intent opens an empty collection', () => {
+    render(<TripCollection intent="guardian" />);
+
+    expect(screen.getByRole('heading', { name: '开启守护前，先创建行程' })).toBeInTheDocument();
+    expect(screen.getByText(/进入行程工作台后，可在“共同决策”中确认并开启本地守护演示/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: '从攻略创建行程' })).toHaveAttribute('href', '/square');
+  });
+
+  it('offers the most recent active trip as the guardian setup destination', () => {
+    seedTrips();
+    render(<TripCollection intent="guardian" />);
+
+    const setup = screen.getByRole('region', { name: '开启行程守护' });
+    expect(within(setup).getByText(/行程守护不会自动开启/)).toBeInTheDocument();
+    expect(within(setup).getByRole('link', { name: '前往川西慢行计划开启守护' })).toHaveAttribute(
+      'href',
+      '/trips/sichuan-autumn-road',
+    );
+  });
 });
 
 function seedTrips() {

@@ -21,7 +21,13 @@ describe('production safeguards', () => {
     expect(serialized).not.toContain('localhost');
     expect(pages).toEqual(expect.arrayContaining([
       expect.objectContaining({ url: expect.stringMatching(/^https:\/\//) }),
+      expect.objectContaining({ url: expect.stringMatching(/\/assistant$/) }),
+      expect.objectContaining({ url: expect.stringMatching(/\/partners$/) }),
+      expect.objectContaining({ url: expect.stringMatching(/\/profile$/) }),
       expect.objectContaining({ url: expect.stringMatching(/\/trips$/) }),
+    ]));
+    expect(pages.map((page) => page.url)).not.toEqual(expect.arrayContaining([
+      expect.stringMatching(/\/guardian\//),
     ]));
     expect(appManifest).toMatchObject({ name: '行屿 XINGYU', display: 'standalone' });
   });

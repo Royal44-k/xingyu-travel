@@ -29,7 +29,7 @@
   backdrop-filter: blur(16px);
 }
 
-.header[data-variant='solid'] .tripLink {
+.header[data-variant='solid'] :is(.tripLink, .profileLink) {
   border-color: rgb(16 16 15 / 30%);
 }
 
@@ -38,9 +38,9 @@
   min-height: 82px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: 190px 1fr 128px;
+  grid-template-columns: minmax(140px, 180px) minmax(0, 1fr) auto;
   align-items: center;
-  gap: 32px;
+  gap: clamp(18px, 2.2vw, 34px);
 }
 
 .brand {
@@ -67,7 +67,7 @@
 .nav {
   display: flex;
   justify-content: center;
-  gap: clamp(24px, 3.8vw, 58px);
+  gap: clamp(14px, 2.1vw, 34px);
 }
 
 .menuButton {
@@ -84,13 +84,19 @@
 }
 
 .navLink,
-.tripLink {
+.tripLink,
+.profileLink {
   position: relative;
   color: inherit;
   font-size: 15px;
   letter-spacing: 0.08em;
   text-decoration: none;
   white-space: nowrap;
+}
+
+.navUnavailable {
+  cursor: progress;
+  opacity: .58;
 }
 
 .navLink::after {
@@ -112,28 +118,45 @@
   transform: scaleX(1);
 }
 
-.tripLink {
+.accountLinks {
+  display: flex;
   justify-self: end;
-  padding: 11px 15px;
+  gap: 7px;
+}
+
+.tripLink,
+.profileLink {
+  display: inline-flex;
+  min-height: 43px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 10px 12px;
   border: 1px solid rgb(244 240 232 / 52%);
 }
 
-.header[data-scrolled='true'] .tripLink {
+.profileLink {
+  border-color: transparent;
+}
+
+.header[data-scrolled='true'] :is(.tripLink, .profileLink) {
   border-color: rgb(16 16 15 / 30%);
 }
 
 .brand:focus-visible,
 .navLink:focus-visible,
-.tripLink:focus-visible {
+.tripLink:focus-visible,
+.profileLink:focus-visible,
+.menuButton:focus-visible {
   outline: 2px solid var(--sand);
   outline-offset: 5px;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1050px) {
   .inner {
     width: min(calc(100% - 40px), var(--content-max));
-    grid-template-columns: 1fr auto auto;
-    gap: 8px 24px;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 8px 16px;
     padding: 14px 0 12px;
   }
 
@@ -154,8 +177,9 @@
   .menuButton { display: inline-flex; }
 
   .navLink {
-    padding: 12px 0;
-    font-size: 13px;
+    min-height: 44px;
+    padding: 12px 2px;
+    font-size: 14px;
   }
 
   .navLink::after {
@@ -166,6 +190,7 @@
 @media (max-width: 520px) {
   .inner {
     width: calc(100% - 32px);
+    gap: 8px;
   }
 
   .brandChinese {
@@ -176,8 +201,26 @@
     font-size: 14px;
   }
 
-  .tripLink {
-    padding: 8px 10px;
-    font-size: 13px;
+  .accountLinks {
+    gap: 5px;
+  }
+
+  .tripLink,
+  .profileLink {
+    min-height: 42px;
+    padding: 8px 9px;
+    font-size: 12px;
+    letter-spacing: .03em;
+  }
+
+  .tripLabel {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 }

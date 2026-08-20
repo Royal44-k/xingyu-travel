@@ -1,8 +1,16 @@
 'use client';
 
 import Link from 'next/link';
-import { List, X } from '@phosphor-icons/react';
-import { useEffect, useState } from 'react';
+import { List, SuitcaseRolling, UserCircle, X } from '@phosphor-icons/react';
+import { useEffect, useRef, useState } from 'react';
+import { isKnownGuardianTrip } from '@/data/risk-events';
+import {
+  hydrateWorkbenchTripStore,
+  selectMostRecentGuardianTrip,
+  type TripStoreState,
+  useTripStore,
+  useTripStoreHydration,
+} from '@/stores/trip-store';
 import styles from './site-header.module.css';
 
 const primaryLinks = [
@@ -10,8 +18,14 @@ const primaryLinks = [
   { href: '/compare', label: '真实比价' },
   { href: '/square', label: '灵感广场' },
   { href: '/partners', label: '寻找搭子' },
-  { href: '/guardian/dali-slow-5d', label: '行程守护' },
+  { href: '/assistant', label: '旅行助手' },
 ] as const;
+const guardianIntentHref = '/trips?intent=guardian';
+
+function selectGuardianHref(state: Pick<TripStoreState, 'trips'>) {
+  const trip = selectMostRecentGuardianTrip(state, isKnownGuardianTrip);
+  return trip ? `/guardian/${encodeURIComponent(trip.sourcePostSlug)}` : guardianIntentHref;
+}
 
 type SiteHeaderProps = {
   activePath?: string;
@@ -21,6 +35,10 @@ type SiteHeaderProps = {
 export function SiteHeader({ activePath = '/', variant = 'overlay' }: SiteHeaderProps) {
   const [hasScrolled, setHasScrolled] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const guardianHref = useTripStore(selectGuardianHref);
+  const tripHydrated = useTripStoreHydration((state) => state.hydrated);
+  const tripHydrationError = useTripStoreHydration((state) => state.hydrationError);
 
   useEffect(() => {
     const updateHeader = () => setHasScrolled(window.scrollY > 48);
@@ -30,12 +48,20 @@ export function SiteHeader({ activePath = '/', variant = 'overlay' }: SiteHeader
   }, []);
 
   useEffect(() => {
+    void hydrateWorkbenchTripStore();
+  }, []);
+
+  useEffect(() => {
+    if (!mobileNavOpen) return;
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setMobileNavOpen(false);
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      setMobileNavOpen(false);
+      menuButtonRef.current?.focus();
     };
     window.addEventListener('keydown', closeOnEscape);
     return () => window.removeEventListener('keydown', closeOnEscape);
-  }, []);
+  }, [mobileNavOpen]);
 
   return (
     <header
@@ -55,6 +81,7 @@ export function SiteHeader({ activePath = '/', variant = 'overlay' }: SiteHeader
           aria-label={mobileNavOpen ? '关闭导航' : '打开导航'}
           className={styles.menuButton}
           onClick={() => setMobileNavOpen((open) => !open)}
+          ref={menuButtonRef}
           type="button"
         >
           {mobileNavOpen ? <X aria-hidden size={22} /> : <List aria-hidden size={24} />}
@@ -75,11 +102,32 @@ export function SiteHeader({ activePath = '/', variant = 'overlay' }: SiteHeader
               </Link>
             );
           })}
+          {tripHydrated && !tripHydrationError ? (
+            <Link
+              aria-current={activePath.startsWith('/guardian/') ? 'page' : undefined}
+              className={styles.navLink}
+              href={guardianHref}
+              onClick={() => setMobileNavOpen(false)}
+            >
+              行程守护
+            </Link>
+          ) : (
+            <span aria-disabled="true" className={`${styles.navLink} ${styles.navUnavailable}`}>
+              行程守护
+            </span>
+          )}
         </nav>
 
-        <Link aria-current={activePath === '/trips' ? 'page' : undefined} className={styles.tripLink} href="/trips">
-          我的行程
-        </Link>
+        <div className={styles.accountLinks}>
+          <Link aria-current={activePath === '/trips' ? 'page' : undefined} aria-label="我的行程" className={styles.tripLink} href="/trips">
+            <SuitcaseRolling aria-hidden size={18} />
+            <span className={styles.tripLabel}>我的行程</span>
+          </Link>
+          <Link aria-current={activePath === '/profile' ? 'page' : undefined} className={styles.profileLink} href="/profile">
+            <UserCircle aria-hidden size={19} />
+            <span>个人中心</span>
+          </Link>
+        </div>
       </div>
     </header>
   );

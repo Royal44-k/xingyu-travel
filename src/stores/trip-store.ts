@@ -296,6 +296,35 @@ export function selectAcceptedTripCount(state: Pick<TripStoreState, 'trips'>) {
   ).length;
 }
 
+type GuardianTripSupport = (sourcePostSlug: string) => boolean;
+const supportsEveryGuardianTrip: GuardianTripSupport = () => true;
+
+/**
+ * Returns one canonical guarded trip without relying on object insertion order.
+ * Newer updates win, then newer creation time, then the ascending source slug.
+ */
+export function selectMostRecentGuardianTrip(
+  state: Pick<TripStoreState, 'trips'>,
+  supportsTrip: GuardianTripSupport = supportsEveryGuardianTrip,
+): WorkbenchTrip | undefined {
+  let selected: WorkbenchTrip | undefined;
+  for (const trip of Object.values(state.trips)) {
+    if (trip.status !== 'guarded' || !trip.guardianEnabled || !supportsTrip(trip.sourcePostSlug)) {
+      continue;
+    }
+    if (!selected || isGuardianTripMoreRecent(trip, selected)) selected = trip;
+  }
+  return selected;
+}
+
+function isGuardianTripMoreRecent(candidate: WorkbenchTrip, selected: WorkbenchTrip) {
+  const updatedDifference = Date.parse(candidate.updatedAt) - Date.parse(selected.updatedAt);
+  if (updatedDifference !== 0) return updatedDifference > 0;
+  const createdDifference = Date.parse(candidate.createdAt) - Date.parse(selected.createdAt);
+  if (createdDifference !== 0) return createdDifference > 0;
+  return candidate.sourcePostSlug < selected.sourcePostSlug;
+}
+
 export function getTrip(state: Pick<TripStoreState, 'trips'>, tripId: string): WorkbenchTrip {
   const trip = state.trips[tripId] ?? Object.values(state.trips).find(
     (candidate) => candidate.sourcePostSlug === tripId,
@@ -584,14 +613,23 @@ export const useTripStore = create<TripStoreState>()(
   }),
 );
 
-export async function hydrateWorkbenchTripStore() {
-  if (typeof window === 'undefined' || useTripStoreHydration.getState().hydrated) return;
-  try {
-    useTripStoreHydration.setState({ hydrated: false, hydrationError: false });
-    await useTripStore.persist.rehydrate();
-  } catch {
-    useTripStoreHydration.setState({ hydrationError: true });
-  } finally {
-    useTripStoreHydration.setState({ hydrated: true });
+let tripHydrationPromise: Promise<void> | undefined;
+
+export function hydrateWorkbenchTripStore(): Promise<void> {
+  if (typeof window === 'undefined' || useTripStoreHydration.getState().hydrated) {
+    return Promise.resolve();
   }
+  if (tripHydrationPromise) return tripHydrationPromise;
+  tripHydrationPromise = (async () => {
+    try {
+      useTripStoreHydration.setState({ hydrated: false, hydrationError: false });
+      await useTripStore.persist.rehydrate();
+    } catch {
+      useTripStoreHydration.setState({ hydrationError: true });
+    } finally {
+      useTripStoreHydration.setState({ hydrated: true });
+      tripHydrationPromise = undefined;
+    }
+  })();
+  return tripHydrationPromise;
 }

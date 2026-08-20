@@ -28,7 +28,7 @@ const dateFormatter = new Intl.DateTimeFormat('zh-CN', {
   day: 'numeric',
 });
 
-export function TripCollection() {
+export function TripCollection({ intent }: { intent?: 'guardian' }) {
   const trips = useTripStore(selectTripRecords);
   const hydrated = useTripStoreHydration((state) => state.hydrated);
   const hydrationError = useTripStoreHydration((state) => state.hydrationError);
@@ -52,6 +52,7 @@ export function TripCollection() {
     guarded: collectionTrips.filter((trip) => trip.status === 'guarded').length,
     archived: collectionTrips.filter((trip) => trip.status === 'archived').length,
   };
+  const guardianSetupTrip = collectionTrips.find((trip) => trip.status === 'active');
 
   if (!hydrated) {
     return <CollectionState title="正在读取我的行程…" message="正在校验保存在当前浏览器中的行程。" />;
@@ -67,6 +68,18 @@ export function TripCollection() {
     );
   }
   if (collectionTrips.length === 0) {
+    if (intent === 'guardian') {
+      return (
+        <CollectionState
+          actionHref="/square"
+          actionLabel="从攻略创建行程"
+          message="进入行程工作台后，可在“共同决策”中确认并开启本地守护演示。守护不会读取实时位置或发出真实预警。"
+          secondaryHref="/compare"
+          secondaryLabel="先做一次比价"
+          title="开启守护前，先创建行程"
+        />
+      );
+    }
     return (
       <CollectionState
         actionHref="/square"
@@ -89,6 +102,8 @@ export function TripCollection() {
         <p>把已经接受的攻略行程集中在这里，继续规划、守护或回看。数据只保存在当前浏览器。</p>
       </header>
 
+      {intent === 'guardian' ? <GuardianSetup trip={guardianSetupTrip} /> : null}
+
       <section aria-labelledby="trip-list-title" className={styles.collectionSection}>
         <div className={styles.collectionToolbar}>
           <div>
@@ -109,6 +124,23 @@ export function TripCollection() {
         </div>
       </section>
     </main>
+  );
+}
+
+function GuardianSetup({ trip }: { trip?: WorkbenchTrip }) {
+  return (
+    <section aria-labelledby="guardian-setup-title" className={styles.guardianSetup}>
+      <div>
+        <p>GUARDIAN SETUP / LOCAL DEMO</p>
+        <h2 id="guardian-setup-title">开启行程守护</h2>
+        <span>行程守护不会自动开启。请进入一条规划中的行程，阅读本地演示边界并确认授权。</span>
+      </div>
+      {trip ? (
+        <Link href={`/trips/${trip.sourcePostSlug}`}>前往{trip.title}开启守护 <ArrowRight aria-hidden size={17} /></Link>
+      ) : (
+        <Link href="/square">创建可开启守护的行程 <ArrowRight aria-hidden size={17} /></Link>
+      )}
+    </section>
   );
 }
 

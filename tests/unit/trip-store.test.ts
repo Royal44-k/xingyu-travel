@@ -4,14 +4,19 @@ import { postsBySlug } from '@/data/posts';
 import {
   createTripStore,
   getBudgetSummary,
+  hydrateWorkbenchTripStore,
   selectAcceptedTripCount,
+  selectMostRecentGuardianTrip,
   selectTripBySourceSlug,
   selectTripRecords,
   transitionTrip,
+  useTripStore,
+  useTripStoreHydration,
 } from '@/stores/trip-store';
 
 const daliDraft = extractTripDraft(postsBySlug['dali-slow-5d']);
 const sichuanDraft = extractTripDraft(postsBySlug['sichuan-autumn-road']);
+const guilinDraft = extractTripDraft(postsBySlug['guilin-river-morning']);
 const canonicalKey = 'xingyu-demo-v1';
 const legacyDraftKey = 'xingyu-demo-trip-drafts';
 const stableMigrationTimestamp = '2026-08-18T00:00:00.000Z';
@@ -22,6 +27,22 @@ beforeEach(() => {
 });
 
 describe('trip state machine', () => {
+  it('coalesces concurrent hydration requests from the header and route content', async () => {
+    useTripStoreHydration.setState({ hydrated: false, hydrationError: false });
+    let finishHydration: (() => void) | undefined;
+    const pendingHydration = new Promise<void>((resolve) => { finishHydration = resolve; });
+    const rehydrate = vi.spyOn(useTripStore.persist, 'rehydrate').mockReturnValue(pendingHydration);
+
+    const headerHydration = hydrateWorkbenchTripStore();
+    const routeHydration = hydrateWorkbenchTripStore();
+
+    expect(rehydrate).toHaveBeenCalledTimes(1);
+    finishHydration?.();
+    await Promise.all([headerHydration, routeHydration]);
+    expect(useTripStoreHydration.getState()).toEqual({ hydrated: true, hydrationError: false });
+    rehydrate.mockRestore();
+  });
+
   it('accepts a reviewed draft and enables guardian only after consent', () => {
     const store = createTripStore();
 
@@ -160,6 +181,53 @@ describe('decision room', () => {
     expect(store.getState().guardianPlans).toEqual({ [daliDraft.id]: { id: 'PLAN-A', title: '室内备选' } });
     expect(() => store.getState().selectGuardianPlan('unknown-trip', { id: 'PLAN-B', title: '不应保存' })).toThrow('TRIP_NOT_FOUND:unknown-trip');
     expect(store.getState().guardianPlans).toEqual({ [daliDraft.id]: { id: 'PLAN-A', title: '室内备选' } });
+  });
+
+  it('selects guarded trips by updated time, then created time, then source slug', () => {
+    const store = createTripStore();
+    const dali = store.getState().savePostAsTrip(daliDraft);
+    const sichuan = store.getState().savePostAsTrip(sichuanDraft);
+    const guilin = store.getState().savePostAsTrip(guilinDraft);
+    const guarded = Object.fromEntries([dali, sichuan, guilin].map((trip) => [
+      trip.id,
+      { ...trip, status: 'guarded' as const, guardianEnabled: true },
+    ]));
+
+    expect(selectMostRecentGuardianTrip({ trips: {
+      ...guarded,
+      [dali.id]: { ...guarded[dali.id], updatedAt: '2026-08-19T12:00:00.000Z' },
+      [sichuan.id]: { ...guarded[sichuan.id], updatedAt: '2026-08-19T13:00:00.000Z' },
+      [guilin.id]: { ...guarded[guilin.id], updatedAt: '2026-08-19T11:00:00.000Z' },
+    } })?.sourcePostSlug).toBe('sichuan-autumn-road');
+
+    const sameUpdate = '2026-08-19T13:00:00.000Z';
+    expect(selectMostRecentGuardianTrip({ trips: {
+      ...guarded,
+      [dali.id]: { ...guarded[dali.id], updatedAt: sameUpdate, createdAt: '2026-08-19T11:00:00.000Z' },
+      [sichuan.id]: { ...guarded[sichuan.id], updatedAt: sameUpdate, createdAt: '2026-08-19T10:00:00.000Z' },
+      [guilin.id]: { ...guarded[guilin.id], updatedAt: sameUpdate, createdAt: '2026-08-19T09:00:00.000Z' },
+    } })?.sourcePostSlug).toBe('dali-slow-5d');
+
+    const sameCreated = '2026-08-19T11:00:00.000Z';
+    expect(selectMostRecentGuardianTrip({ trips: Object.fromEntries(
+      Object.entries(guarded).map(([id, trip]) => [id, { ...trip, updatedAt: sameUpdate, createdAt: sameCreated }]),
+    ) })?.sourcePostSlug).toBe('dali-slow-5d');
+  });
+
+  it('excludes active and unsupported guarded trips from guardian navigation', () => {
+    const store = createTripStore();
+    const dali = store.getState().savePostAsTrip(daliDraft);
+    const sichuan = store.getState().savePostAsTrip(sichuanDraft);
+    const trips = {
+      [dali.id]: { ...dali, status: 'guarded' as const, guardianEnabled: true, updatedAt: '2026-08-19T11:00:00.000Z' },
+      [sichuan.id]: { ...sichuan, status: 'guarded' as const, guardianEnabled: true, updatedAt: '2026-08-19T12:00:00.000Z' },
+    };
+
+    expect(selectMostRecentGuardianTrip({ trips }, (slug) => slug === 'dali-slow-5d')).toMatchObject({
+      id: dali.id,
+      sourcePostSlug: 'dali-slow-5d',
+    });
+    expect(selectMostRecentGuardianTrip({ trips: { [sichuan.id]: { ...sichuan, status: 'active' } } })).toBeUndefined();
   });
 });
 
