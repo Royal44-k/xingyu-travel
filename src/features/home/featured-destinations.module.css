@@ -340,11 +340,11 @@
 .tripStoryCopy { order: 2; }
 .tripStoryImage { order: 1; }
 .tripStoryCopy > p,
-.tripStoryCopy > svg { color: #725b35; }
+.tripStoryCopy > svg { color: #6f5732; }
 .tripStoryCopy > span { color: rgb(16 16 15 / 66%); }
 .tripStoryCopy dl { display: grid; gap: 15px; margin: 28px 0 0; }
 .tripStoryCopy dl > div { padding: 13px 0; border-top: 1px solid rgb(16 16 15 / 16%); }
-.tripStoryCopy dt { color: #725b35; font-size: 11px; letter-spacing: 0.12em; }
+.tripStoryCopy dt { color: #6f5732; font-size: 11px; letter-spacing: 0.12em; }
 .tripStoryCopy dd { margin: 7px 0 0; color: rgb(16 16 15 / 72%); font-size: 13px; line-height: 1.65; }
 
 .safetyStory {
@@ -379,6 +379,7 @@
 }
 
 .partnerStory > svg { color: var(--lake-jade); }
+.partnerStory > div > p { color: #6f5732; }
 .partnerStory h2 { margin-top: 9px; font-size: clamp(27px, 3vw, 40px); }
 .partnerStory > div > span { display: block; max-width: 760px; margin-top: 12px; color: rgb(16 16 15 / 64%); }
 .partnerStory > a { margin-top: 0; white-space: nowrap; }

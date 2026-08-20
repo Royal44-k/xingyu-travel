@@ -62,7 +62,7 @@
 .sectionHeading { display: flex; justify-content: space-between; gap: 24px; align-items: flex-end; }
 .sectionHeading p { margin: 0 0 8px; color: var(--profile-accent-on-light, #6f5732); font-size: 10px; letter-spacing: 0.17em; }
 .sectionHeading h2 { margin: 0; font-family: var(--font-display); font-size: clamp(28px, 4vw, 38px); font-weight: 500; }
-.sectionHeading > span { max-width: 430px; color: rgb(16 16 15 / 58%); font-size: 13px; line-height: 1.7; text-align: right; }
+.sectionHeading > span { max-width: 430px; color: rgb(16 16 15 / 60%); font-size: 13px; line-height: 1.7; text-align: right; }
 
 .summaryGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
 .summaryCard { display: grid; grid-template-columns: auto 1fr auto; gap: 8px 13px; align-items: center; min-height: 126px; padding: 22px; color: var(--ink); text-align: left; text-decoration: none; border: 1px solid rgb(16 16 15 / 11%); background: rgb(255 255 255 / 26%); cursor: pointer; transition: border-color 160ms ease, transform 320ms cubic-bezier(.22, .61, .36, 1); }
@@ -143,7 +143,7 @@
 .emptyState > svg { color: var(--sand); }
 .emptyState h2 { margin: 22px 0 8px; font-family: var(--font-display); font-size: 27px; font-weight: 500; }
 .emptyState p,
-.domainUnavailable p { margin: 0; color: rgb(16 16 15 / 58%); font-size: 13px; line-height: 1.7; }
+.domainUnavailable p { margin: 0; color: rgb(16 16 15 / 60%); font-size: 13px; line-height: 1.7; }
 .emptyState > div { display: flex; gap: 10px; margin-top: 30px; }
 .emptyState a { padding: 10px 14px; color: var(--ivory); background: var(--pine); font-size: 12px; text-decoration: none; }
 .emptyState a + a { color: var(--ink); border: 1px solid rgb(16 16 15 / 20%); background: transparent; }

@@ -9,6 +9,7 @@ import {
   useEffect,
   useRef,
   useState,
+  useSyncExternalStore,
   type CSSProperties,
   type FocusEvent,
   type KeyboardEvent,
@@ -48,6 +49,9 @@ interface PauseState {
 
 const dragThreshold = 64;
 const maxDragParallax = 36;
+const subscribeToHydration = () => () => undefined;
+const getClientHydrationSnapshot = () => true;
+const getServerHydrationSnapshot = () => false;
 
 function circularOffset(index: number, activeIndex: number, length: number) {
   let offset = index - activeIndex;
@@ -60,7 +64,13 @@ export function DestinationFilmCarousel({
   destinations,
   intervalMs = 6000,
 }: DestinationFilmCarouselProps) {
-  const reduceMotion = Boolean(useReducedMotion());
+  const prefersReducedMotion = Boolean(useReducedMotion());
+  const clientHydrated = useSyncExternalStore(
+    subscribeToHydration,
+    getClientHydrationSnapshot,
+    getServerHydrationSnapshot,
+  );
+  const reduceMotion = clientHydrated && prefersReducedMotion;
   const [activeIndex, setActiveIndex] = useState(0);
   const [dragOffset, setDragOffset] = useState(0);
   const [deadlineVersion, setDeadlineVersion] = useState(0);

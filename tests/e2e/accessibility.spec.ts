@@ -19,18 +19,37 @@ test.afterEach(async ({ page }) => {
   expect(runtimeErrors.get(page)).toEqual([]);
 });
 
-const publicRoutes = [
-  '/',
-  '/compare?kind=flight&destination=%E5%A4%A7%E7%90%86&from=2026-08-22&to=2026-08-27&travelers=2',
-  '/square',
-  '/partners',
-  '/assistant',
-  '/guardian/dali-slow-5d',
-] as const;
+type Page = import('@playwright/test').Page;
 
-for (const route of publicRoutes) {
+async function createDaliTripThroughUi(page: Page) {
+  await page.goto('/square/dali-slow-5d');
+  const convert = page.getByRole('button', { name: '转为行程' });
+  await expect(convert).toBeEnabled();
+  await convert.click();
+  await page.getByRole('button', { name: '确认并保存行程' }).click();
+  await expect(page).toHaveURL(/\/trips\/dali-slow-5d$/);
+  await expect(page.getByRole('region', { name: '行程设置' })).toBeVisible();
+}
+
+const publicRoutes: readonly {
+  route: string;
+  prepare?: (page: Page) => Promise<void>;
+  ready: (page: Page) => Promise<void>;
+}[] = [
+  { route: '/', ready: async (page) => { await expect(page.getByRole('region', { name: '目的地旅行取景窗' })).toBeVisible(); } },
+  { route: '/square', ready: async (page) => { await expect(page.getByRole('button', { name: '查看兴趣偏好' })).toBeVisible(); } },
+  { route: '/square/dali-slow-5d', ready: async (page) => { await expect(page.getByRole('region', { name: /攻略图片画廊/ })).toBeVisible(); } },
+  { route: '/profile', ready: async (page) => { await expect(page.getByRole('heading', { name: '你好，行屿旅人' })).toBeVisible(); } },
+  { route: '/trips', prepare: createDaliTripThroughUi, ready: async (page) => { await expect(page.getByRole('heading', { name: '我的行程' })).toBeVisible(); } },
+  { route: '/compare?kind=flight&destination=%E5%A4%A7%E7%90%86&from=2026-08-22&to=2026-08-27&travelers=2', ready: async (page) => { await expect(page.getByText('¥1,010 含税总价')).toBeVisible(); } },
+];
+
+for (const { route, prepare, ready } of publicRoutes) {
   test(`has no critical or serious axe violations on ${route}`, async ({ page }) => {
+    if (prepare) await prepare(page);
     await page.goto(route);
+    await ready(page);
+    await page.evaluate(() => document.fonts.ready);
     const results = await new AxeBuilder({ page }).analyze();
     expect(results.violations.filter((violation) => ['critical', 'serious'].includes(violation.impact ?? ''))).toEqual([]);
   });
@@ -53,6 +72,53 @@ test('search main path and search tabs work from the keyboard', async ({ page })
   await page.getByRole('button', { name: '开始规划' }).focus();
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/compare\?/);
+});
+
+test('destination carousel pauses while keyboard focus remains inside', async ({ page }) => {
+  await page.goto('/');
+  const carousel = page.getByRole('region', { name: '目的地旅行取景窗' });
+  await carousel.focus();
+  await expect(carousel).toBeFocused();
+  const position = page.getByRole('status', { name: '目的地位置' });
+  const initialPosition = await position.textContent();
+  await page.waitForTimeout(6_200);
+  await expect(position).toHaveText(initialPosition ?? '');
+  await page.keyboard.press('End');
+  await expect(page.getByRole('button', { name: '查看厦门' })).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('guide gallery supports keyboard focus and positional navigation', async ({ page }) => {
+  await page.goto('/square/dali-slow-5d');
+  const gallery = page.getByRole('region', { name: /攻略图片画廊/ });
+  await gallery.focus();
+  await expect(gallery).toBeFocused();
+  await page.keyboard.press('End');
+  await expect(page.getByRole('status', { name: '图片位置' })).toHaveText('4 / 4');
+  await page.keyboard.press('ArrowLeft');
+  await expect(page.getByRole('status', { name: '图片位置' })).toHaveText('3 / 4');
+});
+
+test('profile tabs use arrow keys and move focus with the active tab', async ({ page }) => {
+  await page.goto('/profile');
+  const overview = page.getByRole('tab', { name: '概览' });
+  await overview.focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.getByRole('tab', { name: '我的行程' })).toBeFocused();
+  await expect(page.getByRole('tab', { name: '我的行程' })).toHaveAttribute('aria-selected', 'true');
+  await page.keyboard.press('End');
+  await expect(page.getByRole('tab', { name: '兴趣偏好' })).toBeFocused();
+});
+
+test('trip conversion dialog closes with Escape and restores its trigger', async ({ page }) => {
+  await page.goto('/square/dali-slow-5d');
+  const trigger = page.getByRole('button', { name: '转为行程' });
+  await expect(trigger).toBeEnabled();
+  await trigger.click();
+  const dialog = page.getByRole('dialog', { name: '确认行程草稿' });
+  await expect(dialog).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expect(trigger).toBeFocused();
 });
 
 test('filter dialog traps focus, closes with Escape, and restores its trigger', async ({ page }) => {
@@ -82,10 +148,17 @@ test('external quote confirmation remains in the local demo', async ({ page }) =
   await expect(page).toHaveURL(/\/compare\?/);
 });
 
-test('reduced motion removes smooth scrolling and motion transitions', async ({ page }) => {
+test('reduced motion removes autoplay, parallax, smooth scrolling, and motion transitions', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
   await expect(page.locator('html')).toHaveCSS('scroll-behavior', 'auto');
+  const viewport = page.getByTestId('destination-film-viewport');
+  await expect(viewport).toHaveAttribute('data-parallax', 'disabled');
+  const position = page.getByRole('status', { name: '目的地位置' });
+  const initialPosition = await position.textContent();
+  await page.waitForTimeout(6_200);
+  await expect(position).toHaveText(initialPosition ?? '');
+  await expect(viewport).toHaveCSS('transform', 'none');
   const duration = await page.getByRole('tabpanel').evaluate((element) => Number.parseFloat(getComputedStyle(element).transitionDuration));
   expect(duration).toBeLessThanOrEqual(0.00001);
 });

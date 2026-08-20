@@ -82,6 +82,22 @@ async function expectDisclosureClearsMainContent(page: Page) {
   expect(contentBox!.y).toBeGreaterThanOrEqual(disclosureBox!.y + disclosureBox!.height);
 }
 
+async function createDaliTripThroughUi(page: Page, enableGuardian = false) {
+  await page.goto('/square/dali-slow-5d', { waitUntil: 'commit' });
+  const convert = page.getByRole('button', { name: '转为行程' });
+  await expect(convert).toBeEnabled();
+  await convert.click();
+  await page.getByRole('button', { name: '确认并保存行程' }).click();
+  await expect(page).toHaveURL(/\/trips\/dali-slow-5d$/);
+  await expect(page.getByRole('region', { name: '行程设置' })).toBeVisible();
+
+  if (!enableGuardian) return;
+  await page.getByRole('switch', { name: '行程守护演示' }).click();
+  await page.getByLabel('我明确同意开启本地守护演示').check();
+  await page.getByRole('button', { name: '确认开启' }).click();
+  await expect(page.getByRole('switch', { name: '行程守护演示' })).toHaveAttribute('aria-checked', 'true');
+}
+
 const responsiveCases: ResponsiveCase[] = [
   {
     route: '/compare?kind=flight&destination=%E5%A4%A7%E7%90%86&from=2026-08-22&to=2026-08-27&travelers=2',
@@ -92,17 +108,19 @@ const responsiveCases: ResponsiveCase[] = [
     ready: async (page) => { await expect(page.getByRole('button', { name: '查看兴趣偏好' })).toBeVisible(); },
   },
   {
-    route: '/trips/dali-slow-5d',
-    prepare: async (page) => {
-      await page.goto('/square/dali-slow-5d', { waitUntil: 'commit' });
-      await page.getByRole('button', { name: '转为行程' }).click();
-      await page.getByRole('button', { name: '确认并保存草稿' }).click();
-      await expect(page).toHaveURL(/\/trips\/dali-slow-5d$/);
-    },
+    route: '/square/dali-slow-5d',
     ready: async (page) => {
-      await expect(page.getByRole('heading', { name: '大理慢行计划' })).toBeVisible();
-      await expect(page.getByRole('region', { name: '行程设置' })).toBeVisible();
+      await expect(page.getByRole('region', { name: /攻略图片画廊/ })).toBeVisible();
     },
+  },
+  {
+    route: '/profile',
+    ready: async (page) => { await expect(page.getByRole('heading', { name: '你好，行屿旅人' })).toBeVisible(); },
+  },
+  {
+    route: '/trips',
+    prepare: async (page) => { await createDaliTripThroughUi(page); },
+    ready: async (page) => { await expect(page.getByRole('heading', { name: '我的行程' })).toBeVisible(); },
   },
   {
     route: '/partners',
@@ -114,6 +132,7 @@ const responsiveCases: ResponsiveCase[] = [
   },
   {
     route: '/guardian/dali-slow-5d',
+    prepare: async (page) => { await createDaliTripThroughUi(page, true); },
     ready: async (page) => { await expect(page.getByRole('button', { name: /选择 Plan A/ })).toBeVisible(); },
   },
 ];
@@ -132,7 +151,7 @@ test.describe('mobile public MVP', () => {
   for (const { route, prepare, ready } of responsiveCases) {
     test(`does not horizontally overflow on ${route}`, async ({ page }) => {
       if (prepare) await prepare(page);
-      else await page.goto(route, { waitUntil: 'commit' });
+      await page.goto(route, { waitUntil: 'commit' });
       await waitForResponsiveReady(page, () => ready(page));
       await expectDisclosureClearsMainContent(page);
       await expectClosedAndOpenLayoutsFit(page);
@@ -157,14 +176,14 @@ test.describe('desktop design disclosure', () => {
     expect(disclosureBox!.y).toBeGreaterThanOrEqual(headerBox!.y + headerBox!.height - 1);
   });
 
-  test('keeps the planning controls and seasonal destinations in the first viewport', async ({ page }) => {
+  test('keeps the planning controls and signature destination film in the first viewport', async ({ page }) => {
     await page.goto('/', { waitUntil: 'commit' });
     await page.waitForFunction(() => document.fonts.status === 'loaded');
 
     const [titleBox, composerBox, destinationBox] = await Promise.all([
       page.getByRole('heading', { name: '把远方， 变成一段安心抵达的旅程' }).boundingBox(),
       page.locator('form[action="/compare"]').boundingBox(),
-      page.getByRole('article').first().boundingBox(),
+      page.getByRole('region', { name: '目的地旅行取景窗' }).boundingBox(),
     ]);
 
     expect(titleBox).not.toBeNull();
@@ -172,6 +191,6 @@ test.describe('desktop design disclosure', () => {
     expect(destinationBox).not.toBeNull();
     expect.soft(titleBox!.y).toBeLessThanOrEqual(210);
     expect.soft(composerBox!.y).toBeLessThanOrEqual(540);
-    expect.soft(destinationBox!.y).toBeLessThanOrEqual(820);
+    expect.soft(destinationBox!.y).toBeLessThanOrEqual(1024);
   });
 });

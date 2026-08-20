@@ -44,9 +44,13 @@ test('guide to guarded alternative plan through the public UI', async ({ page })
   await expect(page.getByText('¥1,010 含税总价')).toBeVisible();
 
   await page.getByRole('link', { name: '灵感广场' }).click();
-  await page.getByRole('link', { name: '把大理留给慢下来的人：5 天环洱海松弛路线', exact: true }).click();
+  await page.getByRole('link', { name: '把大理留给慢下来的人：5 天洱海与白族村落路线', exact: true }).click();
   await page.getByRole('button', { name: '转为行程' }).click();
-  await page.getByRole('button', { name: '确认并保存草稿' }).click();
+  await page.getByRole('button', { name: '确认并保存行程' }).click();
+  await page.getByRole('switch', { name: '行程守护演示' }).click();
+  await page.getByLabel('我明确同意开启本地守护演示').check();
+  await page.getByRole('button', { name: '确认开启' }).click();
+  await expect(page.getByRole('switch', { name: '行程守护演示' })).toHaveAttribute('aria-checked', 'true');
   await page.getByRole('button', { name: '发布搭子意愿' }).click();
   await expect(page.getByRole('status')).toContainText('搭子意愿已保存到本浏览器');
   await page.getByRole('navigation', { name: '主导航' }).getByRole('link', { name: '寻找搭子' }).click();

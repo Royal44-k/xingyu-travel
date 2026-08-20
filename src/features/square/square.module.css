@@ -122,7 +122,7 @@
 .locationCard { display: flex; gap: 9px; color: #6d532a; }
 .locationCard strong,
 .locationCard span { display: block; color: var(--ink); font-size: 14px; }
-.locationCard span { margin-top: 3px; color: rgb(16 16 15 / 56%); font-size: 12px; }
+.locationCard span { margin-top: 3px; color: rgb(16 16 15 / 61%); font-size: 12px; }
 .locationCard p,
 .productCard p { margin: 8px 0 0; color: rgb(16 16 15 / 62%); font-size: 12px; line-height: 1.5; }
 .productCard span,
