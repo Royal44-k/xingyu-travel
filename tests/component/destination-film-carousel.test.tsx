@@ -94,6 +94,39 @@ describe('DestinationFilmCarousel', () => {
     expect(autoplayDeadlineCount()).toBe(3);
   });
 
+  it('keeps a native-clicked control paused until focus leaves, then starts a fresh dwell', () => {
+    vi.useFakeTimers();
+    render(
+      <>
+        <DestinationFilmCarousel destinations={destinations} intervalMs={6000} />
+        <button type="button">取景窗外的控件</button>
+      </>,
+    );
+
+    act(() => vi.advanceTimersByTime(5900));
+    const nextButton = screen.getByRole('button', { name: '下一个目的地' });
+    fireEvent.pointerDown(nextButton, { pointerId: 1 });
+    act(() => nextButton.focus());
+    fireEvent.pointerUp(nextButton, { pointerId: 1 });
+    fireEvent.click(nextButton);
+    expect(nextButton).toHaveFocus();
+    expect(position()).toHaveTextContent('2 / 4');
+
+    act(() => vi.advanceTimersByTime(12_000));
+    expect(position()).toHaveTextContent('2 / 4');
+
+    const outsideButton = screen.getByRole('button', { name: '取景窗外的控件' });
+    fireEvent.pointerDown(outsideButton, { pointerId: 2 });
+    act(() => outsideButton.focus());
+    fireEvent.pointerUp(outsideButton, { pointerId: 2 });
+    fireEvent.click(outsideButton);
+    expect(outsideButton).toHaveFocus();
+    act(() => vi.advanceTimersByTime(5999));
+    expect(position()).toHaveTextContent('2 / 4');
+    act(() => vi.advanceTimersByTime(1));
+    expect(position()).toHaveTextContent('3 / 4');
+  });
+
   it('restarts the autoplay deadline after controls, pagination, and drag selection', () => {
     vi.useFakeTimers();
     render(<DestinationFilmCarousel destinations={destinations} intervalMs={6000} />);
@@ -274,6 +307,19 @@ describe('DestinationFilmCarousel', () => {
       expect(article).not.toBeNull();
       expect(within(article as HTMLElement).getByText(/\d+ 天 · \S+/)).toBeInTheDocument();
       expect(within(article as HTMLElement).getByText(/。$/)).toBeInTheDocument();
+    }
+
+    const discoveryRoutes = {
+      北京: '/square?destination=%E5%8C%97%E4%BA%AC',
+      西安: '/square?destination=%E8%A5%BF%E5%AE%89',
+      重庆: '/square?destination=%E9%87%8D%E5%BA%86',
+      厦门: '/square?destination=%E5%8E%A6%E9%97%A8',
+    } as const;
+    for (const [destination, href] of Object.entries(discoveryRoutes)) {
+      expect(screen.getByRole('link', {
+        name: `打开${destination}攻略`,
+        hidden: true,
+      })).toHaveAttribute('href', href);
     }
   });
 });

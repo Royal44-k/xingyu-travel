@@ -40,6 +40,14 @@ Review round 1 RED/GREEN:
 - GREEN command: `pnpm test tests/component/destination-film-carousel.test.tsx tests/component/home-shell.test.tsx tests/component/search-composer.test.tsx`
 - GREEN result: 3 files and 23 tests passed.
 
+Review round 2 focus-contract resolution:
+
+- The timer concern conflicted with the approved product behavior: autoplay must remain paused while keyboard or pointer focus is anywhere inside the carousel. A native pointer/focus/click regression now selects the next destination, holds it indefinitely while the control retains focus, moves focus outside the carousel, then proves that autoplay waits a fresh 5999ms and advances only on the final millisecond.
+- That focus regression passed against the existing production implementation before any production edit, so timer logic was intentionally left unchanged. Making a clicked or focused control autoplay would regress keyboard and pointer accessibility.
+- Valid RED: the new control-size contract reported the existing previous/next dimensions as 42px, below the required 44px minimum.
+- GREEN: previous/next controls are now 44×44px; focused carousel plus style-contract run passed 2 files and 14 tests.
+- The four discovery-only CTAs are asserted as exact encoded links to the existing `/square` route. Query-seeding behavior was not expanded.
+
 ## ImageGen Assets and Provenance
 
 Each discovery-only city used exactly one call to the built-in `image_gen` tool. Generation was not performed through a CLI. Originals remain in the generated-image directory; copies live at clear production paths. All four copies were individually opened with `view_image`, confirmed as 1536×1024, and accepted for destination geography, natural photographic treatment, responsive crop, and absence of overlay text, readable signs, logos, watermarks, or recognizable faces.
@@ -85,6 +93,7 @@ Each discovery-only city used exactly one call to the built-in `image_gen` tool.
 - Sand glow appears only on the active carousel card, active pagination, and hovered controls. No gradient, CSS drawing, inline/handcrafted SVG, fake map line, decorative numbering, or generic metric dashboard was added.
 - The 390px rules collapse all grids, keep adjacent film edges visible inside an overflow-clipped viewport, preserve readable copy and focus, and remove large transforms under reduced motion.
 - Twelve 44px pagination targets wrap within a 354px mobile content width while their visual pills stay restrained; no horizontal overflow is introduced.
+- Previous/next controls also use a measured 44×44px target while retaining the existing restrained circular treatment.
 
 ## React Review Evidence
 
@@ -97,6 +106,7 @@ Each discovery-only city used exactly one call to the built-in `image_gen` tool.
 
 ## Fresh Verification
 
+- Review round 2 focused carousel/home/style contract: 3 files, 19 tests passed.
 - Focused home/search: 3 files, 23 tests passed.
 - Full Vitest: 40 files, 323 tests passed; exit 0.
 - `pnpm lint`: exit 0.
