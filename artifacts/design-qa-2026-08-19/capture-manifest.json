@@ -1,0 +1,383 @@
+{
+  "browser": "Google Chrome via Playwright channel=chrome",
+  "sourceDimensions": {
+    "homepage": {
+      "width": 1487,
+      "height": 1058
+    },
+    "contentHub": {
+      "width": 1705,
+      "height": 923
+    }
+  },
+  "evidence": [
+    {
+      "name": "home-desktop-1440x1024",
+      "route": "/",
+      "output": "artifacts/design-qa-2026-08-19/home-desktop-1440x1024.png",
+      "cssViewport": {
+        "width": 1440,
+        "height": 1024
+      },
+      "density": 1,
+      "documentWidth": 1440,
+      "focused": "公开 MVP 演示：报价、身份状态、搭子、AI、守护与预订流程均使用演示数据或浏览器本地状态；不提供实名核验、真实成交、实时外部接口、支付或应急服务。行屿XIN",
+      "visibleImages": [
+        {
+          "alt": "晨光穿过大理群山与湖谷",
+          "complete": true,
+          "naturalWidth": 1152
+        },
+        {
+          "alt": "晨光里的大理白族院落与石茶桌",
+          "complete": true,
+          "naturalWidth": 864
+        },
+        {
+          "alt": "漓江晨雾中层叠的喀斯特山峰",
+          "complete": true,
+          "naturalWidth": 864
+        },
+        {
+          "alt": "晨光中的厦门鼓浪屿红屋顶与鹭江海岸",
+          "complete": true,
+          "naturalWidth": 864
+        }
+      ]
+    },
+    {
+      "name": "home-mobile-390x844",
+      "route": "/",
+      "output": "artifacts/design-qa-2026-08-19/home-mobile-390x844.png",
+      "cssViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "density": 1,
+      "documentWidth": 390,
+      "focused": "公开 MVP 演示：报价、身份状态、搭子、AI、守护与预订流程均使用演示数据或浏览器本地状态；不提供实名核验、真实成交、实时外部接口、支付或应急服务。行屿XIN",
+      "visibleImages": [
+        {
+          "alt": "晨光穿过大理群山与湖谷",
+          "complete": true,
+          "naturalWidth": 390
+        }
+      ]
+    },
+    {
+      "name": "home-focus-selected-desktop",
+      "route": "/",
+      "output": "artifacts/design-qa-2026-08-19/home-focus-selected-desktop.png",
+      "cssViewport": {
+        "width": 1440,
+        "height": 1024
+      },
+      "density": 1,
+      "documentWidth": 1440,
+      "focused": "查看杭州",
+      "visibleImages": [
+        {
+          "alt": "晨光穿过大理群山与湖谷",
+          "complete": true,
+          "naturalWidth": 1152
+        },
+        {
+          "alt": "亚龙湾黎明时分安静的弧形海岸",
+          "complete": true,
+          "naturalWidth": 864
+        },
+        {
+          "alt": "薄雾笼罩西湖柳岸与远亭",
+          "complete": true,
+          "naturalWidth": 864
+        },
+        {
+          "alt": "晨光掠过南京明城墙砖石步道",
+          "complete": true,
+          "naturalWidth": 864
+        }
+      ]
+    },
+    {
+      "name": "square-desktop-1440x1024",
+      "route": "/square",
+      "output": "artifacts/design-qa-2026-08-19/square-desktop-1440x1024.png",
+      "cssViewport": {
+        "width": 1440,
+        "height": 1024
+      },
+      "density": 1,
+      "documentWidth": 1440,
+      "focused": "公开 MVP 演示：报价、身份状态、搭子、AI、守护与预订流程均使用演示数据或浏览器本地状态；不提供实名核验、真实成交、实时外部接口、支付或应急服务。行屿XIN",
+      "visibleImages": [
+        {
+          "alt": "晨光里的大理白族院落与石茶桌",
+          "complete": true,
+          "naturalWidth": 475
+        },
+        {
+          "alt": "新都桥秋色里穿过石屋和白杨的公路",
+          "complete": true,
+          "naturalWidth": 475
+        },
+        {
+          "alt": "外滩蓝调时刻望向浦东天际线",
+          "complete": true,
+          "naturalWidth": 475
+        }
+      ]
+    },
+    {
+      "name": "square-mobile-390x844",
+      "route": "/square",
+      "output": "artifacts/design-qa-2026-08-19/square-mobile-390x844.png",
+      "cssViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "density": 1,
+      "documentWidth": 390,
+      "focused": "公开 MVP 演示：报价、身份状态、搭子、AI、守护与预订流程均使用演示数据或浏览器本地状态；不提供实名核验、真实成交、实时外部接口、支付或应急服务。行屿XIN",
+      "visibleImages": []
+    },
+    {
+      "name": "square-hover-desktop",
+      "route": "/square",
+      "output": "artifacts/design-qa-2026-08-19/square-hover-desktop.png",
+      "cssViewport": {
+        "width": 1440,
+        "height": 1024
+      },
+      "density": 1,
+      "documentWidth": 1440,
+      "focused": "公开 MVP 演示：报价、身份状态、搭子、AI、守护与预订流程均使用演示数据或浏览器本地状态；不提供实名核验、真实成交、实时外部接口、支付或应急服务。行屿XIN",
+      "visibleImages": [
+        {
+          "alt": "晨光里的大理白族院落与石茶桌",
+          "complete": true,
+          "naturalWidth": 475
+        },
+        {
+          "alt": "新都桥秋色里穿过石屋和白杨的公路",
+          "complete": true,
+          "naturalWidth": 475
+        },
+        {
+          "alt": "外滩蓝调时刻望向浦东天际线",
+          "complete": true,
+          "naturalWidth": 475
+        }
+      ]
+    },
+    {
+      "name": "square-liked-selected-desktop",
+      "route": "/square",
+      "output": "artifacts/design-qa-2026-08-19/square-liked-selected-desktop.png",
+      "cssViewport": {
+        "width": 1440,
+        "height": 1024
+      },
+      "density": 1,
+      "documentWidth": 1440,
+      "focused": "喜欢 把大理留给慢下来的人：5 天洱海与白族村落路线",
+      "visibleImages": [
+        {
+          "alt": "晨光里的大理白族院落与石茶桌",
+          "complete": true,
+          "naturalWidth": 475
+        },
+        {
+          "alt": "亚龙湾黎明时分安静的弧形海岸",
+          "complete": true,
+          "naturalWidth": 475
+        },
+        {
+          "alt": "新都桥秋色里穿过石屋和白杨的公路",
+          "complete": true,
+          "naturalWidth": 475
+        },
+        {
+          "alt": "薄雾笼罩西湖柳岸与远亭",
+          "complete": true,
+          "naturalWidth": 475
+        },
+        {
+          "alt": "外滩蓝调时刻望向浦东天际线",
+          "complete": true,
+          "naturalWidth": 475
+        },
+        {
+          "alt": "小七孔古桥下流过清澈碧水",
+          "complete": true,
+          "naturalWidth": 475
+        }
+      ]
+    },
+    {
+      "name": "detail-desktop-1440x1024",
+      "route": "/square/dali-slow-5d",
+      "output": "artifacts/design-qa-2026-08-19/detail-desktop-1440x1024.png",
+      "cssViewport": {
+        "width": 1440,
+        "height": 1024
+      },
+      "density": 1,
+      "documentWidth": 1440,
+      "focused": "公开 MVP 演示：报价、身份状态、搭子、AI、守护与预订流程均使用演示数据或浏览器本地状态；不提供实名核验、真实成交、实时外部接口、支付或应急服务。行屿XIN",
+      "visibleImages": [
+        {
+          "alt": "晨光里的大理白族院落与石茶桌",
+          "complete": true,
+          "naturalWidth": 1008
+        }
+      ]
+    },
+    {
+      "name": "detail-mobile-390x844",
+      "route": "/square/dali-slow-5d",
+      "output": "artifacts/design-qa-2026-08-19/detail-mobile-390x844.png",
+      "cssViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "density": 1,
+      "documentWidth": 390,
+      "focused": "公开 MVP 演示：报价、身份状态、搭子、AI、守护与预订流程均使用演示数据或浏览器本地状态；不提供实名核验、真实成交、实时外部接口、支付或应急服务。行屿XIN",
+      "visibleImages": [
+        {
+          "alt": "晨光里的大理白族院落与石茶桌",
+          "complete": true,
+          "naturalWidth": 390
+        }
+      ]
+    },
+    {
+      "name": "detail-gallery-focus-desktop",
+      "route": "/square/dali-slow-5d",
+      "output": "artifacts/design-qa-2026-08-19/detail-gallery-focus-desktop.png",
+      "cssViewport": {
+        "width": 1440,
+        "height": 1024
+      },
+      "density": 1,
+      "documentWidth": 1440,
+      "focused": "大理攻略图片画廊",
+      "visibleImages": [
+        {
+          "alt": "晨光里的大理白族院落与石茶桌",
+          "complete": true,
+          "naturalWidth": 1008
+        },
+        {
+          "alt": "",
+          "complete": true,
+          "naturalWidth": 119
+        },
+        {
+          "alt": "",
+          "complete": true,
+          "naturalWidth": 119
+        },
+        {
+          "alt": "",
+          "complete": true,
+          "naturalWidth": 119
+        },
+        {
+          "alt": "",
+          "complete": true,
+          "naturalWidth": 119
+        }
+      ]
+    },
+    {
+      "name": "profile-desktop-1440x1024",
+      "route": "/profile",
+      "output": "artifacts/design-qa-2026-08-19/profile-desktop-1440x1024.png",
+      "cssViewport": {
+        "width": 1440,
+        "height": 1024
+      },
+      "density": 1,
+      "documentWidth": 1440,
+      "focused": "公开 MVP 演示：报价、身份状态、搭子、AI、守护与预订流程均使用演示数据或浏览器本地状态；不提供实名核验、真实成交、实时外部接口、支付或应急服务。行屿XIN",
+      "visibleImages": [
+        {
+          "alt": "",
+          "complete": true,
+          "naturalWidth": 1152
+        }
+      ]
+    },
+    {
+      "name": "profile-mobile-390x844",
+      "route": "/profile",
+      "output": "artifacts/design-qa-2026-08-19/profile-mobile-390x844.png",
+      "cssViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "density": 1,
+      "documentWidth": 390,
+      "focused": "公开 MVP 演示：报价、身份状态、搭子、AI、守护与预订流程均使用演示数据或浏览器本地状态；不提供实名核验、真实成交、实时外部接口、支付或应急服务。行屿XIN",
+      "visibleImages": [
+        {
+          "alt": "",
+          "complete": true,
+          "naturalWidth": 390
+        }
+      ]
+    },
+    {
+      "name": "profile-empty-likes-desktop",
+      "route": "/profile?tab=likes",
+      "output": "artifacts/design-qa-2026-08-19/profile-empty-likes-desktop.png",
+      "cssViewport": {
+        "width": 1440,
+        "height": 1024
+      },
+      "density": 1,
+      "documentWidth": 1440,
+      "focused": "公开 MVP 演示：报价、身份状态、搭子、AI、守护与预订流程均使用演示数据或浏览器本地状态；不提供实名核验、真实成交、实时外部接口、支付或应急服务。行屿XIN",
+      "visibleImages": [
+        {
+          "alt": "",
+          "complete": true,
+          "naturalWidth": 1152
+        }
+      ]
+    },
+    {
+      "name": "profile-expired-offer-desktop",
+      "route": "/profile?tab=offers",
+      "output": "artifacts/design-qa-2026-08-19/profile-expired-offer-desktop.png",
+      "cssViewport": {
+        "width": 1440,
+        "height": 1024
+      },
+      "density": 1,
+      "state": "expired saved offer + local alert"
+    },
+    {
+      "name": "profile-hydration-error-desktop",
+      "route": "/profile",
+      "output": "artifacts/design-qa-2026-08-19/profile-hydration-error-desktop.png",
+      "cssViewport": {
+        "width": 1440,
+        "height": 1024
+      },
+      "density": 1,
+      "documentWidth": 1440,
+      "focused": "公开 MVP 演示：报价、身份状态、搭子、AI、守护与预订流程均使用演示数据或浏览器本地状态；不提供实名核验、真实成交、实时外部接口、支付或应急服务。行屿XIN",
+      "visibleImages": [
+        {
+          "alt": "",
+          "complete": true,
+          "naturalWidth": 1152
+        }
+      ]
+    }
+  ],
+  "runtimeErrors": [],
+  "runtimeWarnings": []
+}

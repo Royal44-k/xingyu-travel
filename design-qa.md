@@ -1,107 +1,70 @@
-# 行屿 XINGYU — Design QA
+# 行屿 XINGYU — Design QA（2026-08-20）
 
 ## Comparison target
 
-- Source visual truth: `docs/design/selected-homepage-option-1.png`
-- Browser implementation: `http://127.0.0.1:4173/`
-- Desktop evidence: `artifacts/home-desktop-1440x1024.png`
-- Mobile evidence: `artifacts/home-mobile-390x844.png`
-- Same-input comparison: `artifacts/design-comparison.png`
-- Browser: locally installed Google Chrome through Playwright, headless capture
-- State: homepage initial state, flight tab selected, Dali, 2026-08-22 to 2026-08-27, two travelers
+- Source visual truth: `docs/design/selected-homepage-option-1.png` and `docs/design/xingyu-content-hub-target.png`.
+- Browser implementation: local production build at `http://127.0.0.1:4173`.
+- Browser: locally installed Google Chrome through Playwright `channel: "chrome"`; this run did not use the in-app browser.
+- Primary routes/states: `/`, `/square`, `/square/dali-slow-5d`, `/profile`, hover, focus, selected favorite, empty likes, expired offer, and malformed-library hydration error.
+- Capture manifest: `artifacts/design-qa-2026-08-19/capture-manifest.json`.
 
 ## Normalization
 
-- Source pixels: 1487 × 1058.
-- Desktop implementation pixels and CSS viewport: 1440 × 1024 at `deviceScaleFactor: 1`.
-- Source was proportionally displayed at 1440 × 1024; its aspect ratio differs by less than 0.1%, so no crop was introduced.
-- Comparison pixels: 2880 × 1024, preserving each side at 1440 × 1024.
-- Mobile implementation pixels and CSS viewport: 390 × 844 at `deviceScaleFactor: 1`; it was reviewed for reflow and overflow rather than pixel equality with the desktop source.
+- Homepage source pixels: 1487 × 1058; normalized to 1440 × 1024 beside a 1440 × 1024 CSS-pixel Chrome capture.
+- Content-hub source pixels: 1705 × 923; the triptych is a directional composition board rather than a browser viewport. The full board preserves it in one input with three 1440 × 1024 implementation captures, normalized to 900 × 640 for the lower row.
+- Desktop implementation: 1440 × 1024 CSS px at `deviceScaleFactor: 1`; screenshot pixels are 1440 × 1024.
+- Mobile implementation: 390 × 844 CSS px at `deviceScaleFactor: 1`; screenshot pixels are 390 × 844.
+- Every capture waited for route-specific content, `document.readyState === "complete"`, `document.fonts.status === "loaded"`, visible images with non-zero natural width, and the finite entrance motion to reach its settled state.
+
+## Full-view comparison evidence
+
+- Homepage: `artifacts/design-qa-2026-08-19/comparison-home-full.png`.
+- Content hub: `artifacts/design-qa-2026-08-19/comparison-content-hub-full.png`.
+- Responsive quartet: `artifacts/design-qa-2026-08-19/comparison-mobile-responsiveness.png`.
+
+## Focused comparison evidence
+
+- Navigation, Hero hierarchy, route cue, search controls, and trust line: `artifacts/design-qa-2026-08-19/comparison-home-focus.png`.
+- Square, guide detail, and profile target-panel comparisons: `artifacts/design-qa-2026-08-19/comparison-content-hub-focus.png`.
+- Hover, selected, focus, empty, expired, and hydration-error states: `artifacts/design-qa-2026-08-19/comparison-interaction-states.png`.
 
 ## Findings
 
-- [P1 · closed] The global demo disclosure was obscured by the fixed navigation.
-  - Location: global `.demoBanner` and the homepage overlay header.
-  - Evidence: first Chrome capture placed both at `y = 0`; navigation blur made the disclosure unreadable and pushed the Hero down.
-  - Impact: users could not reliably read the sandbox boundary, and the first-screen composition visibly drifted from the source.
-  - Fix: position the disclosure immediately below the 82px header, remove it from document flow, and use an opaque ink surface with ivory text.
-  - Post-fix evidence: `artifacts/home-desktop-1440x1024.png`; browser regression verifies the disclosure starts at or below the header edge.
+No actionable P0, P1, or P2 finding remains in the valid route-ready comparison.
 
-- [P2 · closed] Hero and seasonal destinations were vertically displaced below the source composition.
-  - Location: Hero copy, search area, Hero height, and featured-destinations top rhythm.
-  - Evidence: first normalized measurement placed the title at 233px, composer at 587px, and first destination card at 892px; the source positions are approximately 194px, 516px, and 806px.
-  - Impact: the planning action and editorial destination handoff felt less immediate, and materially less destination content appeared above the fold.
-  - Fix: set desktop Hero height to 768px, copy top to 136px, search bottom to 60px, destination top padding to 38px, and intro alignment to the start.
-  - Post-fix evidence: title approximately 194px, composer 517px, Hero boundary 768px, first card 806px in `artifacts/design-comparison.png`.
-
-- [P1 · closed] The relocated disclosure failed WCAG AA contrast on light-background routes.
-  - Location: global `.demoBanner`.
-  - Evidence: Axe measured 2.62:1 on Square, Partners, Assistant, and Guardian after the first layout fix.
-  - Impact: the compliance message was difficult to read and produced a serious accessibility violation.
-  - Fix: increase the ink background to 94% opacity while retaining ivory text.
-  - Post-fix evidence: six public-route Axe scans report no critical or serious violations.
-
-- [P1 · closed] The mobile disclosure overlaid the first content block on non-home routes.
-  - Location: the global disclosure and the Compare, Trip Workbench, Partners, Assistant, and Guardian page shells at 390px.
-  - Evidence: the first content block began at `y = 0` or `y = 102px`, while the disclosure extended to approximately `y = 144.5px`; the focused Chrome regression failed on five of six routes.
-  - Impact: page headings and controls could appear underneath the safety disclosure on a common phone viewport.
-  - Fix: identify the homepage shell explicitly and reserve 154px of mobile top space on every other direct `main`, preserving the intentional homepage overlay composition.
-  - Post-fix evidence: the same six-route local-Chrome regression passed 6/6 and verifies the first content block starts at or below the disclosure edge, with both closed and open navigation free of horizontal overflow.
-
-- [P3 · accepted] The production Hero asset places the sun farther right than the concept image.
-  - This is an intentional licensed-asset constraint: the implementation uses the generated `hero-dali-dawn.png`, keeps the same dark-left/bright-right mountain-lake art direction, and does not reuse hotel-brand imagery.
-
-- [P3 · accepted] The visible disclosure strip and split departure/return inputs are more explicit than the concept image.
-  - The disclosure is required to prevent the sandbox from being mistaken for a real OTA, and the separate date controls support real browser form semantics. Both retain the reference hierarchy and palette.
+- [P3 · accepted] The generated Hero places the brightest sun and water reflection farther right than the homepage concept. The delivered asset keeps the same dark-left/bright-right mountain-lake art direction and avoids copied hotel-brand photography.
+- [P3 · accepted] The implementation adds an explicit public-MVP disclosure, real date fields, a complete navigation inventory, and local-library entry points. These are required product and safety semantics; they preserve the reference hierarchy while making the standalone prototype honest and operable.
+- [P3 · accepted] The content-hub target is a directional triptych with generated microcopy and a dark canvas. The implementation preserves its editorial serif hierarchy, sand/ink/pine tokens, image density, three-part information architecture, and dark identity header, while using ivory reading surfaces for accurate long-form copy, form controls, and recoverable browser-local states.
+- [P3 · follow-up] The 390 px profile tab rail intentionally scrolls horizontally and leaves the next label partially visible as a continuation cue. A future polish pass may add a subtle end fade, provided it does not hide focus or reduce tab contrast.
 
 ## Required fidelity surfaces
 
-- Fonts and typography: Noto Serif SC is used for the editorial display hierarchy and Noto Sans SC for controls and body copy. Chrome confirmed the fonts loaded before measurement. Display weight, line height, wrapping, and optical hierarchy now closely follow the source; no truncation was observed.
-- Spacing and layout rhythm: desktop title, search composer, Hero boundary, and destination cards align with the source within a small tolerance. Mobile stacks navigation and search fields without horizontal overflow.
-- Colors and visual tokens: ink, ivory, sand, mist, and pine tokens preserve the warm editorial palette. The compliance surface now meets the automated AA contrast gate.
-- Image quality and asset fidelity: all visible photography uses full-resolution generated PNG assets with intentional crops; no placeholder, emoji, CSS drawing, handcrafted SVG, watermark, or recognizable face is used.
-- Copy and content: brand promise, comparison trust line, destination labels, sandbox limits, and task labels are coherent in the standalone product. The extra demo disclosure is a deliberate safety requirement.
-- Icons and states: Phosphor icons share one stroke family; selected tabs, focus rings, hover motion, the mobile navigation, dialogs, disabled states, and reduced motion were exercised.
+- Fonts and typography: Noto Serif SC carries display hierarchy and Noto Sans SC carries controls, data, and body copy. The manifest confirms fonts were loaded before capture; headings, labels, dates, and long Chinese strings remain readable without truncation.
+- Spacing and layout rhythm: the homepage retains the overlay navigation, left-weighted Hero, central planning surface, and editorial handoff. Square, detail, and profile use stable content widths, consistent section rules, restrained radii, and 390 px reflow with document width equal to viewport width.
+- Colors and visual tokens: ink `#10100F`, ivory `#F4F0E8`, sand `#B79A68`, pine `#26312B`, lake jade `#4D6B63`, and cinnabar `#A94032` remain legible across normal, selected, warning, and error states.
+- Image quality and asset fidelity: visible generated photography is sharp, location-specific, consistently cropped, and complete in the manifest. No placeholder, emoji, CSS drawing, inline SVG imitation, watermark, logo, or recognizable face substitutes source imagery.
+- Copy and content: interface text is coherent outside the design board, names the browser-local boundary, distinguishes snapshot prices from live inventory, and gives every empty/error state a recovery action.
+- Icons and interactions: Phosphor icons retain one stroke family. Hover lift/glow, favorite fill, carousel selection, gallery focus, tabs, empty/expired/error states, touch-sized controls, keyboard navigation, and reduced motion are covered by screenshots and E2E.
 
-## Full-view and focused evidence
+## Interaction, accessibility, and runtime evidence
 
-- Full-view comparison: `artifacts/design-comparison.png` keeps both sides at 1440 × 1024 in one 2880 × 1024 image.
-- Focused review: the source and implementation files were also opened at native pixels to inspect navigation, disclosure text, title wrapping, search labels, icon alignment, card crops, and destination copy. Separate crops were unnecessary because the combined file preserves each side at 1:1 desktop pixels.
-- Mobile review: `artifacts/home-mobile-390x844.png` shows a readable disclosure, collapsed navigation, intact Hero hierarchy, and the search entry without horizontal clipping.
-
-## Interaction and accessibility evidence
-
-- `pnpm test:e2e`: 20/20 passed in local Chrome.
-- Covered the complete guide → trip → partner → chat → guardian Plan A journey.
-- Covered keyboard search tabs, filter-dialog focus trap/Escape/restore, external-supplier confirmation, and reduced motion.
-- Covered mobile closed/open navigation and horizontal overflow across Home, Compare, Square, Trip Workbench, Partners, Assistant, and Guardian.
-- Checked console errors, page errors, and HTTP responses ≥400 during the browser suites; none remained.
-- Axe reported zero critical or serious violations on six public routes.
+- Local Chrome capture: 15 route/state screenshots; zero `console.error`, page errors, HTTP responses ≥400, or console warnings in the capture manifest.
+- `pnpm test:e2e`: 30/30 passed in 1.2 minutes using local Chrome, including four browser-local closed loops, nine 390 × 844 routes, six Axe scans, keyboard focus, dialogs, and reduced motion.
+- Axe: no critical or serious violations on home, square, detail, profile, trips, and compare.
+- Responsive evidence: all four primary captures report `documentWidth === viewportWidth`; the broader E2E route matrix also passed closed/open navigation overflow checks.
 
 ## Comparison history
 
-1. Initial capture: blocked by disclosure/header overlap and Hero vertical drift.
-2. Iteration 1: moved disclosure outside the header; overlap regression changed from RED (`y = 0`) to GREEN (`y ≥ 82`).
-3. Iteration 2: aligned Hero and seasonal destination geometry; three desktop visual boundaries changed from RED (233/587/892px) to GREEN (≤210/≤540/≤820px).
-4. Iteration 3: Axe exposed disclosure contrast on light routes; opaque ink background closed all four failures and the final 20-test Chrome suite passed.
-5. Review follow-up: mobile geometry checks exposed disclosure/content overlap on five non-home routes; the shared page-shell spacing rule changed the focused regression from 5 failures to 6/6 passed.
-
-## Open questions
-
-- None blocking. The generated Hero photo, compliance strip, and semantically richer date inputs are accepted product constraints rather than unresolved fidelity defects.
+1. Evidence preflight found that an early automated homepage capture sampled the 800 ms Motion entrance before the Hero copy settled. This was a capture-readiness defect, not a product finding.
+2. The capture script added a computed-opacity readiness condition, then recaptured at the identical route, viewport, density, and state.
+3. The rebuilt full and focused same-input boards show the settled implementation. Inspection found no actionable P0/P1/P2 mismatch, so no production source change was made during Design QA.
 
 ## Implementation checklist
 
-- [x] Preserve the selected editorial mountain-and-lake direction.
-- [x] Keep the demo boundary visible and readable without changing page flow.
-- [x] Align desktop title, search entry, Hero boundary, and destination cards.
-- [x] Verify desktop and mobile Chrome captures at the required viewports.
-- [x] Verify navigation, main journey, dialogs, focus, reduced motion, console, HTTP failures, Axe, and mobile overflow.
-- [x] Close every actionable P0, P1, and P2 finding.
-
-## Follow-up polish
-
-- P3: when a stable production image pipeline is selected, create an AVIF/WebP derivative of the Hero while retaining the current PNG as a high-quality fallback.
-- P3: a future custom domain may replace the full-width disclosure with a persistent, equally explicit environment badge after legal/product review.
+- [x] Source and implementation appear in the same full and focused comparison inputs.
+- [x] Desktop and mobile captures use the required CSS viewports and density.
+- [x] Route readiness, fonts, visible images, states, interactions, console, accessibility, and overflow are evidenced.
+- [x] Objective deviations are classified as required product constraints or P3 follow-up, not silently ignored.
+- [x] No actionable P0/P1/P2 remains.
 
 final result: passed
