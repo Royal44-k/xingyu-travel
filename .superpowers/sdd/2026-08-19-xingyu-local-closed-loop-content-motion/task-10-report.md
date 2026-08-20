@@ -59,7 +59,7 @@ The initial Task 10 implementation was committed as `3761f37` (`test: verify the
 The local-library stories now bind to stable visible identities rather than feed order:
 
 - The liked-guide story uses the exact Dali guide, opens the profile’s liked-guide link, verifies `/square/dali-slow-5d`, verifies the exact detail title and pressed favorite state, unlikes on detail, then confirms the profile empty state.
-- The offer story scopes to the named “上海至大理演示航班 B” card, verifies provider “星屿沙箱演示航班” and `¥1,010` total, verifies the matching saved snapshot, follows that card’s own re-search link, asserts the persisted `kind=flight&destination=大理` contract, and verifies the same named offer remains saved before removal. Dates and travelers are not part of `FavoriteOfferSnapshot`, so the profile re-search contract intentionally contains only product kind and destination.
+- The offer story scopes to the named “上海至大理演示航班 B” card, verifies provider “星屿沙箱演示航班” and `¥1,010` total, verifies the matching saved snapshot, follows that card’s own re-search link, asserts the persisted query contract, and verifies the same named offer remains saved before removal.
 - `reuseExistingServer` is now `false`. A task-owned Node listener (`PID 16216`, session `76900`) temporarily held port 4173; the focused Playwright command exited 1 with “http://127.0.0.1:4173 is already used” instead of reusing it. The listener was stopped through its recorded session, and a follow-up port query returned no owner.
 
 Focused reviewer-fix evidence:
@@ -89,3 +89,27 @@ Full Vitest was not repeated in this review round because changes were limited t
 No GREEN E2E run recorded a console error, page error, or HTTP response `>= 400`. Development output did contain non-error notices: Node’s `NO_COLOR`/`FORCE_COLOR` warning, Next.js smooth-scroll annotation guidance, Next Image LCP eager-loading guidance on the Dali image, and Motion’s expected reduced-motion notice. No warning was suppressed or converted into an allowlist.
 
 Each Playwright run used its own configured web server. After completed runs, port 4173 had no owner. No inherited Node or Chrome PID was terminated.
+
+## Reviewer fix round 2/5 — saved offer search context
+
+The second reviewer found that a saved flight offer could only reconstruct `kind` and `destination`; the user-entered dates and traveller count were lost when selecting “重新比价”. The fix stores the validated `ComparisonSearchInput` alongside each favourite-offer snapshot, carries that exact context from the comparison client, and reconstructs the profile re-search URL with `origin`, `from`, `to`, and `travelers` when present. The snapshot validator rejects a context whose product kind or destination does not match its offer, while valid pre-context v1 snapshots still hydrate normally.
+
+The implementation is covered at three levels:
+
+- Store tests verify durable context, legacy v1 hydration, and fail-closed invalid dates.
+- Component tests verify a newly saved offer receives the active search context and a profile offer link keeps dates/travellers.
+- The visible-browser local-library journey asserts the exact query `kind=flight&destination=大理&from=2026-09-18&to=2026-09-22&travelers=3` after choosing “重新比价”.
+
+Round-2 verification reported by the implementing agent:
+
+```text
+focused Vitest RED: 4 failed, 50 passed
+focused Chrome E2E RED: re-search URL missing from/to/travelers
+focused Vitest GREEN: 56/56 passed
+focused local-library E2E GREEN: 1/1 passed
+full Vitest: 342/342 passed
+full E2E: 30/30 passed
+pnpm lint / pnpm typecheck / pnpm build: passed; build generated 14/14 static pages
+```
+
+Independent handoff check: a sandboxed focused Vitest invocation could not create Vite’s temporary config file (`EPERM`); the approved local execution subsequently started the configured real-Chrome suite and showed the 30-test run. This report therefore preserves the agent’s completed GREEN evidence above rather than claiming a second, independently completed full run.
