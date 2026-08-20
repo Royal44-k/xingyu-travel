@@ -92,7 +92,7 @@ test.describe('local closed loop', () => {
   test('favorite offer + alert -> profile -> re-search -> remove confirmation', async ({ page }) => {
     const offerTitle = '上海至大理演示航班 B';
     const provider = '星屿沙箱演示航班';
-    await page.goto('/compare?kind=flight&destination=%E5%A4%A7%E7%90%86&from=2026-09-18&to=2026-09-22&travelers=3');
+    await page.goto('/compare?kind=flight&destination=%E5%A4%A7%E7%90%86&origin=%E4%B8%8A%E6%B5%B7&from=2026-09-18&to=2026-09-22&travelers=3');
     const offer = page.getByTestId('offer-row').filter({
       has: page.getByRole('heading', { name: offerTitle, exact: true }),
     });
@@ -123,6 +123,7 @@ test.describe('local closed loop', () => {
     expect(Object.fromEntries(reSearchUrl.searchParams)).toEqual({
       kind: 'flight',
       destination: '大理',
+      origin: '上海',
       from: '2026-09-18',
       to: '2026-09-22',
       travelers: '3',

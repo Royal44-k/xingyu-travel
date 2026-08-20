@@ -26,6 +26,7 @@ const expiredOffer: FavoriteOfferSnapshot = {
   search: {
     kind: 'flight',
     destination: '大理',
+    origin: '上海',
     from: '2026-09-18',
     to: '2026-09-22',
     travelers: 3,
@@ -82,7 +83,7 @@ describe('ProfileHub', () => {
     expect(screen.getByText(/数据时间/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: '重新比价' })).toHaveAttribute(
       'href',
-      '/compare?kind=flight&destination=%E5%A4%A7%E7%90%86&from=2026-09-18&to=2026-09-22&travelers=3',
+      '/compare?kind=flight&destination=%E5%A4%A7%E7%90%86&origin=%E4%B8%8A%E6%B5%B7&from=2026-09-18&to=2026-09-22&travelers=3',
     );
   });
 

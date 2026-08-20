@@ -176,6 +176,7 @@ describe('persistence and recovery', () => {
     source.getState().saveOffer(offer, {
       kind: 'flight',
       destination: '大理',
+      origin: '上海',
       from: '2026-09-18',
       to: '2026-09-22',
       travelers: 3,
@@ -192,6 +193,7 @@ describe('persistence and recovery', () => {
       search: {
         kind: 'flight',
         destination: '大理',
+        origin: '上海',
         from: '2026-09-18',
         to: '2026-09-22',
         travelers: 3,
