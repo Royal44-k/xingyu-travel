@@ -16,7 +16,7 @@ const seasons: Record<string, string> = {
   贵州: '雨后',
 };
 
-const destinations: readonly DestinationFilmItem[] = posts.map((post) => ({
+const guideDestinations: readonly DestinationFilmItem[] = posts.map((post) => ({
   destination: post.destination,
   title: post.title,
   description: post.excerpt,
@@ -26,13 +26,77 @@ const destinations: readonly DestinationFilmItem[] = posts.map((post) => ({
   href: `/square/${post.slug}`,
 }));
 
+const discoveryDestinations: readonly DestinationFilmItem[] = [
+  {
+    destination: '北京',
+    title: '沿中轴线读懂北京的清晨',
+    description: '从景山晨光望向故宫，再沿中轴线走进胡同与城门之间的历史层次。',
+    days: 4,
+    season: '春秋',
+    image: {
+      src: '/assets/home-film/beijing-forbidden-city-dawn.png',
+      width: 1536,
+      height: 1024,
+      alt: '晨光中的北京故宫建筑群与城市中轴线',
+    },
+    href: '/square?destination=%E5%8C%97%E4%BA%AC',
+  },
+  {
+    destination: '西安',
+    title: '在城墙暮色里走近长安',
+    description: '从明城墙的砖石与角楼出发，把博物馆、坊巷和关中味道放进四天。',
+    days: 4,
+    season: '暮春',
+    image: {
+      src: '/assets/home-film/xian-city-wall-dusk.png',
+      width: 1536,
+      height: 1024,
+      alt: '蓝调暮色中的西安明城墙与角楼',
+    },
+    href: '/square?destination=%E8%A5%BF%E5%AE%89',
+  },
+  {
+    destination: '重庆',
+    title: '顺着山城的高低与江流穿行',
+    description: '用轨道、步道和轮渡连接立体街区，在蓝调时刻看两江与山城亮起。',
+    days: 4,
+    season: '初冬',
+    image: {
+      src: '/assets/home-film/chongqing-river-city-blue-hour.png',
+      width: 1536,
+      height: 1024,
+      alt: '蓝调时刻的重庆山城建筑与江面桥梁',
+    },
+    href: '/square?destination=%E9%87%8D%E5%BA%86',
+  },
+  {
+    destination: '厦门',
+    title: '把海风留在鼓浪屿的早晨',
+    description: '从鼓浪屿老别墅与树影慢慢走到海边，隔着鹭江看城市在晨雾里醒来。',
+    days: 4,
+    season: '晚秋',
+    image: {
+      src: '/assets/home-film/xiamen-gulangyu-morning.png',
+      width: 1536,
+      height: 1024,
+      alt: '晨光中的厦门鼓浪屿红屋顶与鹭江海岸',
+    },
+    href: '/square?destination=%E5%8E%A6%E9%97%A8',
+  },
+];
+
+const destinations: readonly DestinationFilmItem[] = [
+  ...guideDestinations,
+  ...discoveryDestinations,
+];
+
 export function FeaturedDestinations() {
   return (
     <section className={styles.section} aria-labelledby="featured-title">
       <div className={styles.intro}>
         <p>DESTINATION FILM</p>
         <h2 id="featured-title">把下一程，放进取景窗</h2>
-        <span>八座山海与城市，来自可以继续阅读、收藏和转成行程的完整攻略。</span>
+        <span>八篇完整攻略与四座新发现城市，都能继续进入灵感广场或旅行工具。</span>
       </div>
       <DestinationFilmCarousel destinations={destinations} />
     </section>

@@ -59,7 +59,7 @@ export function HomeStorySections() {
   const recentTrip = useMemo(() => Object.values(trips)
     .filter((trip) => acceptedStatuses.has(trip.status))
     .sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt))[0], [trips]);
-  const likedPost = useMemo(() => likedPostSlugs
+  const likedPost = useMemo(() => [...likedPostSlugs].reverse()
     .map((slug) => postsBySlug[slug])
     .find((post): post is TravelPost => Boolean(post)), [likedPostSlugs]);
   const hydrationReady = clientReady && libraryHydrated && tripHydrated;

@@ -80,3 +80,22 @@ it('keeps local home content neutral until both stores hydrate, then reveals rec
     `/square/${post.slug}`,
   );
 });
+
+it('shows the newest available liked guide without mutating the stored order', () => {
+  const likedPostSlugs = [
+    'dali-slow-5d',
+    'guilin-river-morning',
+    'unavailable-newest-guide',
+  ];
+  useLibraryStore.setState({ likedPostSlugs });
+
+  render(<HomePage />);
+
+  const newestAvailable = postsBySlug['guilin-river-morning'];
+  expect(screen.getByText(`最近喜欢 · ${newestAvailable.destination}`)).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: `再读${newestAvailable.title}` })).toHaveAttribute(
+    'href',
+    `/square/${newestAvailable.slug}`,
+  );
+  expect(useLibraryStore.getState().likedPostSlugs).toEqual(likedPostSlugs);
+});

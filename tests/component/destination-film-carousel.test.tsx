@@ -1,17 +1,31 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { ComponentProps } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { posts } from '@/data/posts';
 import {
   DestinationFilmCarousel,
   type DestinationFilmItem,
 } from '@/features/home/destination-film-carousel';
+import { FeaturedDestinations } from '@/features/home/featured-destinations';
 
 let reduceMotion = false;
 
 vi.mock('motion/react', async (importOriginal) => {
   const actual = await importOriginal<typeof import('motion/react')>();
-  return { ...actual, useReducedMotion: () => reduceMotion };
+  function MotionArticle({ animate, transition, ...properties }: ComponentProps<'article'> & {
+    animate?: unknown;
+    transition?: unknown;
+  }) {
+    void animate;
+    void transition;
+    return <article {...properties} />;
+  }
+  return {
+    ...actual,
+    motion: { article: MotionArticle },
+    useReducedMotion: () => reduceMotion,
+  };
 });
 
 const destinations: readonly DestinationFilmItem[] = posts.slice(0, 4).map((post) => ({
@@ -35,6 +49,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.useRealTimers();
 });
 
@@ -47,13 +62,64 @@ describe('DestinationFilmCarousel', () => {
     expect(position()).toHaveTextContent('2 / 4');
 
     const guilinLink = screen.getByRole('link', { name: /桂林/ });
-    guilinLink.focus();
+    fireEvent.focus(guilinLink);
     act(() => vi.advanceTimersByTime(12_000));
     expect(position()).toHaveTextContent('2 / 4');
 
     fireEvent.blur(guilinLink, { relatedTarget: null });
     act(() => vi.advanceTimersByTime(6000));
     expect(position()).toHaveTextContent('3 / 4');
+  });
+
+  it('gives every resume a fresh six-second dwell without duplicate timers', () => {
+    vi.useFakeTimers();
+    const timeoutSpy = vi.spyOn(window, 'setTimeout');
+    render(<DestinationFilmCarousel destinations={destinations} intervalMs={6000} />);
+    const carousel = screen.getByRole('region', { name: '目的地旅行取景窗' });
+    const autoplayDeadlineCount = () => timeoutSpy.mock.calls
+      .filter(([, delay]) => delay === 6000).length;
+
+    expect(autoplayDeadlineCount()).toBe(1);
+    act(() => vi.advanceTimersByTime(5900));
+    fireEvent.mouseEnter(carousel);
+    act(() => vi.advanceTimersByTime(12_000));
+    expect(position()).toHaveTextContent('1 / 4');
+
+    fireEvent.mouseLeave(carousel);
+    expect(autoplayDeadlineCount()).toBe(2);
+    act(() => vi.advanceTimersByTime(5999));
+    expect(position()).toHaveTextContent('1 / 4');
+    act(() => vi.advanceTimersByTime(1));
+    expect(position()).toHaveTextContent('2 / 4');
+    expect(autoplayDeadlineCount()).toBe(3);
+  });
+
+  it('restarts the autoplay deadline after controls, pagination, and drag selection', () => {
+    vi.useFakeTimers();
+    render(<DestinationFilmCarousel destinations={destinations} intervalMs={6000} />);
+    const viewport = screen.getByTestId('destination-film-viewport');
+
+    act(() => vi.advanceTimersByTime(5900));
+    fireEvent.click(screen.getByRole('button', { name: '下一个目的地' }));
+    act(() => vi.advanceTimersByTime(5999));
+    expect(position()).toHaveTextContent('2 / 4');
+    act(() => vi.advanceTimersByTime(1));
+    expect(position()).toHaveTextContent('3 / 4');
+
+    act(() => vi.advanceTimersByTime(5900));
+    fireEvent.click(screen.getByRole('button', { name: /查看大理/ }));
+    act(() => vi.advanceTimersByTime(5999));
+    expect(position()).toHaveTextContent('1 / 4');
+
+    fireEvent.pointerDown(viewport, { clientX: 280, clientY: 120, pointerId: 7 });
+    fireEvent.pointerMove(viewport, { clientX: 120, clientY: 126, pointerId: 7 });
+    fireEvent.pointerUp(viewport, { clientX: 120, clientY: 126, pointerId: 7 });
+    expect(position()).toHaveTextContent('2 / 4');
+    act(() => vi.advanceTimersByTime(5999));
+    expect(position()).toHaveTextContent('2 / 4');
+    act(() => vi.advanceTimersByTime(1));
+    expect(position()).toHaveTextContent('3 / 4');
+    expect(vi.getTimerCount()).toBe(1);
   });
 
   it('pauses on hover and while the document is hidden', () => {
@@ -99,6 +165,32 @@ describe('DestinationFilmCarousel', () => {
     expect(screen.getByRole('button', { name: /查看川西/ })).toHaveAttribute('aria-pressed', 'true');
   });
 
+  it('lets a nested destination link activate without its pointer being captured', async () => {
+    const user = userEvent.setup();
+    render(<DestinationFilmCarousel destinations={destinations} intervalMs={6000} />);
+    const viewport = screen.getByTestId('destination-film-viewport');
+    const setPointerCapture = vi.fn();
+    Object.defineProperty(viewport, 'setPointerCapture', {
+      configurable: true,
+      value: setPointerCapture,
+    });
+    const link = screen.getByRole('link', { name: /打开大理攻略/ });
+    const activated = vi.fn((event: Event) => event.preventDefault());
+    link.addEventListener('click', activated);
+
+    await user.pointer({ keys: '[MouseLeft]', target: link });
+
+    expect(setPointerCapture).not.toHaveBeenCalled();
+    expect(activated).toHaveBeenCalledOnce();
+    expect(link).toHaveAttribute('href', '/square/dali-slow-5d');
+
+    fireEvent.pointerDown(viewport, { clientX: 280, clientY: 120, pointerId: 9 });
+    fireEvent.pointerMove(viewport, { clientX: 120, clientY: 126, pointerId: 9 });
+    fireEvent.pointerUp(viewport, { clientX: 120, clientY: 126, pointerId: 9 });
+    expect(setPointerCapture).toHaveBeenCalledWith(9);
+    expect(position()).toHaveTextContent('2 / 4');
+  });
+
   it('cancels an interrupted pointer gesture without changing destination', () => {
     render(<DestinationFilmCarousel destinations={destinations} intervalMs={6000} />);
     const viewport = screen.getByTestId('destination-film-viewport');
@@ -140,5 +232,48 @@ describe('DestinationFilmCarousel', () => {
     const activeGuide = screen.getByRole('link', { name: /大理/ }).closest('article');
     expect(activeGuide).not.toBeNull();
     expect(within(activeGuide as HTMLElement).getByText('5 天 · 初秋')).toBeInTheDocument();
+  });
+
+  it('keeps only the active slide accessible while adjacent image peeks stay visual', () => {
+    render(<DestinationFilmCarousel destinations={destinations} />);
+
+    const links = screen.getAllByRole('link', { hidden: true });
+    expect(links.filter((link) => link.tabIndex === 0)).toHaveLength(1);
+    expect(links[0]).toHaveAttribute('aria-current', 'true');
+    expect(links[0].closest('article')).not.toHaveAttribute('aria-hidden');
+    for (const link of links.slice(1)) {
+      expect(link).toHaveAttribute('tabindex', '-1');
+      expect(link.closest('article')).toHaveAttribute('aria-hidden', 'true');
+      expect(link.closest('article')).toHaveAttribute('inert');
+    }
+  });
+
+  it('mounts and prioritizes only the active and adjacent destination images', () => {
+    render(<DestinationFilmCarousel destinations={destinations} />);
+
+    const images = screen.getAllByRole('img', { hidden: true });
+    expect(images).toHaveLength(3);
+    for (const image of images) {
+      expect(image).toHaveAttribute('fetchpriority', 'high');
+    }
+  });
+
+  it('maps eight guides and four discovery cities to complete valid routes', () => {
+    render(<FeaturedDestinations />);
+
+    const destinationNames = [
+      '大理', '桂林', '川西', '三亚', '杭州', '南京', '上海', '贵州',
+      '北京', '西安', '重庆', '厦门',
+    ];
+    expect(screen.getByRole('status', { name: '目的地位置' })).toHaveTextContent('1 / 12');
+    for (const destination of destinationNames) {
+      expect(screen.getByRole('button', { name: `查看${destination}` })).toBeInTheDocument();
+      const link = screen.getByRole('link', { name: `打开${destination}攻略`, hidden: true });
+      expect(link.getAttribute('href')).toMatch(/^\/(square(?:\/[^?]+|\?destination=)|compare\?)/);
+      const article = link.closest('article');
+      expect(article).not.toBeNull();
+      expect(within(article as HTMLElement).getByText(/\d+ 天 · \S+/)).toBeInTheDocument();
+      expect(within(article as HTMLElement).getByText(/。$/)).toBeInTheDocument();
+    }
   });
 });
