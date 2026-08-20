@@ -2,6 +2,7 @@
 
 import { CheckCircle, ShieldCheck, UsersThree, X } from '@phosphor-icons/react';
 import { useRef, useState } from 'react';
+import { isKnownGuardianTrip } from '@/data/risk-events';
 import { useDialogFocus } from '@/features/comparison/use-dialog-focus';
 import { demoMembers, type WorkbenchTrip } from '@/stores/trip-store';
 import styles from './trips.module.css';
@@ -23,6 +24,7 @@ export function DecisionRoom({
 }: DecisionRoomProps) {
   const [guardianDialogOpen, setGuardianDialogOpen] = useState(false);
   const [consent, setConsent] = useState(false);
+  const guardianSupported = isKnownGuardianTrip(trip.sourcePostSlug);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeGuardianDialog = () => {
@@ -46,11 +48,11 @@ export function DecisionRoom({
 
   const toggleGuardian = () => {
     if (trip.guardianEnabled) onEnableGuardian(false);
-    else setGuardianDialogOpen(true);
+    else if (guardianSupported) setGuardianDialogOpen(true);
   };
 
   const confirmGuardian = () => {
-    if (!consent) return;
+    if (!guardianSupported || !consent) return;
     onEnableGuardian(true);
     closeGuardianDialog();
   };
@@ -109,11 +111,12 @@ export function DecisionRoom({
       {partnerIntentPublished && <p className={styles.localConfirmation} role="status">搭子意愿已保存到本浏览器，未发布到平台。</p>}
 
       <div className={styles.localActions}>
-        <div><ShieldCheck aria-hidden size={21} /><span><strong>行程守护</strong><small>不读取实时坐标，不连接真实监测服务</small></span></div>
+        <div><ShieldCheck aria-hidden size={21} /><span><strong>行程守护</strong><small>{guardianSupported ? '不读取实时坐标，不连接真实监测服务' : '当前守护沙箱只支持大理慢行示例'}</small></span></div>
         <button
           aria-checked={trip.guardianEnabled}
           aria-label="行程守护演示"
           className={styles.switch}
+          disabled={!guardianSupported}
           onClick={toggleGuardian}
           ref={triggerRef}
           role="switch"

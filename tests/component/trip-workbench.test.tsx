@@ -48,6 +48,26 @@ describe('TripWorkbench', () => {
     expect(screen.queryByText('LOCAL TRIP / DALI')).not.toBeInTheDocument();
   });
 
+  it('keeps guardian activation unavailable for trips without supported risk events', async () => {
+    const user = userEvent.setup();
+    const sichuanPost = postsBySlug['sichuan-autumn-road'];
+    useTripStore.setState({ trips: {}, partnerIntents: {}, guardianPlans: {} });
+    const trip = useTripStore.getState().savePostAsTrip(extractTripDraft(sichuanPost));
+
+    render(<TripWorkbench slug={sichuanPost.slug} />);
+    await screen.findByRole('heading', { name: '川西慢行计划' });
+
+    const guardian = screen.getByRole('switch', { name: '行程守护演示' });
+    expect(guardian).toBeDisabled();
+    expect(screen.getByText('当前守护沙箱只支持大理慢行示例')).toBeInTheDocument();
+    await user.click(guardian);
+    expect(screen.queryByRole('dialog', { name: '授权行程守护演示' })).not.toBeInTheDocument();
+    expect(useTripStore.getState().trips[trip.id]).toMatchObject({
+      guardianEnabled: false,
+      status: 'active',
+    });
+  });
+
   it('edits dates, budget and an itinerary item with validation', async () => {
     const user = userEvent.setup();
     render(<TripWorkbench slug="dali-slow-5d" />);

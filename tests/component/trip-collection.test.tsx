@@ -81,19 +81,37 @@ describe('TripCollection', () => {
     render(<TripCollection intent="guardian" />);
 
     expect(screen.getByRole('heading', { name: '开启守护前，先创建行程' })).toBeInTheDocument();
-    expect(screen.getByText(/进入行程工作台后，可在“共同决策”中确认并开启本地守护演示/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: '从攻略创建行程' })).toHaveAttribute('href', '/square');
+    expect(screen.getByText(/当前守护沙箱只支持大理慢行示例/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: '查看大理慢行攻略' })).toHaveAttribute(
+      'href',
+      '/square/dali-slow-5d',
+    );
   });
 
-  it('offers the most recent active trip as the guardian setup destination', () => {
-    seedTrips();
+  it('offers the supported Dali trip instead of a newer unsupported active trip', () => {
+    seedGuardianSetupTrips();
     render(<TripCollection intent="guardian" />);
 
     const setup = screen.getByRole('region', { name: '开启行程守护' });
     expect(within(setup).getByText(/行程守护不会自动开启/)).toBeInTheDocument();
-    expect(within(setup).getByRole('link', { name: '前往川西慢行计划开启守护' })).toHaveAttribute(
+    expect(within(setup).getByRole('link', { name: '前往大理慢行计划开启守护' })).toHaveAttribute(
       'href',
-      '/trips/sichuan-autumn-road',
+      '/trips/dali-slow-5d',
+    );
+  });
+
+  it('names the support boundary and links to the supported guide when only unsupported trips exist', () => {
+    const store = createTripStore();
+    const sichuan = store.getState().savePostAsTrip(extractTripDraft(postsBySlug['sichuan-autumn-road']));
+    useTripStore.setState({ trips: { [sichuan.id]: sichuan } });
+
+    render(<TripCollection intent="guardian" />);
+
+    const setup = screen.getByRole('region', { name: '开启行程守护' });
+    expect(within(setup).getByText(/当前守护沙箱只支持大理慢行示例/)).toBeInTheDocument();
+    expect(within(setup).getByRole('link', { name: '查看大理慢行攻略' })).toHaveAttribute(
+      'href',
+      '/square/dali-slow-5d',
     );
   });
 });
@@ -108,6 +126,18 @@ function seedTrips() {
       [dali.id]: { ...dali, status: 'guarded', guardianEnabled: true, updatedAt: '2026-08-19T09:00:00.000Z' },
       [sichuan.id]: { ...sichuan, status: 'active', updatedAt: '2026-08-19T11:00:00.000Z' },
       [guilin.id]: { ...guilin, status: 'archived', updatedAt: '2026-08-19T10:00:00.000Z' },
+    },
+  });
+}
+
+function seedGuardianSetupTrips() {
+  const store = createTripStore();
+  const dali = store.getState().savePostAsTrip(extractTripDraft(postsBySlug['dali-slow-5d']));
+  const sichuan = store.getState().savePostAsTrip(extractTripDraft(postsBySlug['sichuan-autumn-road']));
+  useTripStore.setState({
+    trips: {
+      [dali.id]: { ...dali, updatedAt: '2026-08-19T10:00:00.000Z' },
+      [sichuan.id]: { ...sichuan, updatedAt: '2026-08-19T11:00:00.000Z' },
     },
   });
 }
