@@ -56,6 +56,18 @@
   font-size: 11px;
   letter-spacing: .18em;
 }
+.eyebrow a { color: inherit; text-underline-offset: 3px; }
+
+.eyebrowActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.eyebrowActions > span {
+  padding-left: 10px;
+  border-left: 1px solid rgb(212 197 158 / 35%);
+}
 
 .heroTitle {
   position: relative;

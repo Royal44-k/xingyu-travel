@@ -36,12 +36,12 @@ Task 6 的 32 张目的地图片均由 Codex 内置 ImageGen 逐张独立生成�
 | shanghai/04 | `public/assets/destinations/shanghai/04.png` | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-1d4c65c7-dd33-43b1-9fdf-931b58dd47bc.png` | 1536×1024 | 接受：修正为纯窗光的陆家嘴长焦夜景；无屏幕、伪文字或徽标。 |
 | guizhou/01 | `public/assets/destinations/guizhou/01.png` | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-edc973f3-e630-4f17-90cc-4fae2801cc4d.png` | 1536×1024 | 接受：小七孔石桥与水色可信；无人脸、文字或灾害画面。 |
 | guizhou/02 | `public/assets/destinations/guizhou/02.png` | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-1cf5a87c-b58c-4cd7-995d-442a21d5d3bd.png` | 1536×1024 | 接受：西江苗寨晨雾与木楼层次可信；无伪文字。 |
-| guizhou/03 | `public/assets/destinations/guizhou/03.png` | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-67c8fa32-b99a-4299-b986-28f86753a7f4.png` | 1536×1024 | 接受：加榜梯田地理与层叠关系可信；画面较偏蓄水/早季、非最浓金秋，仍符合最终提示词的绿金梯田范围。 |
+| guizhou/03 | `public/assets/destinations/guizhou/03.png` | `C:\Users\lenovo\.codex\generated_images\01a01cc1-88f7-7ce1-924f-56f4376614d5\exec-8253820a-491e-4bc5-a419-33ec4f2759f2.png` | 1536×1024 | 接受：加榜梯田由成熟绿金稻穗主导，仅有极少灌溉水光；木楼、山雾与地形可信，无文字、徽标、水印或可辨识人物。 |
 | guizhou/04 | `public/assets/destinations/guizhou/04.png` | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-9e7ed1ac-f60c-4db1-bec0-a1820edc08eb.png` | 1536×1024 | 接受：贵阳山城密度和山谷层次可信；无可读楼名或徽标。 |
 
 ## 被拒绝的生成结果与修正
 
-总计 38 次独立 ImageGen 调用，32 张接受、6 张拒绝。拒绝结果未保留在最终产品注册路径。
+总计 39 次独立 ImageGen 调用，32 张接受、7 张拒绝。拒绝结果未保留在最终产品注册路径。
 
 | 目标 | 被拒绝的原始输出 | 原因 | 修正结果 |
 | --- | --- | --- | --- |
@@ -51,3 +51,4 @@ Task 6 的 32 张目的地图片均由 Codex 内置 ImageGen 逐张独立生成�
 | nanjing/03 | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-e193136c-1028-4215-b27c-3465d79d7f91.png` | 像通用江南窄河巷，且局部疑似伪文字，秦淮城市尺度不足。 | 指定宽阔中心秦淮河、城市石岸和多孔桥后重生并接受。 |
 | shanghai/01 | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-e626f601-3669-4e4d-a872-9a0092fdb345.png` | 复制后的二次视觉检查发现一处小型徽标/字母状立面标记。 | 强化所有立面只能有普通窗光、不得形成字符或品牌图案后重生并接受。 |
 | shanghai/04 | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-3e2dc898-541d-4489-9552-dec9b6113731.png` | 楼体屏幕出现伪字符和徽标状色块。 | 改为纯办公室窗光、无屏幕/冠灯/立面照明的长焦夜景后重生并接受。 |
+| guizhou/03 | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-67c8fa32-b99a-4299-b986-28f86753a7f4.png` | 复审确认画面以大面积蓄水和稀疏幼苗为主，更像春季插秧期，不符合早秋成熟绿金稻田。 | 明确成熟稻穗主导、几乎无可见积水后重生并接受。 |

@@ -24,16 +24,25 @@ describe('extractTripDraft', () => {
 
     expect(chronological).toEqual([
       'dali-slow-5d',
-      'sichuan-autumn-road',
       'guilin-river-morning',
-      'rainy-mountain-notes',
+      'sichuan-autumn-road',
+      'sanya-bay-rainforest-5d',
+      'hangzhou-lake-tea-4d',
+      'nanjing-wall-qinhuai-4d',
+      'shanghai-urban-walk-3d',
+      'guizhou-karst-miao-6d',
     ]);
     expect(recommended).toEqual([
       'sichuan-autumn-road',
-      'rainy-mountain-notes',
       'dali-slow-5d',
       'guilin-river-morning',
+      'sanya-bay-rainforest-5d',
+      'hangzhou-lake-tea-4d',
+      'nanjing-wall-qinhuai-4d',
+      'shanghai-urban-walk-3d',
+      'guizhou-karst-miao-6d',
     ]);
+    expect(posts.map((post) => post.slug)).not.toContain('rainy-mountain-notes');
   });
 
   it('keeps every published guide convertible for each declared day', () => {

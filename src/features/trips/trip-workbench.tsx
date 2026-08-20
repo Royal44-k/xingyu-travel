@@ -14,6 +14,7 @@ import { DecisionRoom } from './decision-room';
 import { ItineraryEditor } from './itinerary-editor';
 import styles from './trips.module.css';
 import { demoViewerProfile } from '@/data/partners';
+import { postHrefForSlug } from '@/data/posts';
 import { tripToPartnerIntent } from '@/features/partners/trip-to-partner-intent';
 import { hydratePartnerStore, usePartnerStore, usePartnerStoreHydration } from '@/stores/partner-store';
 
@@ -55,11 +56,11 @@ export function TripWorkbench({ slug }: { slug: string }) {
   }
 
   if (!trip && workbenchHydrationError) {
-    return <WorkbenchState title="本地行程暂时无法读取" message="浏览器中的数据未被覆盖。请返回原攻略，稍后再试。" sourceHref={`/square/${slug}`} />;
+    return <WorkbenchState title="本地行程暂时无法读取" message="浏览器中的数据未被覆盖。请返回原攻略，稍后再试。" sourceHref={postHrefForSlug(slug)} />;
   }
 
   if (!trip) {
-    return <WorkbenchState title="未找到本地行程" message="行程只保存在创建它的浏览器中。请返回攻略重新保存。" sourceHref={`/square/${slug}`} />;
+    return <WorkbenchState title="未找到本地行程" message="行程只保存在创建它的浏览器中。请返回攻略重新保存。" sourceHref={postHrefForSlug(slug)} />;
   }
 
   const budgetSummary = getBudgetSummary(trip);
@@ -67,7 +68,13 @@ export function TripWorkbench({ slug }: { slug: string }) {
     <main className={styles.page}>
       {workbenchHydrationError && <p className={styles.hydrationWarning} role="status">工作台存储校验失败，继续使用当前安全的内存状态；原存储未被覆盖。</p>}
       <header className={styles.hero}>
-        <div className={styles.eyebrow}><span>LOCAL TRIP / {trip.destination}</span><span>本地演示工作台</span></div>
+        <div className={styles.eyebrow}>
+          <span>LOCAL TRIP / {trip.destination}</span>
+          <span className={styles.eyebrowActions}>
+            <Link href={postHrefForSlug(trip.sourcePostSlug)}>返回原攻略</Link>
+            <span>本地演示工作台</span>
+          </span>
+        </div>
         <div className={styles.heroTitle}>
           <div><p>{trip.destination} · {trip.items.length} DAYS</p><h1>{trip.title}</h1></div>
           <span className={styles.statusPill}>{trip.guardianEnabled ? '守护演示中' : '共同规划中'}</span>

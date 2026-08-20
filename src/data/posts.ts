@@ -109,10 +109,10 @@ export const posts: readonly TravelPost[] = [
   },
   {
     slug: 'sichuan-autumn-road',
-    title: '川西 7 日安全自驾：雪山、草原与秋日公路',
-    excerpt: '从康定缓慢升高到新都桥、塔公与墨石公园，用两个机动日给高原反应和天气留余地。',
+    title: '川西 6 日安全自驾：雪山、草原与秋日公路',
+    excerpt: '从康定缓慢升高到新都桥、塔公与墨石公园，用机动返程日给高原反应和天气留余地。',
     destination: '川西',
-    days: 7,
+    days: 6,
     budget: 8200,
     media: destinationAssets.sichuan,
     locations: [
@@ -128,12 +128,11 @@ export const posts: readonly TravelPost[] = [
       { day: 3, title: '新都桥秋色短线', description: '只走路况明确的村落公路，下午提前回住处。', location: '新都桥' },
       { day: 4, title: '塔公草原与雪峰', description: '在开放观景区停留，遇到大风或降雪立即缩短路线。', location: '塔公草原' },
       { day: 5, title: '墨石地貌步行', description: '沿官方栈道完成半日线路，天黑前返回住宿点。', location: '墨石公园' },
-      { day: 6, title: '天气机动日', description: '按路况选择留在塔公或提前回康定，不跨夜赶路。', location: '康定' },
-      { day: 7, title: '白天返程成都', description: '预留堵车与休息时间，完成车辆检查后结束行程。', location: '成都' },
+      { day: 6, title: '机动返程成都', description: '按天气和路况选择提前回康定，白天返程并预留堵车与休息时间。', location: '成都' },
     ],
     products: [
-      { name: '川西 7 日车辆预算', category: '当地交通', price: 3200, note: '演示预算，不含真实租车或保险服务。' },
-      { name: '高原住宿 6 晚', category: '住宿', price: 2400, note: '演示价格，优先选择可取消方案。' },
+      { name: '川西 6 日车辆预算', category: '当地交通', price: 3200, note: '演示预算，不含真实租车或保险服务。' },
+      { name: '高原住宿 5 晚', category: '住宿', price: 2200, note: '演示价格，优先选择可取消方案。' },
     ],
     author: { name: '陈野', role: '行屿 AI 协作公路编辑', avatar: '陈' },
     publishedAt: '2026-08-16T12:00:00+08:00',
@@ -156,7 +155,7 @@ export const posts: readonly TravelPost[] = [
     ],
     tags: ['海岛', '慢旅行', '雨林', '亲子'],
     itinerary: [
-      { day: 1, title: '亚龙湾黎明', description: '抵达后早睡，第二天从清晨海岸开始。', location: '亚龙湾' },
+      { day: 1, title: '亚龙湾黎明', description: '前一晚抵达并早睡，第一天从清晨海岸开始。', location: '亚龙湾' },
       { day: 2, title: '蜈支洲清水海岸', description: '按海况登岛，避开正午暴晒并及时补水。', location: '蜈支洲岛' },
       { day: 3, title: '后海村慢住', description: '看村巷与海边日常，体验项目控制在半天内。', location: '后海村' },
       { day: 4, title: '呀诺达雨林降温', description: '沿维护步道完成短线，雨后放慢脚步。', location: '呀诺达雨林' },
@@ -297,6 +296,19 @@ export const posts: readonly TravelPost[] = [
 export const postsBySlug: Readonly<Record<string, TravelPost>> = Object.fromEntries(
   posts.map((post) => [post.slug, post]),
 );
+
+const legacyPostRedirects: Readonly<Record<string, string>> = {
+  'rainy-mountain-notes': 'sichuan-autumn-road',
+};
+
+export function canonicalPostSlug(slug: string): string {
+  return legacyPostRedirects[slug] ?? slug;
+}
+
+export function postHrefForSlug(slug: string): string {
+  const canonicalSlug = canonicalPostSlug(slug);
+  return postsBySlug[canonicalSlug] ? `/square/${canonicalSlug}` : '/square';
+}
 
 export function orderPosts(mode: FeedMode, interestTags: readonly string[] = []): TravelPost[] {
   const latestFirst = [...posts].sort(

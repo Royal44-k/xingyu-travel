@@ -1,14 +1,16 @@
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { MapPin, Sparkle } from '@phosphor-icons/react/dist/ssr';
 import Image from 'next/image';
 import Link from 'next/link';
 import { SiteHeader } from '@/components/site-header';
-import { postsBySlug } from '@/data/posts';
+import { canonicalPostSlug, postsBySlug } from '@/data/posts';
 import { ConvertToTrip } from '@/features/square/convert-to-trip';
 import styles from '@/features/square/square.module.css';
 
 export default async function SquarePostPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
+  const canonicalSlug = canonicalPostSlug(slug);
+  if (canonicalSlug !== slug) redirect(`/square/${canonicalSlug}`);
   const post = postsBySlug[slug];
   if (!post) notFound();
 

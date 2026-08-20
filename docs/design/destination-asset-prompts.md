@@ -443,13 +443,14 @@ Avoid: text, letters, numbers, signs, logos, watermarks, recognizable faces, cro
 ```text
 Use case: photorealistic-natural
 Asset type: Xingyu destination-guide gallery photograph, 1536×1024 landscape, 3:2.
-Scene/backdrop: Jiabang rice terraces in Guizhou during early autumn, irregular contour-following paddies wrapping steep green hills, small dark-timber village clusters and low cloud lifting from the valley.
-Subject: hand-shaped terrace patterns, village scale, and valley atmosphere; no people.
-Style/medium: photorealistic natural editorial travel photography, restrained low-saturation cinematic color, authentic rice, water, mud banks, timber roofs, and mist.
-Composition/framing: 60 mm lens from a hillside footpath, terraces sweep diagonally rather than forming a centered amphitheater, village offset and small, layered ridges recede naturally.
-Lighting/mood: gentle early-morning side light emerging through cloud, quiet agricultural depth without golden fantasy glow.
-Constraints: credible Jiabang mountain-terrace scale and Guizhou vernacular; stable ordinary conditions.
-Avoid: text, letters, numbers, signs, logos, watermarks, recognizable faces, workers, over-HDR sky, oversaturated rice, perfect CGI terraces, landslide, flood, disaster or emergency imagery.
+Primary request: regenerate the Jiabang rice terraces scene as a geographically credible early-autumn view with mature green-and-gold rice, not flooded spring paddies.
+Scene/backdrop: Jiabang rice terraces in Congjiang County, Guizhou, early autumn; layered cultivated terraces wrap steep misty mountains, with a very small cluster of authentic dark-timber Dong/Miao hillside houses in the middle distance.
+Subject: dense mature rice heads and green-gold terrace contours, with only minimal narrow irrigation glints and almost no visible standing water; no people.
+Style/medium: photorealistic natural editorial travel photography, restrained low-saturation cinematic grade, authentic rice, earth banks, timber, roof tile, forest, and humid mountain mist.
+Composition/framing: elevated 50 mm lens, diagonal terrace contours lead toward the small village, layered ridges recede through natural mist, no drone-like extreme height and no centered postcard symmetry.
+Lighting/mood: soft early-morning side light through broken mist, quiet agricultural atmosphere, natural dynamic range.
+Constraints: geographically credible Jiabang early-autumn harvest season; mature green and golden rice must visually dominate; terraces are planted and full, not reflective flooded paddies; standing water limited to tiny irrigation traces; houses remain small and structurally plausible; 1536×1024 landscape output.
+Avoid: flooded spring paddies, large mirror-like water surfaces, bare newly planted seedlings, text, letters, numbers, signs, logos, watermarks, recognizable faces, workers, tourists, over-HDR sky, oversaturated gold, fantasy terraces, disaster or emergency imagery.
 ```
 
 ### guizhou/04.png — 贵阳山城夜色

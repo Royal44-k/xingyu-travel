@@ -20,6 +20,8 @@ it('ships eight complete destination guides with four independent images each', 
 
   for (const destination of requiredDestinations) expect(destinations).toContain(destination);
   for (const post of posts.filter((item) => requiredDestinations.includes(item.destination as (typeof requiredDestinations)[number]))) {
+    expect(post.days).toBeGreaterThanOrEqual(3);
+    expect(post.days).toBeLessThanOrEqual(6);
     expect(post.media.length).toBeGreaterThanOrEqual(4);
     expect(new Set(post.media.map((asset) => asset.src)).size).toBe(post.media.length);
     expect(post.itinerary).toHaveLength(post.days);
@@ -28,6 +30,13 @@ it('ships eight complete destination guides with four independent images each', 
     expect(post.budget).toBeGreaterThan(0);
     expect(post.ai.generated || post.ai.rewritten).toBe(true);
   }
+});
+
+it('starts the Sanya guide at dawn only after a clearly stated prior-night arrival', () => {
+  const sanya = posts.find((post) => post.slug === 'sanya-bay-rainforest-5d');
+
+  expect(sanya?.itinerary[0]).toMatchObject({ day: 1, title: '亚龙湾黎明' });
+  expect(sanya?.itinerary[0].description).toMatch(/前一晚.*抵达/);
 });
 
 it('ships all 32 independent destination PNGs at the registered 3:2 source size', async () => {

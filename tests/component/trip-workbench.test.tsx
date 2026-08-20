@@ -43,8 +43,8 @@ describe('TripWorkbench', () => {
 
     expect(await screen.findByRole('heading', { name: '川西慢行计划' })).toBeInTheDocument();
     expect(screen.getByText('LOCAL TRIP / 川西')).toBeInTheDocument();
-    expect(screen.getByText(/拆成可以讨论、调整与核算的 4 天/)).toBeInTheDocument();
-    expect(screen.getByText('4 个节点 · 自动保存至本浏览器')).toBeInTheDocument();
+    expect(screen.getByText(/拆成可以讨论、调整与核算的 6 天/)).toBeInTheDocument();
+    expect(screen.getByText('6 个节点 · 自动保存至本浏览器')).toBeInTheDocument();
     expect(screen.queryByText('LOCAL TRIP / DALI')).not.toBeInTheDocument();
   });
 
@@ -231,5 +231,23 @@ describe('TripWorkbench', () => {
     useTripStoreHydration.setState({ hydrated: true, hydrationError: true });
     await waitFor(() => expect(screen.getByText('本地行程暂时无法读取')).toBeInTheDocument());
     expect(screen.getByRole('link', { name: '返回原攻略' })).toHaveAttribute('href', '/square/dali-slow-5d');
+  });
+
+  it('keeps a persisted legacy source slug out of discovery while linking to its current guide', async () => {
+    const legacyDraft = {
+      ...draft,
+      id: 'draft-rainy-mountain-notes',
+      sourcePostSlug: 'rainy-mountain-notes',
+    };
+    useTripStore.setState({ trips: {}, partnerIntents: {}, guardianPlans: {} });
+    useTripStore.getState().savePostAsTrip(legacyDraft);
+
+    render(<TripWorkbench slug="rainy-mountain-notes" />);
+
+    expect(await screen.findByRole('heading', { name: /大理慢行计划/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: '返回原攻略' })).toHaveAttribute(
+      'href',
+      '/square/sichuan-autumn-road',
+    );
   });
 });
