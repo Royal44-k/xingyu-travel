@@ -1,7 +1,43 @@
 import { createHash } from 'node:crypto';
-import { readFile, stat } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join, relative, resolve } from 'node:path';
 import { expect, it } from 'vitest';
 import { brandAssets, destinationAssets } from '@/data/assets';
+
+const expectedDestinationPaths = [
+  'dali',
+  'guilin',
+  'sichuan',
+  'sanya',
+  'hangzhou',
+  'nanjing',
+  'shanghai',
+  'guizhou',
+].flatMap((destination) =>
+  ['01', '02', '03', '04'].map((shot) => `/assets/destinations/${destination}/${shot}.png`),
+);
+
+async function enumerateDestinationPngPaths(root: string, publicRoot: string): Promise<string[]> {
+  const pngPaths: string[] = [];
+
+  async function visit(directory: string): Promise<void> {
+    const entries = await readdir(directory, { withFileTypes: true });
+
+    for (const entry of entries) {
+      const absolutePath = join(directory, entry.name);
+      if (entry.isDirectory()) {
+        await visit(absolutePath);
+      } else if (entry.isFile() && entry.name.toLowerCase().endsWith('.png')) {
+        const publicPath = relative(publicRoot, absolutePath).split(/[\\/]/).join('/');
+        pngPaths.push(`/${publicPath}`);
+      }
+    }
+  }
+
+  await visit(root);
+  return pngPaths.sort();
+}
 
 it('ships every visible branded image as a real local asset', async () => {
   for (const asset of Object.values(brandAssets)) {
@@ -18,23 +54,19 @@ it('ships every visible branded image as a real local asset', async () => {
 
 it('registers every destination image with metadata matching the shipped PNG', async () => {
   const registered = Object.values(destinationAssets).flat();
-  const expectedPaths = [
-    'dali',
-    'guilin',
-    'sichuan',
-    'sanya',
-    'hangzhou',
-    'nanjing',
-    'shanghai',
-    'guizhou',
-  ].flatMap((destination) =>
-    ['01', '02', '03', '04'].map((shot) => `/assets/destinations/${destination}/${shot}.png`),
+  const registeredPaths = registered.map((asset) => asset.src).sort();
+  const expectedPaths = [...expectedDestinationPaths].sort();
+  const shippedPaths = await enumerateDestinationPngPaths(
+    resolve('public', 'assets', 'destinations'),
+    resolve('public'),
   );
   const hashes: string[] = [];
 
   expect(Object.keys(destinationAssets)).toHaveLength(8);
   expect(registered).toHaveLength(32);
-  expect(registered.map((asset) => asset.src).sort()).toEqual(expectedPaths.sort());
+  expect(registeredPaths).toEqual(expectedPaths);
+  expect(shippedPaths).toEqual(expectedPaths);
+  expect(shippedPaths).toEqual(registeredPaths);
 
   for (const asset of registered) {
     const bytes = await readFile(`public${asset.src}`);
@@ -48,4 +80,27 @@ it('registers every destination image with metadata matching the shipped PNG', a
   }
 
   expect(new Set(hashes).size).toBe(32);
+});
+
+it('discovers every nested PNG including an unregistered stale file while ignoring non-PNG files', async () => {
+  const publicRoot = await mkdtemp(join(tmpdir(), 'xingyu-destination-assets-'));
+  const destinationsRoot = join(publicRoot, 'assets', 'destinations');
+
+  try {
+    await mkdir(join(destinationsRoot, 'dali'), { recursive: true });
+    await mkdir(join(destinationsRoot, 'guilin'), { recursive: true });
+    await mkdir(join(destinationsRoot, 'stale', 'nested'), { recursive: true });
+    await writeFile(join(destinationsRoot, 'dali', '01.png'), 'fixture');
+    await writeFile(join(destinationsRoot, 'guilin', '02.png'), 'fixture');
+    await writeFile(join(destinationsRoot, 'stale', 'nested', '99.png'), 'fixture');
+    await writeFile(join(destinationsRoot, 'stale', 'notes.txt'), 'ignored');
+
+    expect(await enumerateDestinationPngPaths(destinationsRoot, publicRoot)).toEqual([
+      '/assets/destinations/dali/01.png',
+      '/assets/destinations/guilin/02.png',
+      '/assets/destinations/stale/nested/99.png',
+    ]);
+  } finally {
+    await rm(publicRoot, { recursive: true, force: true });
+  }
 });
