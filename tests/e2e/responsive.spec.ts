@@ -34,18 +34,11 @@ async function waitForResponsiveReady(page: Page, routeReady: () => Promise<void
     await images.nth(index).scrollIntoViewIfNeeded();
   }
   await page.evaluate(() => window.scrollTo(0, 0));
-  await page.waitForFunction(() =>
-    document.readyState === 'complete' &&
-    document.fonts.status === 'loaded' &&
-    [...document.images].every((image) => image.complete),
-  );
-
-  const readiness = await page.evaluate(() => ({
+  await expect.poll(async () => page.evaluate(() => ({
     document: document.readyState,
     fonts: document.fonts.status,
     images: [...document.images].every((image) => image.complete),
-  }));
-  expect(readiness).toEqual({ document: 'complete', fonts: 'loaded', images: true });
+  })), { timeout: 10_000 }).toEqual({ document: 'complete', fonts: 'loaded', images: true });
 
   const menu = page.getByRole('button', { name: '打开导航' });
   await expect(menu).toHaveAttribute('aria-expanded', 'false');

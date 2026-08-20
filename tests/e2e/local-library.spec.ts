@@ -41,7 +41,7 @@ test.describe('local closed loop', () => {
   });
 
   test('like guide -> reload -> profile likes -> unlike', async ({ page }) => {
-    const title = '三亚 5 日：海湾清晨、后海慢住与雨林降温';
+    const title = '把大理留给慢下来的人：5 天洱海与白族村落路线';
 
     await page.goto('/square');
     await expect(page.getByRole('button', { name: '查看兴趣偏好' })).toBeVisible();
@@ -55,10 +55,16 @@ test.describe('local closed loop', () => {
     await expect(page.getByRole('button', { name: `喜欢 ${title}` })).toHaveAttribute('aria-pressed', 'true');
 
     await page.goto('/profile?tab=likes');
-    await expect(page.getByRole('link', { name: title, exact: true })).toBeVisible();
-    const profileFavorite = page.getByRole('button', { name: `喜欢 ${title}` });
-    await expect(profileFavorite).toHaveAttribute('aria-pressed', 'true');
-    await profileFavorite.click();
+    const likedGuide = page.getByRole('link', { name: title, exact: true });
+    await expect(likedGuide).toBeVisible();
+    await likedGuide.click();
+    await expect(page).toHaveURL(/\/square\/dali-slow-5d$/);
+    await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible();
+    const detailFavorite = page.getByRole('button', { name: `喜欢 ${title}` });
+    await expect(detailFavorite).toHaveAttribute('aria-pressed', 'true');
+    await detailFavorite.click();
+
+    await page.goto('/profile?tab=likes');
     await expect(page.getByRole('heading', { name: '喜欢的攻略会保存在这里' })).toBeVisible();
   });
 
@@ -84,8 +90,15 @@ test.describe('local closed loop', () => {
   });
 
   test('favorite offer + alert -> profile -> re-search -> remove confirmation', async ({ page }) => {
+    const offerTitle = '上海至大理演示航班 B';
+    const provider = '星屿沙箱演示航班';
     await page.goto('/compare?kind=flight&destination=%E5%A4%A7%E7%90%86&from=2026-09-18&to=2026-09-22&travelers=3');
-    const favorite = page.getByRole('button', { name: /^收藏 .* 报价$/ }).first();
+    const offer = page.getByTestId('offer-row').filter({
+      has: page.getByRole('heading', { name: offerTitle, exact: true }),
+    });
+    await expect(offer).toContainText(provider);
+    await expect(offer.getByText('¥1,010 含税总价')).toBeVisible();
+    const favorite = offer.getByRole('button', { name: `收藏 ${provider} 报价` });
     await expect(favorite).toBeEnabled();
     await favorite.click();
     await expect(favorite).toHaveAttribute('aria-pressed', 'true');
@@ -97,12 +110,27 @@ test.describe('local closed loop', () => {
 
     await page.goto('/profile?tab=offers');
     await expect(page.getByRole('heading', { name: '收藏报价' })).toBeVisible();
-    await expect(page.getByText('数据时间')).toBeVisible();
-    await expect(page.getByText('已保存（关闭页面后不会推送）')).toBeVisible();
-    await page.getByRole('link', { name: '重新比价' }).first().click();
-    await expect(page).toHaveURL(/\/compare\?/);
+    const savedOffer = page.locator('article').filter({ hasText: `机票 · ${provider}` }).filter({ hasText: '¥ 1,010' });
+    await expect(savedOffer.getByRole('heading', { name: '大理', exact: true })).toBeVisible();
+    await expect(savedOffer.getByText('保存时总价')).toBeVisible();
+    await expect(savedOffer.getByText('数据时间')).toBeVisible();
+    await expect(savedOffer.getByText('已保存（关闭页面后不会推送）')).toBeVisible();
+    await savedOffer.getByRole('link', { name: '重新比价' }).click();
 
-    const savedFavorite = page.getByRole('button', { name: /^收藏 .* 报价$/ }).first();
+    await expect(page).toHaveURL(/\/compare\?/);
+    const reSearchUrl = new URL(page.url());
+    expect(reSearchUrl.pathname).toBe('/compare');
+    expect(Object.fromEntries(reSearchUrl.searchParams)).toEqual({
+      kind: 'flight',
+      destination: '大理',
+    });
+
+    const reSearchedOffer = page.getByTestId('offer-row').filter({
+      has: page.getByRole('heading', { name: offerTitle, exact: true }),
+    });
+    await expect(reSearchedOffer).toContainText(provider);
+    await expect(reSearchedOffer.getByText('¥1,010 含税总价')).toBeVisible();
+    const savedFavorite = reSearchedOffer.getByRole('button', { name: `收藏 ${provider} 报价` });
     await expect(savedFavorite).toHaveAttribute('aria-pressed', 'true');
     await savedFavorite.click();
     const confirmation = page.getByRole('dialog', { name: '移除收藏报价' });

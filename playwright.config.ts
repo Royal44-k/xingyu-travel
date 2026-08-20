@@ -7,7 +7,7 @@ export default defineConfig({
   webServer: {
     command: 'pnpm exec next dev --hostname 0.0.0.0 --port 4173',
     url: 'http://127.0.0.1:4173',
-    reuseExistingServer: true,
+    reuseExistingServer: false,
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'], channel: 'chrome' } }],
 });
