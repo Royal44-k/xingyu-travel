@@ -7,15 +7,17 @@ import { useRef, useState } from 'react';
 import { ReportDialog } from '@/components/report-dialog';
 import type { TravelPost } from '@/data/posts';
 import { FavoriteButton } from '@/features/library/favorite-button';
+import { useLibraryStore } from '@/stores/library-store';
 import styles from './square.module.css';
 
 export function PostCard({ post }: { post: TravelPost }) {
   const [reportOpen, setReportOpen] = useState(false);
   const reportTriggerRef = useRef<HTMLButtonElement>(null);
   const image = post.media[0];
+  const liked = useLibraryStore((state) => state.likedPostSlugs.includes(post.slug));
 
   return (
-    <article className={styles.postCard}>
+    <article className={styles.postCard} data-selected={liked || undefined}>
       <Link className={styles.postImageLink} href={`/square/${post.slug}`} aria-label={`阅读攻略：${post.title}`}>
         <Image alt={image.alt} className={styles.postImage} height={image.height} sizes="(max-width: 700px) 100vw, (max-width: 1100px) 50vw, 33vw" src={image.src} width={image.width} />
       </Link>

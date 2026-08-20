@@ -31,11 +31,33 @@
 .tags span { padding: 4px 7px; border-radius: 999px; background: rgb(183 154 104 / 16%); color: #6d532a; font-size: 12px; }
 .clearButton { display: inline-flex; align-items: center; gap: 4px; margin-top: 12px; color: #8e3328; font-size: 12px; }
 
+.destinationFilters { display: grid; grid-template-columns: minmax(240px, 1.5fr) minmax(150px, .6fr) minmax(140px, .55fr) auto; gap: 16px; align-items: end; margin: 0 0 30px; padding: 20px; border: 1px solid rgb(16 16 15 / 13%); border-radius: var(--radius-panel); background: rgb(255 255 255 / 24%); }
+.searchField,
+.filterField,
+.themeFilters { display: grid; gap: 8px; color: rgb(16 16 15 / 62%); font-size: 12px; }
+.searchInputWrap { display: flex; min-width: 0; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid rgb(16 16 15 / 20%); border-radius: var(--radius-control); background: var(--ivory); color: #72572f; }
+.searchInputWrap input { min-width: 0; width: 100%; height: 42px; padding: 0; border: 0; outline: 0; background: transparent; color: var(--ink); }
+.filterField select { height: 42px; padding: 0 11px; border: 1px solid rgb(16 16 15 / 20%); border-radius: var(--radius-control); background: var(--ivory); color: var(--ink); }
+.themeFilters { grid-column: 1 / -2; }
+.themeFilters > div { display: flex; flex-wrap: wrap; gap: 8px; }
+.themeFilters button { padding: 7px 11px; border: 1px solid rgb(16 16 15 / 17%); border-radius: 999px; background: transparent; color: var(--ink); cursor: pointer; transition: border-color var(--motion-fast) ease, background var(--motion-fast) ease; }
+.themeFilters button[aria-pressed='true'] { border-color: var(--sand); background: rgb(183 154 104 / 18%); box-shadow: 0 0 0 2px rgb(183 154 104 / 9%); }
+.clearFiltersButton { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 40px; padding: 8px 12px; border: 1px solid rgb(16 16 15 / 20%); border-radius: var(--radius-control); background: transparent; color: var(--ink); cursor: pointer; }
+.clearFiltersButton:disabled { cursor: default; opacity: .42; }
+.emptyGuides { padding: clamp(38px, 7vw, 76px) 24px; border: 1px solid rgb(16 16 15 / 14%); border-radius: var(--radius-panel); text-align: center; }
+.emptyGuides h3 { margin: 0; font-family: var(--font-display); font-size: 28px; font-weight: 500; }
+.emptyGuides p { max-width: 540px; margin: 12px auto 20px; color: rgb(16 16 15 / 64%); line-height: 1.65; }
+.emptyGuides button { padding: 10px 15px; border: 0; border-radius: var(--radius-control); background: var(--pine); color: var(--ivory); cursor: pointer; }
+
 .masonry { columns: 3; column-gap: 22px; }
-.postCard { display: inline-block; width: 100%; margin: 0 0 22px; break-inside: avoid; border: 1px solid rgb(16 16 15 / 12%); border-radius: var(--radius-panel); overflow: hidden; background: rgb(255 255 255 / 23%); box-shadow: 0 10px 25px rgb(16 16 15 / 4%); }
-.postImageLink { display: block; background: var(--mist); }
-.postImage { display: block; width: 100%; height: auto; transition: transform 220ms ease; }
-.postImageLink:hover .postImage { transform: scale(1.025); }
+.postCard { display: inline-block; width: 100%; margin: 0 0 22px; break-inside: avoid; border: 1px solid rgb(16 16 15 / 12%); border-radius: var(--radius-panel); overflow: hidden; background: rgb(255 255 255 / 23%); box-shadow: 0 10px 25px rgb(16 16 15 / 4%); transition: transform var(--motion-standard) cubic-bezier(.22, .61, .36, 1), border-color var(--motion-standard) ease, box-shadow var(--motion-standard) ease; }
+.postCard:hover,
+.postCard:focus-within,
+.postCard[data-selected='true'] { transform: translateY(-8px); border-color: rgb(183 154 104 / 72%); box-shadow: 0 15px 34px rgb(16 16 15 / 10%), 0 0 0 2px rgb(183 154 104 / 12%); }
+.postImageLink { display: block; position: relative; aspect-ratio: 3 / 2; overflow: hidden; background: var(--mist); }
+.postImage { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform var(--motion-standard) cubic-bezier(.22, .61, .36, 1); }
+.postImageLink:hover .postImage,
+.postImageLink:focus-visible .postImage { transform: scale(1.035); }
 .postBody { padding: 17px 17px 14px; }
 .postMeta { display: flex; align-items: center; gap: 4px; color: #6d532a; font-size: 12px; }
 .postBody h2 { margin: 10px 0 8px; font-family: var(--font-display); font-size: 23px; font-weight: 500; line-height: 1.32; }
@@ -60,12 +82,29 @@
 .detailAuthor b { width: 32px; height: 32px; }
 .detailAuthor time { margin-left: 8px; }
 .aiLabel { display: inline-flex; align-items: center; gap: 5px; margin-top: 17px; padding: 6px 9px; border-radius: 999px; background: rgb(183 154 104 / 15%); color: #6d532a; font-size: 12px; }
+.detailActions { display: flex; gap: 10px; align-items: center; margin-top: 17px; }
+.detailActions .aiLabel { margin-top: 0; }
 .detailLayout { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: clamp(35px, 7vw, 110px); align-items: start; }
 .article { min-width: 0; }
 .lede { margin: 0 0 31px; font-family: var(--font-display); font-size: 23px; line-height: 1.7; }
-.mediaGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-.mediaGrid img:first-child { grid-column: 1 / -1; aspect-ratio: 1.75; }
-.detailImage { width: 100%; height: 100%; max-height: 440px; border-radius: 10px; object-fit: cover; }
+.guideGallery { min-width: 0; outline: none; touch-action: pan-y; }
+.guideGallery:focus-visible .galleryFrame { outline: 2px solid var(--sand); outline-offset: 4px; }
+.galleryFrame { position: relative; aspect-ratio: 3 / 2; overflow: hidden; border-radius: var(--radius-panel); background: linear-gradient(135deg, var(--pine), var(--ink)); }
+.galleryImage { object-fit: cover; }
+.galleryArrow { position: absolute; z-index: 2; top: 50%; display: grid; width: 42px; height: 42px; padding: 0; place-items: center; transform: translateY(-50%); border: 1px solid rgb(244 240 232 / 42%); border-radius: 50%; background: rgb(16 16 15 / 56%); color: var(--ivory); cursor: pointer; backdrop-filter: blur(8px); }
+.galleryArrowPrevious { left: 14px; }
+.galleryArrowNext { right: 14px; }
+.galleryPosition { position: absolute; z-index: 2; right: 16px; bottom: 14px; padding: 6px 9px; border-radius: 999px; background: rgb(16 16 15 / 62%); color: var(--ivory); font-size: 12px; font-variant-numeric: tabular-nums; }
+.galleryError { position: absolute; z-index: 1; inset: 0; display: grid; padding: 70px clamp(45px, 9vw, 110px); place-content: center; justify-items: center; background: linear-gradient(135deg, rgb(38 49 43 / 94%), rgb(16 16 15 / 94%)); color: var(--ivory); text-align: center; }
+.galleryError strong { font-family: var(--font-display); font-size: clamp(19px, 2vw, 27px); font-weight: 500; }
+.galleryError span { margin-top: 8px; color: rgb(244 240 232 / 70%); font-size: 13px; line-height: 1.6; }
+.galleryError button { display: inline-flex; align-items: center; gap: 6px; margin-top: 18px; padding: 9px 12px; border: 1px solid rgb(244 240 232 / 36%); border-radius: var(--radius-control); background: transparent; color: var(--ivory); cursor: pointer; }
+.galleryThumbnails { display: grid; grid-auto-columns: minmax(94px, 1fr); grid-auto-flow: column; gap: 10px; margin-top: 12px; overflow-x: auto; padding: 3px 3px 8px; }
+.galleryThumbnails button { position: relative; aspect-ratio: 3 / 2; min-width: 0; overflow: hidden; border: 1px solid transparent; border-radius: 9px; background: var(--mist); cursor: pointer; opacity: .62; transition: opacity var(--motion-fast) ease, border-color var(--motion-fast) ease, transform var(--motion-fast) ease; }
+.galleryThumbnails button img { object-fit: cover; }
+.galleryThumbnails button:hover,
+.galleryThumbnails button:focus-visible,
+.galleryThumbnails button[aria-pressed='true'] { border-color: var(--sand); opacity: 1; box-shadow: 0 0 0 2px rgb(183 154 104 / 14%); }
 .article > h2,
 .detailAside h2 { margin: 40px 0 16px; font-family: var(--font-display); font-size: 27px; font-weight: 500; }
 .itinerary { display: grid; gap: 20px; margin: 0; padding: 0; list-style: none; }
@@ -127,5 +166,17 @@ button:focus-visible,
 a:focus-visible,
 .preferencesTrigger:focus-visible { outline: 2px solid var(--sand); outline-offset: 3px; }
 
-@media (max-width: 900px) { .masonry { columns: 2; } .detailLayout { grid-template-columns: 1fr; } .detailAside { position: static; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; } .detailAside .convertButton { grid-column: 1 / -1; } }
-@media (max-width: 640px) { .squarePage, .detailPage { padding: 145px 20px 48px; } .hero { padding: 24px 0 48px; } .feedHeading { display: block; } .feedControls { justify-content: start; margin-top: 18px; } .masonry { columns: 1; } .detailAside { display: block; } .detailAuthor { flex-wrap: wrap; } .detailAuthor time { width: 100%; margin-left: 41px; } .mediaGrid { grid-template-columns: 1fr; } .mediaGrid img:first-child { grid-column: auto; } .itinerary li { grid-template-columns: 60px 1fr; } }
+@media (max-width: 900px) { .destinationFilters { grid-template-columns: 1fr 1fr; } .searchField { grid-column: 1 / -1; } .themeFilters { grid-column: 1 / -1; } .masonry { columns: 2; } .detailLayout { grid-template-columns: 1fr; } .detailAside { position: static; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; } .detailAside .convertButton { grid-column: 1 / -1; } }
+@media (max-width: 640px) { .squarePage, .detailPage { padding: 145px 20px 48px; } .hero { padding: 24px 0 48px; } .feedHeading { display: block; } .feedControls { justify-content: start; margin-top: 18px; } .destinationFilters { grid-template-columns: minmax(0, 1fr); padding: 16px; } .searchField, .themeFilters { grid-column: auto; } .clearFiltersButton { width: 100%; } .masonry { columns: 1; } .detailAside { display: block; } .detailAuthor { flex-wrap: wrap; } .detailAuthor time { width: 100%; margin-left: 41px; } .galleryArrow { width: 38px; height: 38px; } .galleryArrowPrevious { left: 9px; } .galleryArrowNext { right: 9px; } .galleryThumbnails { grid-auto-columns: 92px; } .galleryError { padding: 54px 44px; } .itinerary li { grid-template-columns: 60px 1fr; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .postCard,
+  .postImage,
+  .themeFilters button,
+  .galleryThumbnails button { transition: none; }
+  .postCard:hover,
+  .postCard:focus-within,
+  .postCard[data-selected='true'],
+  .postImageLink:hover .postImage,
+  .postImageLink:focus-visible .postImage { transform: none; }
+}

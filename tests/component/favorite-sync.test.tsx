@@ -2,10 +2,16 @@ import { act, cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { FavoriteButton } from '@/features/library/favorite-button';
+import SquarePostPage from '@/app/square/[slug]/page';
 import {
   useLibraryStore,
   useLibraryStoreHydration,
 } from '@/stores/library-store';
+
+vi.mock('next/navigation', () => ({
+  redirect: vi.fn(),
+  useRouter: () => ({ push: vi.fn() }),
+}));
 
 beforeEach(() => {
   window.localStorage.clear();
@@ -18,6 +24,16 @@ beforeEach(() => {
 });
 
 describe('FavoriteButton', () => {
+  it('exposes the shared persisted favorite action on the guide detail route', async () => {
+    const user = userEvent.setup();
+    render(await SquarePostPage({ params: Promise.resolve({ slug: 'sanya-bay-rainforest-5d' }) }));
+
+    await user.click(screen.getByRole('button', { name: /喜欢 三亚 5 日/ }));
+
+    expect(useLibraryStore.getState().likedPostSlugs).toContain('sanya-bay-rainforest-5d');
+    expect(screen.getByRole('button', { name: /喜欢 三亚 5 日/ })).toHaveAttribute('aria-pressed', 'true');
+  });
+
   it('keeps a guide liked after remount and exposes the same state to another button', async () => {
     const user = userEvent.setup();
     render(

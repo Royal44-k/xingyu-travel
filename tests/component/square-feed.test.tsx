@@ -15,6 +15,62 @@ beforeEach(() => {
 });
 
 describe('FeedControls', () => {
+  it('searches guide titles, excerpts, destinations, tags, and location names', async () => {
+    const user = userEvent.setup();
+    render(<SquarePage />);
+
+    const search = screen.getByRole('searchbox', { name: '搜索攻略' });
+    for (const [query, expectedTitle] of [
+      ['外滩蓝调', /上海 3 日/],
+      ['完整转场日', /贵州 6 日/],
+      ['三亚', /三亚 5 日/],
+      ['海岛', /三亚 5 日/],
+      ['蜈支洲岛', /三亚 5 日/],
+    ] as const) {
+      await user.clear(search);
+      await user.type(search, query);
+      expect(screen.getByRole('heading', { name: expectedTitle })).toBeInTheDocument();
+    }
+  });
+
+  it('combines destination, theme, and maximum-day filters', async () => {
+    const user = userEvent.setup();
+    render(<SquarePage />);
+
+    await user.selectOptions(screen.getByRole('combobox', { name: '目的地' }), '三亚');
+    await user.click(screen.getByRole('button', { name: '海岛' }));
+    await user.selectOptions(screen.getByRole('combobox', { name: '最多天数' }), '5');
+
+    expect(screen.getByRole('heading', { name: /三亚 5 日/ })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /川西 6 日/ })).not.toBeInTheDocument();
+  });
+
+  it('clears only session filters while preserving chronological mode and interests', async () => {
+    useProfileStore.setState({ personalizedFeed: false, interestTags: ['海岛', '慢旅行'] });
+    const user = userEvent.setup();
+    render(<SquarePage />);
+
+    await user.type(screen.getByRole('searchbox', { name: '搜索攻略' }), '三亚');
+    await user.click(screen.getByRole('button', { name: '海岛' }));
+    await user.click(screen.getByRole('button', { name: '清除筛选' }));
+
+    expect(screen.getByRole('button', { name: '按时间排序' })).toHaveAttribute('aria-pressed', 'true');
+    expect(useProfileStore.getState().interestTags).toEqual(['海岛', '慢旅行']);
+    expect(screen.getByRole('heading', { name: /川西 6 日/ })).toBeInTheDocument();
+    expect(screen.getByRole('searchbox', { name: '搜索攻略' })).toHaveValue('');
+  });
+
+  it('offers a clear recovery action when no guide matches', async () => {
+    const user = userEvent.setup();
+    render(<SquarePage />);
+
+    await user.type(screen.getByRole('searchbox', { name: '搜索攻略' }), '不存在的目的地');
+
+    expect(screen.getByRole('status')).toHaveTextContent('没有找到符合条件的攻略');
+    await user.click(screen.getByRole('button', { name: '清除筛选' }));
+    expect(screen.getByRole('heading', { name: /三亚 5 日/ })).toBeInTheDocument();
+  });
+
   it('lets users switch off recommendations', async () => {
     const user = userEvent.setup();
     const change = vi.fn();
