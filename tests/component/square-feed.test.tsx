@@ -33,16 +33,22 @@ describe('FeedControls', () => {
     }
   });
 
-  it('combines destination, theme, and maximum-day filters', async () => {
+  it('combines theme and maximum-day filters with each constraint independently active', async () => {
     const user = userEvent.setup();
     render(<SquarePage />);
 
-    await user.selectOptions(screen.getByRole('combobox', { name: '目的地' }), '三亚');
-    await user.click(screen.getByRole('button', { name: '海岛' }));
+    await user.click(screen.getByRole('button', { name: '山水' }));
     await user.selectOptions(screen.getByRole('combobox', { name: '最多天数' }), '5');
 
-    expect(screen.getByRole('heading', { name: /三亚 5 日/ })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: /川西 6 日/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /桂林 4 日/ })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /上海 3 日/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /贵州 6 日/ })).not.toBeInTheDocument();
+  });
+
+  it('omits a seven-day maximum that cannot narrow the six-day guide catalog', () => {
+    render(<SquarePage />);
+
+    expect(screen.queryByRole('option', { name: '7 天以内' })).not.toBeInTheDocument();
   });
 
   it('clears only session filters while preserving chronological mode and interests', async () => {
@@ -67,7 +73,7 @@ describe('FeedControls', () => {
     await user.type(screen.getByRole('searchbox', { name: '搜索攻略' }), '不存在的目的地');
 
     expect(screen.getByRole('status')).toHaveTextContent('没有找到符合条件的攻略');
-    await user.click(screen.getByRole('button', { name: '清除筛选' }));
+    await user.click(screen.getByRole('button', { name: '重新浏览全部攻略' }));
     expect(screen.getByRole('heading', { name: /三亚 5 日/ })).toBeInTheDocument();
   });
 

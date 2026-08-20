@@ -36,6 +36,7 @@
 .filterField,
 .themeFilters { display: grid; gap: 8px; color: rgb(16 16 15 / 62%); font-size: 12px; }
 .searchInputWrap { display: flex; min-width: 0; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid rgb(16 16 15 / 20%); border-radius: var(--radius-control); background: var(--ivory); color: #72572f; }
+.searchInputWrap:focus-within { outline: 2px solid var(--pine); outline-offset: 2px; }
 .searchInputWrap input { min-width: 0; width: 100%; height: 42px; padding: 0; border: 0; outline: 0; background: transparent; color: var(--ink); }
 .filterField select { height: 42px; padding: 0 11px; border: 1px solid rgb(16 16 15 / 20%); border-radius: var(--radius-control); background: var(--ivory); color: var(--ink); }
 .themeFilters { grid-column: 1 / -2; }
@@ -87,9 +88,9 @@
 .detailLayout { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: clamp(35px, 7vw, 110px); align-items: start; }
 .article { min-width: 0; }
 .lede { margin: 0 0 31px; font-family: var(--font-display); font-size: 23px; line-height: 1.7; }
-.guideGallery { min-width: 0; outline: none; touch-action: pan-y; }
+.guideGallery { min-width: 0; outline: none; }
 .guideGallery:focus-visible .galleryFrame { outline: 2px solid var(--sand); outline-offset: 4px; }
-.galleryFrame { position: relative; aspect-ratio: 3 / 2; overflow: hidden; border-radius: var(--radius-panel); background: linear-gradient(135deg, var(--pine), var(--ink)); }
+.galleryFrame { position: relative; aspect-ratio: 3 / 2; overflow: hidden; border-radius: var(--radius-panel); background: linear-gradient(135deg, var(--pine), var(--ink)); touch-action: pan-y pinch-zoom; }
 .galleryImage { object-fit: cover; }
 .galleryArrow { position: absolute; z-index: 2; top: 50%; display: grid; width: 42px; height: 42px; padding: 0; place-items: center; transform: translateY(-50%); border: 1px solid rgb(244 240 232 / 42%); border-radius: 50%; background: rgb(16 16 15 / 56%); color: var(--ivory); cursor: pointer; backdrop-filter: blur(8px); }
 .galleryArrowPrevious { left: 14px; }
@@ -99,7 +100,7 @@
 .galleryError strong { font-family: var(--font-display); font-size: clamp(19px, 2vw, 27px); font-weight: 500; }
 .galleryError span { margin-top: 8px; color: rgb(244 240 232 / 70%); font-size: 13px; line-height: 1.6; }
 .galleryError button { display: inline-flex; align-items: center; gap: 6px; margin-top: 18px; padding: 9px 12px; border: 1px solid rgb(244 240 232 / 36%); border-radius: var(--radius-control); background: transparent; color: var(--ivory); cursor: pointer; }
-.galleryThumbnails { display: grid; grid-auto-columns: minmax(94px, 1fr); grid-auto-flow: column; gap: 10px; margin-top: 12px; overflow-x: auto; padding: 3px 3px 8px; }
+.galleryThumbnails { display: grid; grid-auto-columns: minmax(94px, 1fr); grid-auto-flow: column; gap: 10px; margin-top: 12px; overflow-x: auto; padding: 3px 3px 8px; touch-action: pan-x pan-y pinch-zoom; }
 .galleryThumbnails button { position: relative; aspect-ratio: 3 / 2; min-width: 0; overflow: hidden; border: 1px solid transparent; border-radius: 9px; background: var(--mist); cursor: pointer; opacity: .62; transition: opacity var(--motion-fast) ease, border-color var(--motion-fast) ease, transform var(--motion-fast) ease; }
 .galleryThumbnails button img { object-fit: cover; }
 .galleryThumbnails button:hover,

@@ -20,6 +20,13 @@ export interface DestinationAsset {
   shot: string;
 }
 
+type DestinationAssetGallery = readonly [
+  DestinationAsset,
+  DestinationAsset,
+  DestinationAsset,
+  DestinationAsset,
+];
+
 export const destinationAssets = {
   dali: [
     { src: '/assets/destinations/dali/01.png', width: 1536, height: 1024, alt: '晨光里的大理白族院落与石茶桌', destination: '大理', shot: '白族院落清晨' },
@@ -69,4 +76,4 @@ export const destinationAssets = {
     { src: '/assets/destinations/guizhou/03.png', width: 1536, height: 1024, alt: '云雾中的加榜梯田与木楼村落', destination: '贵州', shot: '加榜梯田' },
     { src: '/assets/destinations/guizhou/04.png', width: 1536, height: 1024, alt: '湿润蓝夜里沿山起伏的贵阳城景', destination: '贵州', shot: '贵阳山城夜色' },
   ],
-} as const satisfies Record<DestinationAssetKey, readonly DestinationAsset[]>;
+} as const satisfies Record<DestinationAssetKey, DestinationAssetGallery>;

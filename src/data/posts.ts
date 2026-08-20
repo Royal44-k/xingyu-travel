@@ -9,6 +9,8 @@ export interface PostMedia {
   alt: string;
 }
 
+export type GuideMedia = readonly [PostMedia, PostMedia, PostMedia, PostMedia];
+
 export interface LocationCard {
   name: string;
   area: string;
@@ -36,7 +38,7 @@ export interface TravelPost {
   destination: string;
   days: number;
   budget: number;
-  media: readonly PostMedia[];
+  media: GuideMedia;
   locations: readonly LocationCard[];
   tags: readonly string[];
   itinerary: readonly ItineraryItem[];

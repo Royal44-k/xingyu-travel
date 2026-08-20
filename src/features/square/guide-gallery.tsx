@@ -3,11 +3,11 @@
 import { ArrowClockwise, CaretLeft, CaretRight } from '@phosphor-icons/react';
 import Image from 'next/image';
 import { useRef, useState } from 'react';
-import type { PostMedia } from '@/data/posts';
+import type { GuideMedia } from '@/data/posts';
 import styles from './square.module.css';
 
 interface GuideGalleryProps {
-  images: readonly PostMedia[];
+  images: GuideMedia;
   title: string;
 }
 
@@ -17,6 +17,11 @@ export function GuideGallery({ images, title }: GuideGalleryProps) {
   const [retryVersions, setRetryVersions] = useState<Readonly<Record<number, number>>>({});
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const touchLatest = useRef<{ x: number; y: number } | null>(null);
+
+  if (images.length !== 4) {
+    throw new RangeError('GuideGallery requires exactly four images.');
+  }
+
   const activeImage = images[activeIndex];
 
   if (!activeImage) return null;
@@ -27,6 +32,8 @@ export function GuideGallery({ images, title }: GuideGalleryProps) {
   }
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLElement>) {
+    if (event.target !== event.currentTarget) return;
+
     if (event.key === 'Home') {
       event.preventDefault();
       setActiveIndex(0);
@@ -79,22 +86,26 @@ export function GuideGallery({ images, title }: GuideGalleryProps) {
       aria-label={`${title}攻略图片画廊`}
       className={styles.guideGallery}
       onKeyDown={handleKeyDown}
-      onTouchEnd={handleTouchEnd}
-      onTouchMove={(event) => {
-        const touch = event.touches[0];
-        if (touch) touchLatest.current = { x: touch.clientX, y: touch.clientY };
-      }}
-      onTouchStart={(event) => {
-        const touch = event.touches[0];
-        if (!touch) return;
-        const point = { x: touch.clientX, y: touch.clientY };
-        touchStart.current = point;
-        touchLatest.current = point;
-      }}
       role="region"
       tabIndex={0}
     >
-      <div className={styles.galleryFrame}>
+      <div
+        aria-label="攻略主图"
+        className={styles.galleryFrame}
+        onTouchEnd={handleTouchEnd}
+        onTouchMove={(event) => {
+          const touch = event.touches[0];
+          if (touch) touchLatest.current = { x: touch.clientX, y: touch.clientY };
+        }}
+        onTouchStart={(event) => {
+          const touch = event.touches[0];
+          if (!touch) return;
+          const point = { x: touch.clientX, y: touch.clientY };
+          touchStart.current = point;
+          touchLatest.current = point;
+        }}
+        role="group"
+      >
         <Image
           alt={activeImage.alt}
           className={styles.galleryImage}
