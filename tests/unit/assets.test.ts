@@ -6,17 +6,39 @@ import { expect, it } from 'vitest';
 import { brandAssets, destinationAssets } from '@/data/assets';
 
 const expectedDestinationPaths = [
-  'dali',
-  'guilin',
-  'sichuan',
-  'sanya',
-  'hangzhou',
-  'nanjing',
-  'shanghai',
-  'guizhou',
-].flatMap((destination) =>
-  ['01', '02', '03', '04'].map((shot) => `/assets/destinations/${destination}/${shot}.png`),
-);
+  '/assets/destinations/dali/01.png',
+  '/assets/destinations/dali/02.png',
+  '/assets/destinations/dali/03.png',
+  '/assets/destinations/dali/04.png',
+  '/assets/destinations/guilin/01.png',
+  '/assets/destinations/guilin/02.png',
+  '/assets/destinations/guilin/03.png',
+  '/assets/destinations/guilin/04.png',
+  '/assets/destinations/sichuan/01.png',
+  '/assets/destinations/sichuan/02.png',
+  '/assets/destinations/sichuan/03.png',
+  '/assets/destinations/sichuan/04.png',
+  '/assets/destinations/sanya/01.png',
+  '/assets/destinations/sanya/02.png',
+  '/assets/destinations/sanya/03.png',
+  '/assets/destinations/sanya/04.png',
+  '/assets/destinations/hangzhou/01.png',
+  '/assets/destinations/hangzhou/02.png',
+  '/assets/destinations/hangzhou/03.png',
+  '/assets/destinations/hangzhou/04.png',
+  '/assets/destinations/nanjing/01.png',
+  '/assets/destinations/nanjing/02.png',
+  '/assets/destinations/nanjing/03.png',
+  '/assets/destinations/nanjing/04.png',
+  '/assets/destinations/shanghai/01.png',
+  '/assets/destinations/shanghai/02.png',
+  '/assets/destinations/shanghai/03.png',
+  '/assets/destinations/shanghai/04.png',
+  '/assets/destinations/guizhou/01.png',
+  '/assets/destinations/guizhou/02.png',
+  '/assets/destinations/guizhou/03.png',
+  '/assets/destinations/guizhou/04.png',
+];
 
 async function enumerateDestinationPngPaths(root: string, publicRoot: string): Promise<string[]> {
   const pngPaths: string[] = [];
