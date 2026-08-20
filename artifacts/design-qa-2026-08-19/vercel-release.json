@@ -1,0 +1,28 @@
+{
+  "deployedCommit": "d58c254",
+  "preview": {
+    "deploymentId": "dpl_8pfLnq33CdM3QNq49yqFj3QTcGvB",
+    "url": "https://xingyu-travel-nylfzzhu4-lirongouyang522-3492s-projects.vercel.app",
+    "target": "preview",
+    "status": "READY",
+    "unauthenticatedResult": "redirected to https://vercel.com/login in fresh local Chrome",
+    "automationVerification": "protected candidate verified with an internally held Vercel automation-bypass secret; the secret was never printed or persisted"
+  },
+  "production": {
+    "deploymentId": "dpl_7tBjfSPxfbJXzwTX7PGGBUWCwgoE",
+    "deploymentUrl": "https://xingyu-travel-c6zd0kuwa-lirongouyang522-3492s-projects.vercel.app",
+    "publicAlias": "https://xingyu-travel.vercel.app",
+    "target": "production",
+    "status": "READY",
+    "unauthenticatedResult": "200 responses on the public alias in a fresh local Chrome context",
+    "browserVerification": "production-verification.json",
+    "errorLogs": "No error-level entries returned for this deployment in the one-hour bounded query"
+  },
+  "previousKnownGoodProduction": {
+    "deploymentId": "dpl_3GZmsZn1tZmdJvr2xmDtKM9wdawV",
+    "url": "https://xingyu-travel-5upep3p2h-lirongouyang522-3492s-projects.vercel.app",
+    "status": "READY"
+  },
+  "rollbackCommand": "pnpm dlx vercel@59.1.4 rollback https://xingyu-travel-5upep3p2h-lirongouyang522-3492s-projects.vercel.app",
+  "rollbackExecuted": false
+}

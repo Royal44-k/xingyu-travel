@@ -48,4 +48,40 @@ No production source changed during this QA pass. One capture-only readiness rac
 - Framework/runtime: Next.js, Node.js 24.x, root directory `.`.
 - Known-good Production before this release: `https://xingyu-travel-5upep3p2h-lirongouyang522-3492s-projects.vercel.app` (READY).
 
-The exact Preview deployment, Promotion result, public Production verification, deployment ID, and rollback command are appended after the verified candidate artifact is promoted. This staging boundary ensures Production is never inferred from a local pass.
+## Vercel release result
+
+- Deployed source commit: `d58c254` (the QA evidence commit; no production source changed after the complete local gates).
+- Preview deployment: `dpl_8pfLnq33CdM3QNq49yqFj3QTcGvB`, `https://xingyu-travel-nylfzzhu4-lirongouyang522-3492s-projects.vercel.app`, target Preview, READY.
+- Preview access boundary: a fresh unauthenticated local Chrome context reached `https://vercel.com/login`; after Production promotion the same check still reached that SSO login with zero request failures.
+- Preview candidate verification used Vercel's official automation-bypass header with the secret held only in process memory. The secret was never printed, written, or committed.
+- Preview hydration diagnostic: the conversion control became enabled after 15,230 ms, within the bounded 30-second wait; conversion and save passed, then the interrupted trip loop and remaining saved-offer loop passed. The raw diagnostic recorded five navigation-cancelled Next RSC prefetches as `net::ERR_ABORTED`; these produced no HTTP response ≥400 and were not application failures.
+- Exact candidate promotion: `vercel promote` created Production deployment `dpl_7tBjfSPxfbJXzwTX7PGGBUWCwgoE` from the verified Preview artifact.
+- Production deployment URL: `https://xingyu-travel-c6zd0kuwa-lirongouyang522-3492s-projects.vercel.app`, target Production, READY.
+- Public Production alias: `https://xingyu-travel.vercel.app`; Vercel inspection confirms the alias resolves to `dpl_7tBjfSPxfbJXzwTX7PGGBUWCwgoE`.
+- Production authentication result: fresh local Chrome used no credentials or protection-bypass header; all tested public-alias requests remained on the Production host and returned 200.
+- Error-log check: the bounded `--level error --since 1h --limit 100` query returned no error entry for the new deployment.
+
+The first non-archive Preview upload encountered a transient `fetch failed` after reaching the full upload size and produced no Vercel deployment. The task-owned stalled process was stopped, absence of a candidate was confirmed, and the same committed source succeeded once with `--archive=tgz`. No Production state changed before the candidate passed verification.
+
+## Public Production browser verification
+
+Evidence: `artifacts/design-qa-2026-08-19/production-verification.json`.
+
+| Surface | Result |
+|---|---|
+| Unauthenticated access | Passed in a fresh Google Chrome context through `https://xingyu-travel.vercel.app`. |
+| Route matrix | 9/9 returned 200: home, square, detail, profile, trips, compare, partners, assistant, guardian. |
+| Browser-local closed loops | 4/4 passed through visible UI in separate fresh contexts. |
+| Source asset | `/assets/destinations/dali/01.png` returned 200 `image/png`, 2,487,912 bytes. |
+| Next image optimization | `/_next/image?...` returned 200 `image/png`, 364,221 bytes. |
+| Security headers | `nosniff`; `strict-origin-when-cross-origin`; `camera=(), microphone=(), geolocation=()`; `SAMEORIGIN`. |
+| Runtime health | 0 `console.error`, 0 console warnings, 0 page errors, 0 HTTP responses ≥400. |
+
+The production verifier initially over-constrained dynamic and lazy images by waiting for every dimensioned document image, including offscreen lazy content and a carousel source swap. A focused Chrome inspection proved the requested images returned 200 and rendered with non-zero natural dimensions. The final evidence uses viewport-intersection readiness, matching the route-ready Design QA rule; this changed only the evidence harness, not production code.
+
+## Rollback boundary
+
+- Previous known-good Production: `dpl_3GZmsZn1tZmdJvr2xmDtKM9wdawV` / `https://xingyu-travel-5upep3p2h-lirongouyang522-3492s-projects.vercel.app`, READY.
+- Prepared command: `pnpm dlx vercel@59.1.4 rollback https://xingyu-travel-5upep3p2h-lirongouyang522-3492s-projects.vercel.app`.
+- The rollback command was recorded only and was not executed.
+- Structured release metadata: `artifacts/design-qa-2026-08-19/vercel-release.json`.

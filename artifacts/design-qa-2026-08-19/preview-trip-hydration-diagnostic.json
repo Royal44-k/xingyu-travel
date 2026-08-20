@@ -1,0 +1,204 @@
+{
+  "targetUrl": "https://xingyu-travel-nylfzzhu4-lirongouyang522-3492s-projects.vercel.app",
+  "browser": "Google Chrome (Playwright channel: chrome)",
+  "startedAt": "2026-08-20T13:29:22.089Z",
+  "hydration": {
+    "samples": [
+      {
+        "elapsedMs": 0,
+        "documentReadyState": "interactive",
+        "buttonFound": true,
+        "buttonLabel": "转为行程",
+        "disabled": true,
+        "describedBy": "trip-store-loading",
+        "hydrationStatusText": "正在读取本地行程…",
+        "localStorageMetadata": []
+      },
+      {
+        "elapsedMs": 1028,
+        "documentReadyState": "interactive",
+        "buttonFound": true,
+        "buttonLabel": "转为行程",
+        "disabled": true,
+        "describedBy": "trip-store-loading",
+        "hydrationStatusText": "正在读取本地行程…",
+        "localStorageMetadata": []
+      },
+      {
+        "elapsedMs": 2043,
+        "documentReadyState": "interactive",
+        "buttonFound": true,
+        "buttonLabel": "转为行程",
+        "disabled": true,
+        "describedBy": "trip-store-loading",
+        "hydrationStatusText": "正在读取本地行程…",
+        "localStorageMetadata": []
+      },
+      {
+        "elapsedMs": 3061,
+        "documentReadyState": "interactive",
+        "buttonFound": true,
+        "buttonLabel": "转为行程",
+        "disabled": true,
+        "describedBy": "trip-store-loading",
+        "hydrationStatusText": "正在读取本地行程…",
+        "localStorageMetadata": []
+      },
+      {
+        "elapsedMs": 4073,
+        "documentReadyState": "interactive",
+        "buttonFound": true,
+        "buttonLabel": "转为行程",
+        "disabled": true,
+        "describedBy": "trip-store-loading",
+        "hydrationStatusText": "正在读取本地行程…",
+        "localStorageMetadata": []
+      },
+      {
+        "elapsedMs": 5087,
+        "documentReadyState": "interactive",
+        "buttonFound": true,
+        "buttonLabel": "转为行程",
+        "disabled": true,
+        "describedBy": "trip-store-loading",
+        "hydrationStatusText": "正在读取本地行程…",
+        "localStorageMetadata": []
+      },
+      {
+        "elapsedMs": 6103,
+        "documentReadyState": "interactive",
+        "buttonFound": true,
+        "buttonLabel": "转为行程",
+        "disabled": true,
+        "describedBy": "trip-store-loading",
+        "hydrationStatusText": "正在读取本地行程…",
+        "localStorageMetadata": []
+      },
+      {
+        "elapsedMs": 7132,
+        "documentReadyState": "interactive",
+        "buttonFound": true,
+        "buttonLabel": "转为行程",
+        "disabled": true,
+        "describedBy": "trip-store-loading",
+        "hydrationStatusText": "正在读取本地行程…",
+        "localStorageMetadata": []
+      },
+      {
+        "elapsedMs": 8137,
+        "documentReadyState": "interactive",
+        "buttonFound": true,
+        "buttonLabel": "转为行程",
+        "disabled": true,
+        "describedBy": "trip-store-loading",
+        "hydrationStatusText": "正在读取本地行程…",
+        "localStorageMetadata": []
+      },
+      {
+        "elapsedMs": 9153,
+        "documentReadyState": "interactive",
+        "buttonFound": true,
+        "buttonLabel": "转为行程",
+        "disabled": true,
+        "describedBy": "trip-store-loading",
+        "hydrationStatusText": "正在读取本地行程…",
+        "localStorageMetadata": []
+      },
+      {
+        "elapsedMs": 10176,
+        "documentReadyState": "interactive",
+        "buttonFound": true,
+        "buttonLabel": "转为行程",
+        "disabled": true,
+        "describedBy": "trip-store-loading",
+        "hydrationStatusText": "正在读取本地行程…",
+        "localStorageMetadata": []
+      },
+      {
+        "elapsedMs": 11186,
+        "documentReadyState": "interactive",
+        "buttonFound": true,
+        "buttonLabel": "转为行程",
+        "disabled": true,
+        "describedBy": "trip-store-loading",
+        "hydrationStatusText": "正在读取本地行程…",
+        "localStorageMetadata": []
+      },
+      {
+        "elapsedMs": 12198,
+        "documentReadyState": "interactive",
+        "buttonFound": true,
+        "buttonLabel": "转为行程",
+        "disabled": true,
+        "describedBy": "trip-store-loading",
+        "hydrationStatusText": "正在读取本地行程…",
+        "localStorageMetadata": []
+      },
+      {
+        "elapsedMs": 13215,
+        "documentReadyState": "interactive",
+        "buttonFound": true,
+        "buttonLabel": "转为行程",
+        "disabled": true,
+        "describedBy": "trip-store-loading",
+        "hydrationStatusText": "正在读取本地行程…",
+        "localStorageMetadata": []
+      },
+      {
+        "elapsedMs": 14224,
+        "documentReadyState": "interactive",
+        "buttonFound": true,
+        "buttonLabel": "转为行程",
+        "disabled": true,
+        "describedBy": "trip-store-loading",
+        "hydrationStatusText": "正在读取本地行程…",
+        "localStorageMetadata": []
+      },
+      {
+        "elapsedMs": 15230,
+        "documentReadyState": "interactive",
+        "buttonFound": true,
+        "buttonLabel": "转为行程",
+        "disabled": false,
+        "describedBy": null,
+        "hydrationStatusText": null,
+        "localStorageMetadata": []
+      }
+    ],
+    "navigationElapsedMs": 3741,
+    "enabled": true,
+    "enabledElapsedMs": 15230
+  },
+  "conversionProof": {
+    "result": "passed",
+    "finalPath": "/trips/dali-slow-5d",
+    "localStorageMutationOccurredOnlyAfterEnabledObservation": true
+  },
+  "remainingLoops": [
+    {
+      "name": "guide conversion -> My Trips -> workbench -> compare",
+      "result": "passed"
+    },
+    {
+      "name": "favorite offer + alert -> profile -> re-search -> remove confirmation",
+      "result": "passed"
+    }
+  ],
+  "consoleErrors": [],
+  "consoleWarnings": [],
+  "pageErrors": [],
+  "networkFailures": [
+    "focused hydration diagnostic: net::ERR_ABORTED: https://xingyu-travel-nylfzzhu4-lirongouyang522-3492s-projects.vercel.app/trips?_rsc=uC4wgj0wJZNGcWw0",
+    "focused hydration diagnostic: net::ERR_ABORTED: https://xingyu-travel-nylfzzhu4-lirongouyang522-3492s-projects.vercel.app/trips/dali-slow-5d?_rsc=s-y3q5-anHcF2Jcz",
+    "focused hydration diagnostic: net::ERR_ABORTED: https://xingyu-travel-nylfzzhu4-lirongouyang522-3492s-projects.vercel.app/profile?_rsc=Unq2Ize4pFjVL6bG",
+    "focused hydration diagnostic: net::ERR_ABORTED: https://xingyu-travel-nylfzzhu4-lirongouyang522-3492s-projects.vercel.app/trips?intent=guardian&_rsc=Unq2Ize4pFjVL6bG",
+    "remaining offer loop: net::ERR_ABORTED: https://xingyu-travel-nylfzzhu4-lirongouyang522-3492s-projects.vercel.app/profile?_rsc=vr_qeDxs4XL1cRl5"
+  ],
+  "httpErrors": [],
+  "result": "failed",
+  "error": {
+    "name": "Error",
+    "message": "Network failures: focused hydration diagnostic: net::ERR_ABORTED: https://xingyu-travel-nylfzzhu4-lirongouyang522-3492s-projects.vercel.app/trips?_rsc=uC4wgj0wJZNGcWw0 | focused hydration diagnostic: net::ERR_ABORTED: https://xingyu-travel-nylfzzhu4-lirongouyang522-3492s-projects.vercel.app/trips/dali-slow-5d?_rsc=s-y3q5-anHcF2Jcz | focused hydration diagnostic: net::ERR_ABORTED: https://xingyu-travel-nylfzzhu4-lirongouyang522-3492s-projects.vercel.app/profile?_rsc=Unq2Ize4pFjVL6bG | focused hydration diagnostic: net::ERR_ABORTED: https://xingyu-travel-nylfzzhu4-lirongouyang522-3492s-projects.vercel.app/trips?intent=guardian&_rsc=Unq2Ize4pFjVL6bG | remaining offer loop: net::ERR_ABORTED: https://xingyu-travel-nylfzzhu4-lirongouyang522-3492s-projects.vercel.app/profile?_rsc=vr_qeDxs4XL1cRl5"
+  },
+  "completedAt": "2026-08-20T13:30:41.936Z"
+}
