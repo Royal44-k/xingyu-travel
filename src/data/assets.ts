@@ -1,3 +1,6 @@
+export { destinationAssets, destinationKeys } from '@/data/destination-assets';
+export type { DestinationAsset, DestinationAssetKey } from '@/data/destination-assets';
+
 export const brandAssets = {
   hero: {
     src: '/assets/hero-dali-dawn.png',
