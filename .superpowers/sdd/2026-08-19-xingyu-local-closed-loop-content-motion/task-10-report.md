@@ -98,7 +98,7 @@ The implementation is covered at three levels:
 
 - Store tests verify durable context, legacy v1 hydration, and fail-closed invalid dates.
 - Component tests verify a newly saved offer receives the active search context and a profile offer link keeps dates/travellers.
-- The visible-browser local-library journey asserts the exact query `kind=flight&destination=大理&from=2026-09-18&to=2026-09-22&travelers=3` after choosing “重新比价”.
+- The visible-browser local-library journey asserts the exact query `kind=flight&destination=大理&origin=上海&from=2026-09-18&to=2026-09-22&travelers=3` after choosing “重新比价”.
 
 Round-2 verification reported by the implementing agent:
 
@@ -113,3 +113,21 @@ pnpm lint / pnpm typecheck / pnpm build: passed; build generated 14/14 static pa
 ```
 
 Independent handoff check: a sandboxed focused Vitest invocation could not create Vite’s temporary config file (`EPERM`); the approved local execution subsequently started the configured real-Chrome suite and showed the 30-test run. This report therefore preserves the agent’s completed GREEN evidence above rather than claiming a second, independently completed full run.
+
+## Reviewer fix round 3/5 — origin preservation
+
+The saved-offer flow already persisted and reconstructed `origin`, but its browser URL, profile fixture, and durable rehydration fixture did not assert it. The exact origin contract is now covered in each layer. To prove the assertion is sensitive, the profile URL builder temporarily omitted `origin`; the single real-Chrome saved-offer story failed with the expected diff (`origin: 上海` expected, absent from received query). The production line was then restored without any functional change.
+
+```text
+RED: pnpm run test:e2e --grep "favorite offer"
+1 failed — expected origin=上海, received query omitted origin
+
+GREEN: pnpm run test:e2e --grep "favorite offer"
+1/1 passed (11.3s)
+
+GREEN: pnpm exec vitest run tests/unit/library-store.test.ts tests/component/profile-hub.test.tsx
+2 files, 42/42 passed (15.51s)
+
+GREEN: pnpm lint && pnpm typecheck
+passed
+```
