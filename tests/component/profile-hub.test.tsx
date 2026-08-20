@@ -23,6 +23,13 @@ const expiredOffer: FavoriteOfferSnapshot = {
   policySummary: '可退款｜含行李',
   observedAt: '2026-08-18T02:00:00.000Z',
   expiresAt: '2026-08-18T02:15:00.000Z',
+  search: {
+    kind: 'flight',
+    destination: '大理',
+    from: '2026-09-18',
+    to: '2026-09-22',
+    travelers: 3,
+  },
 };
 
 const hotelOffer: FavoriteOfferSnapshot = {
@@ -75,7 +82,7 @@ describe('ProfileHub', () => {
     expect(screen.getByText(/数据时间/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: '重新比价' })).toHaveAttribute(
       'href',
-      '/compare?kind=flight&destination=%E5%A4%A7%E7%90%86',
+      '/compare?kind=flight&destination=%E5%A4%A7%E7%90%86&from=2026-09-18&to=2026-09-22&travelers=3',
     );
   });
 

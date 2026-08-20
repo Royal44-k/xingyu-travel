@@ -54,7 +54,7 @@ describe('favorite offer snapshots', () => {
     ]);
   });
 
-  it('derives the durable snapshot and its fifteen-minute validity window from a normalized offer', () => {
+  it('derives the durable snapshot, search context, and fifteen-minute validity window from a normalized offer', () => {
     const store = createLibraryStore();
     const offer = makeOffer({
       destination: '  大理  ',
@@ -63,7 +63,14 @@ describe('favorite offer snapshots', () => {
       updatedAt: '2026-08-19T10:00:00.000Z',
     });
 
-    store.getState().saveOffer(offer);
+    store.getState().saveOffer(offer, {
+      kind: 'flight',
+      destination: '大理',
+      origin: '上海',
+      from: '2026-09-18',
+      to: '2026-09-22',
+      travelers: 3,
+    });
 
     expect(store.getState().favoriteOffers[offerIdentity(offer)]).toEqual({
       key: '["mock-provider","offer-1"]',
@@ -75,6 +82,14 @@ describe('favorite offer snapshots', () => {
       policySummary: '可退款｜不含行李',
       observedAt: '2026-08-19T10:00:00.000Z',
       expiresAt: '2026-08-19T10:15:00.000Z',
+      search: {
+        kind: 'flight',
+        destination: '大理',
+        origin: '上海',
+        from: '2026-09-18',
+        to: '2026-09-22',
+        travelers: 3,
+      },
     });
   });
 
@@ -158,7 +173,13 @@ describe('persistence and recovery', () => {
     const offer = makeOffer({ id: 'same:id', provider: 'a:b' });
     await source.persist.rehydrate();
     source.getState().togglePostLike('sanya-coast-rainforest');
-    source.getState().saveOffer(offer);
+    source.getState().saveOffer(offer, {
+      kind: 'flight',
+      destination: '大理',
+      from: '2026-09-18',
+      to: '2026-09-22',
+      travelers: 3,
+    });
     source.getState().setPriceAlert(offerIdentity(offer), true);
 
     const rehydrated = createLibraryStore();
@@ -168,11 +189,47 @@ describe('persistence and recovery', () => {
     expect(rehydrated.getState().favoriteOffers[offerIdentity(offer)]).toMatchObject({
       key: '["a:b","same:id"]',
       expiresAt: '2026-08-19T10:15:00.000Z',
+      search: {
+        kind: 'flight',
+        destination: '大理',
+        from: '2026-09-18',
+        to: '2026-09-22',
+        travelers: 3,
+      },
     });
     expect(rehydrated.getState().priceAlerts[offerIdentity(offer)]).toMatchObject({
       offerKey: '["a:b","same:id"]',
       enabled: true,
     });
+  });
+
+  it('continues to hydrate a valid v1 offer snapshot saved before search context existed', async () => {
+    const legacySnapshot = {
+      key: '["mock-provider","offer-1"]',
+      provider: 'mock-provider',
+      productKind: 'flight',
+      destination: '大理',
+      totalPrice: 1280,
+      currency: 'CNY',
+      policySummary: '可退款｜含行李',
+      observedAt: '2026-08-19T10:00:00.000Z',
+      expiresAt: '2026-08-19T10:15:00.000Z',
+    };
+    window.localStorage.setItem(storageKey, JSON.stringify({
+      state: {
+        likedPostSlugs: [],
+        favoriteOffers: { [legacySnapshot.key]: legacySnapshot },
+        priceAlerts: {},
+      },
+      version: 1,
+    }));
+    let hydrationError = false;
+    const store = createLibraryStore({ onHydrationError: () => { hydrationError = true; } });
+
+    await store.persist.rehydrate();
+
+    expect(hydrationError).toBe(false);
+    expect(store.getState().favoriteOffers[legacySnapshot.key]).toEqual(legacySnapshot);
   });
 
   it('fails closed and preserves malformed bytes until an explicit reset', async () => {
@@ -260,6 +317,38 @@ describe('persistence and recovery', () => {
       observedAt: '2026-08-19T10:00:00.000Z',
       expiresAt: '2026-08-19T10:15:00.000Z',
       injected: true,
+    };
+    const malformedBytes = JSON.stringify({
+      state: { likedPostSlugs: [], favoriteOffers: { [snapshot.key]: snapshot }, priceAlerts: {} },
+      version: 1,
+    });
+    window.localStorage.setItem(storageKey, malformedBytes);
+    const store = createLibraryStore();
+
+    await store.persist.rehydrate();
+
+    expect(store.getState()).toMatchObject({ likedPostSlugs: [], favoriteOffers: {}, priceAlerts: {} });
+    expect(window.localStorage.getItem(storageKey)).toBe(malformedBytes);
+  });
+
+  it('fails closed and preserves bytes when persisted search context is invalid', async () => {
+    const snapshot = {
+      key: '["mock-provider","offer-1"]',
+      provider: 'mock-provider',
+      productKind: 'flight',
+      destination: '大理',
+      totalPrice: 1280,
+      currency: 'CNY',
+      policySummary: '可退款｜含行李',
+      observedAt: '2026-08-19T10:00:00.000Z',
+      expiresAt: '2026-08-19T10:15:00.000Z',
+      search: {
+        kind: 'flight',
+        destination: '大理',
+        from: '2026-02-30',
+        to: '2026-09-22',
+        travelers: 3,
+      },
     };
     const malformedBytes = JSON.stringify({
       state: { likedPostSlugs: [], favoriteOffers: { [snapshot.key]: snapshot }, priceAlerts: {} },

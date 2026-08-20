@@ -245,7 +245,7 @@ export function ComparisonClient({
     if (!libraryReady) return;
     const key = offerIdentity(offer);
     if (!favoriteOffers[key]) {
-      saveOffer(offer);
+      saveOffer(offer, search);
       return;
     }
     if (priceAlerts[key]?.enabled) {

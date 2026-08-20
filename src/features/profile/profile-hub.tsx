@@ -575,7 +575,15 @@ function OfferCard({
   offer: FavoriteOfferSnapshot;
 }) {
   const expired = Date.parse(offer.expiresAt) <= currentTime;
-  const search = new URLSearchParams({ kind: offer.productKind, destination: offer.destination });
+  const savedSearch = offer.search ?? { kind: offer.productKind, destination: offer.destination };
+  const search = new URLSearchParams({
+    kind: savedSearch.kind ?? offer.productKind,
+    destination: savedSearch.destination,
+    ...(savedSearch.origin ? { origin: savedSearch.origin } : {}),
+    ...(savedSearch.from ? { from: savedSearch.from } : {}),
+    ...(savedSearch.to ? { to: savedSearch.to } : {}),
+    ...(savedSearch.travelers ? { travelers: String(savedSearch.travelers) } : {}),
+  });
   return (
     <article className={styles.offerCard}>
       <div><span>{offerKindLabels[offer.productKind]} · {offer.provider}</span><h3>{offer.destination}</h3><p>{offer.policySummary}</p></div>

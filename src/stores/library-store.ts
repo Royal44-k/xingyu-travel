@@ -5,7 +5,9 @@ import { createStore } from 'zustand/vanilla';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { z } from 'zod';
 import { offerIdentity } from '@/domain/comparison/offer-identity';
+import { comparisonSearchSchema } from '@/domain/comparison/search-schema';
 import { comparisonProductKinds, type ComparisonProductKind, type NormalizedOffer } from '@/domain/comparison/types';
+import type { ComparisonSearchInput } from '@/domain/shared/api';
 
 const libraryStorageKey = 'xingyu-library-demo-v1';
 const libraryStorageVersion = 1;
@@ -23,6 +25,7 @@ export interface FavoriteOfferSnapshot {
   policySummary: string;
   observedAt: string;
   expiresAt: string;
+  search?: ComparisonSearchInput;
   deepLink?: string;
 }
 
@@ -37,7 +40,7 @@ export interface LibraryStoreState {
   favoriteOffers: Record<string, FavoriteOfferSnapshot>;
   priceAlerts: Record<string, PriceAlert>;
   togglePostLike: (slug: string) => void;
-  saveOffer: (offer: NormalizedOffer) => void;
+  saveOffer: (offer: NormalizedOffer, search?: ComparisonSearchInput) => void;
   removeOffer: (offerKey: string) => void;
   setPriceAlert: (offerKey: string, enabled: boolean) => void;
   resetLibrary: () => void;
@@ -74,6 +77,7 @@ const favoriteOfferSnapshotSchema = z.object({
   policySummary: z.enum(policySummaries),
   observedAt: isoTimestamp,
   expiresAt: isoTimestamp,
+  search: comparisonSearchSchema.optional(),
   deepLink: z.string().url().optional(),
 }).strict().superRefine((snapshot, context) => {
   const identity = parseOfferIdentity(snapshot.key);
@@ -82,6 +86,10 @@ const favoriteOfferSnapshotSchema = z.object({
   }
   if (Date.parse(snapshot.expiresAt) !== Date.parse(snapshot.observedAt) + validityWindowMilliseconds) {
     context.addIssue({ code: 'custom', path: ['expiresAt'], message: 'invalid offer validity window' });
+  }
+  if (snapshot.search &&
+    (snapshot.search.kind !== snapshot.productKind || snapshot.search.destination !== snapshot.destination)) {
+    context.addIssue({ code: 'custom', path: ['search'], message: 'search context does not match offer' });
   }
 });
 
@@ -154,7 +162,10 @@ function canonicalText(raw: unknown, errorCode: 'LIBRARY_INVALID_OFFER' | 'LIBRA
   throw new Error(errorCode);
 }
 
-function snapshotFromOffer(offer: NormalizedOffer): FavoriteOfferSnapshot {
+function snapshotFromOffer(
+  offer: NormalizedOffer,
+  search?: ComparisonSearchInput,
+): FavoriteOfferSnapshot {
   const provider = canonicalText(offer.provider, 'LIBRARY_INVALID_OFFER');
   const id = canonicalText(offer.id, 'LIBRARY_INVALID_OFFER');
   const destination = canonicalText(offer.destination, 'LIBRARY_INVALID_OFFER');
@@ -164,6 +175,15 @@ function snapshotFromOffer(offer: NormalizedOffer): FavoriteOfferSnapshot {
   if (!comparisonProductKinds.includes(offer.kind as ComparisonProductKind) ||
     !Number.isFinite(offer.totalPrice) || offer.totalPrice < 0 || Number.isNaN(observedAtMilliseconds) ||
     !isoTimestamp.safeParse(observedAt).success) {
+    throw new Error('LIBRARY_INVALID_OFFER');
+  }
+  const parsedSearch = comparisonSearchSchema.safeParse({
+    ...search,
+    kind: search?.kind ?? offer.kind,
+    destination: search?.destination ?? destination,
+  });
+  if (!parsedSearch.success ||
+    parsedSearch.data.kind !== offer.kind || parsedSearch.data.destination !== destination) {
     throw new Error('LIBRARY_INVALID_OFFER');
   }
   const snapshot: FavoriteOfferSnapshot = {
@@ -176,6 +196,7 @@ function snapshotFromOffer(offer: NormalizedOffer): FavoriteOfferSnapshot {
     policySummary: `${offer.refundable ? '可退款' : '不可退款'}｜${offer.baggageIncluded ? '含行李' : '不含行李'}`,
     observedAt,
     expiresAt: new Date(observedAtMilliseconds + validityWindowMilliseconds).toISOString(),
+    search: parsedSearch.data,
   };
   if (!favoriteOfferSnapshotSchema.safeParse(snapshot).success) throw new Error('LIBRARY_INVALID_OFFER');
   return snapshot;
@@ -201,8 +222,8 @@ function stateCreator(
       if (state.likedPostSlugs.length >= maxLikedPostSlugs) throw new Error('LIBRARY_LIKED_POST_LIMIT');
       return { likedPostSlugs: [...state.likedPostSlugs, slug] };
     }),
-    saveOffer: (offer) => set((state) => {
-      const snapshot = snapshotFromOffer(offer);
+    saveOffer: (offer, search) => set((state) => {
+      const snapshot = snapshotFromOffer(offer, search);
       if (!state.favoriteOffers[snapshot.key] && Object.keys(state.favoriteOffers).length >= maxFavoriteOffers) {
         throw new Error('LIBRARY_FAVORITE_OFFER_LIMIT');
       }

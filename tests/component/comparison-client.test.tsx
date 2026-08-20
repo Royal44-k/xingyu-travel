@@ -190,6 +190,7 @@ describe('ComparisonClient incremental results', () => {
     const favorite = screen.getByRole('button', { name: '收藏 云程旅行 报价' });
     await user.click(favorite);
     expect(favorite).toHaveAttribute('aria-pressed', 'true');
+    expect(useLibraryStore.getState().favoriteOffers[offerIdentity(offers[0])].search).toEqual(initialSearch);
 
     await user.click(screen.getByRole('switch', { name: '降价提醒' }));
     expect(screen.getByRole('switch', { name: '降价提醒' })).toHaveAttribute('aria-checked', 'true');

@@ -123,6 +123,9 @@ test.describe('local closed loop', () => {
     expect(Object.fromEntries(reSearchUrl.searchParams)).toEqual({
       kind: 'flight',
       destination: '大理',
+      from: '2026-09-18',
+      to: '2026-09-22',
+      travelers: '3',
     });
 
     const reSearchedOffer = page.getByTestId('offer-row').filter({
