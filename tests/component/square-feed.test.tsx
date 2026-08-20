@@ -1,6 +1,7 @@
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { posts } from '@/data/posts';
 import { FeedControls } from '@/features/square/feed-controls';
 import SquarePage from '@/app/square/page';
 import { useProfileStore, useProfileStoreHydration } from '@/stores/profile-store';
@@ -45,10 +46,18 @@ describe('FeedControls', () => {
     expect(screen.queryByRole('heading', { name: /贵州 6 日/ })).not.toBeInTheDocument();
   });
 
-  it('omits a seven-day maximum that cannot narrow the six-day guide catalog', () => {
+  it('offers only numeric maximum-day thresholds that exclude at least one current guide', () => {
     render(<SquarePage />);
 
-    expect(screen.queryByRole('option', { name: '7 天以内' })).not.toBeInTheDocument();
+    const options = screen.getByRole('combobox', { name: '最多天数' }).querySelectorAll('option');
+    const thresholds = Array.from(options)
+      .filter((option) => option.value !== '')
+      .map((option) => Number(option.value));
+
+    expect(thresholds).toEqual([3, 4, 5]);
+    for (const threshold of thresholds) {
+      expect(posts.some((post) => post.days > threshold)).toBe(true);
+    }
   });
 
   it('clears only session filters while preserving chronological mode and interests', async () => {

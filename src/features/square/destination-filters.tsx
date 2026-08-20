@@ -67,7 +67,7 @@ export function DestinationFilters({
           value={values.maxDays ?? ''}
         >
           <option value="">不限天数</option>
-          {[3, 4, 5, 6].map((days) => (
+          {[3, 4, 5].map((days) => (
             <option key={days} value={days}>{days} 天以内</option>
           ))}
         </select>
