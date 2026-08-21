@@ -119,3 +119,14 @@ This section supersedes the deployment identifiers above while preserving the ea
 - Second-round same-input Design QA: `artifacts/final-fixes-round2-2026-08-21/comparison-affected-surfaces.png` plus three readable affected-state captures; manifest result `passed`, with zero runtime errors or warnings and no actionable P0/P1/P2.
 - `design-qa.md` remains `final result: passed`.
 - Rejected Preview `dpl_GCX5hMKpL2fByCRkwf9ttr6rcPQ9` was never promoted. Its fresh-context verifier proved that TripStore quota compensation restored PartnerStore memory but changed raw persistence from absent (`null`) to an empty envelope. The exact RED was added locally, fixed in `6d10ef2`, and the full local gates above were rerun before creating a replacement Preview.
+
+### Second final-review release result
+
+- Exact deployed source and evidence commit: `a4cd194632577d03414c963fa26eb427dbfd73b7`; the replacement Preview was created from a clean worktree after all fresh local gates passed.
+- Protected Preview: `dpl_F8z6cvXmsEEMZ85qfHAz1EudNtXq`, `https://xingyu-travel-abvgvmar8-lirongouyang522-3492s-projects.vercel.app`, READY. `preview-round2-final-verification.json` passed 9/9 routes, 2/2 image assets, 8/8 affected flows, and 4/4 browser-local closed loops with zero runtime errors or warnings. An unauthenticated fresh Chrome context reached Vercel SSO as required.
+- Exact-artifact promotion created Production `dpl_E9kpA1gNdjX54Zzu8YheTmTynteT`, `https://xingyu-travel-dvjn1hjjq-lirongouyang522-3492s-projects.vercel.app`, READY. No Production rebuild or divergent source deployment was used.
+- Public Production: `https://xingyu-travel.vercel.app`. `production-round2-final-verification.json` repeated the complete Preview matrix without credentials or bypass headers and passed with zero console errors, console warnings, page errors, or HTTP responses >=400.
+- The bounded one-hour Production error-log query returned no error-level entry. Security headers passed: `nosniff`, strict-origin referrer policy, camera/microphone/geolocation denial, and `SAMEORIGIN` framing.
+- Preview-only SSO remained unchanged. The verifier read the pre-existing official Automation Bypass through a read-only lookup and created no new bypass credential or entry.
+- Previous known-good Production: `dpl_JCoM3n81ch8oogaaj85KKLonKaZj` / `https://xingyu-travel-nqssihr6y-lirongouyang522-3492s-projects.vercel.app`, READY.
+- Prepared rollback command: `pnpm dlx vercel@59.1.4 rollback https://xingyu-travel-nqssihr6y-lirongouyang522-3492s-projects.vercel.app --scope lirongouyang522-3492s-projects`; recorded only, not executed.

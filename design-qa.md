@@ -81,9 +81,9 @@ No actionable P0, P1, or P2 finding remains in the valid route-ready comparison.
 
 ## Remote release evidence
 
-- Protected Preview `dpl_AXdEaEHnUubPbBJXbC1x8DRGBXNW` passed `preview-final-verification.json`: 9/9 routes, 2/2 assets, 5/5 affected flows, and 4/4 closed loops; zero runtime errors or warnings. A fresh unauthenticated Chrome context still reached Vercel login.
-- The exact candidate artifact was promoted to public Production `dpl_JCoM3n81ch8oogaaj85KKLonKaZj`. `production-final-verification.json` repeated the same matrix through `https://xingyu-travel.vercel.app` in a fresh context without credentials or bypass headers and passed with zero runtime errors or warnings.
-- The bounded one-hour Production error-log query returned no entry. Security headers remained `nosniff`, strict-origin referrer policy, camera/microphone/geolocation denial, and `SAMEORIGIN` framing.
+- Protected Preview `dpl_F8z6cvXmsEEMZ85qfHAz1EudNtXq`, from exact clean commit `a4cd194632577d03414c963fa26eb427dbfd73b7`, passed `preview-round2-final-verification.json`: 9/9 routes, 2/2 assets, 8/8 affected flows, and 4/4 closed loops; zero runtime errors or warnings. A fresh unauthenticated Chrome context still reached Vercel login. The verifier only read the existing official Automation Bypass in process memory and created no bypass entry.
+- The exact verified artifact was promoted to public Production `dpl_E9kpA1gNdjX54Zzu8YheTmTynteT`. `production-round2-final-verification.json` repeated the same matrix through `https://xingyu-travel.vercel.app` in a fresh Chrome context without credentials or bypass headers and passed with zero runtime errors, warnings, page errors, or HTTP responses >=400.
+- The bounded one-hour Production error-log query returned no entry. Security headers remained `nosniff`, strict-origin referrer policy, camera/microphone/geolocation denial, and `SAMEORIGIN` framing. Preview-only SSO was not changed.
 
 ## Implementation checklist
 
