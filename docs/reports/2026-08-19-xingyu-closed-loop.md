@@ -130,3 +130,16 @@ This section supersedes the deployment identifiers above while preserving the ea
 - Preview-only SSO remained unchanged. The verifier read the pre-existing official Automation Bypass through a read-only lookup and created no new bypass credential or entry.
 - Previous known-good Production: `dpl_JCoM3n81ch8oogaaj85KKLonKaZj` / `https://xingyu-travel-nqssihr6y-lirongouyang522-3492s-projects.vercel.app`, READY.
 - Prepared rollback command: `pnpm dlx vercel@59.1.4 rollback https://xingyu-travel-nqssihr6y-lirongouyang522-3492s-projects.vercel.app --scope lirongouyang522-3492s-projects`; recorded only, not executed.
+
+## Third final-review candidate — 2026-08-21
+
+- Production fix commit: `f4ef6f0`. PartnerStore now owns the exact raw persistence snapshot and returns an idempotent rollback handle after a durable intent write. The rollback restores owner memory without semantic reserialization and then restores the original null or non-null bytes verbatim. TripWorkbench only invokes that handle and no longer reads `localStorage`, the PartnerStore storage key, or a semantic restore action.
+- Exact RED: the focused 2-file/67-test run produced two expected failures. The component regression received canonical compact state-first JSON instead of the intentionally formatted valid v2 bytes, and the unit owner-transaction regression received no rollback handle.
+- Focused GREEN: 2/2 files and 67/67 tests passed in 22.43 seconds. Coverage includes a valid distinctive non-null v2 envelope, a forced second TripStore quota failure, byte- and memory-exact rollback, successful owner reload, absent bytes remaining absent, owner first-write failure, and the normal publish/reload path.
+- `pnpm lint`: exit 0.
+- `pnpm typecheck`: exit 0.
+- `pnpm test --maxWorkers=1`: 42/42 files, 359/359 tests, 492.93 seconds.
+- `pnpm test:e2e`: 31/31 passed in 1.1 minutes using local Google Chrome; the task-owned server stopped and port 4173 was free.
+- `pnpm build`: exit 0; Next.js 16.2.12; compile 6.1 seconds, TypeScript 18.2 seconds, and 14/14 static pages generated in 938 ms.
+- Visible UI, copy, interaction state, styles, and responsive behavior are unchanged. The previously passed workbench second-write-error comparison remains accurate; `design-qa.md` records why a visually identical recapture was not repeated and still ends `final result: passed`.
+- The exact-byte distinction cannot be produced through ordinary visible UI because normal user writes intentionally serialize canonical valid JSON. Unit and real-component tests cover byte identity; Preview and Production verification will repeat the visible second-write failure, semantic state, route, closed-loop, security, and runtime contracts.

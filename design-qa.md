@@ -78,6 +78,7 @@ No actionable P0, P1, or P2 finding remains in the valid route-ready comparison.
 6. The second-round capture initially matched Next.js's empty route announcer in addition to the product alert; the locator was narrowed to visible product copy. A deliberate HTTP 503 also produced expected browser console noise, so the harness switched to an application-shaped error payload with HTTP 200. These were evidence-harness defects only. The clean rerun recorded three captures with zero runtime errors or warnings.
 7. `artifacts/final-fixes-round2-2026-08-21/comparison-affected-surfaces.png` and all three readable captures were opened and inspected. No actionable P0/P1/P2 visual finding remained.
 8. The first second-round Preview verifier found a fresh-browser persistence-only defect: compensation changed absent PartnerStore bytes into an empty envelope. `6d10ef2` restores the absent state exactly. The visible workbench failure state and copy are unchanged, so the already-inspected `workbench-second-write-error.png` remains the accurate UI evidence and no redundant recapture was required.
+9. The third-round fix moves the exact persistence snapshot and rollback behind the PartnerStore owner API. TripWorkbench no longer reads a storage key or `localStorage`; its rendered branches, error copy, controls, layout, and styles are unchanged. The existing `workbench-second-write-error.png` therefore remains source-faithful evidence, and another visually identical recapture would add no Design QA signal.
 
 ## Remote release evidence
 
