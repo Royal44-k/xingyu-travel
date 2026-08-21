@@ -37,21 +37,24 @@ function getAuthToken() {
 }
 
 async function getBypassSecret() {
+  const projectId = 'prj_IeyWF8pZrE35C9Sp6eJWHcFpIiCl';
+  const teamId = 'team_GXUbEGjD0inFlQqufnaKsSVQ';
   const response = await fetch(
-    'https://api.vercel.com/v1/projects/prj_IeyWF8pZrE35C9Sp6eJWHcFpIiCl/protection-bypass?teamId=team_GXUbEGjD0inFlQqufnaKsSVQ',
-    {
-      method: 'PATCH',
-      headers: { authorization: `Bearer ${getAuthToken()}`, 'content-type': 'application/json' },
-      body: '{}',
-    },
+    `https://api.vercel.com/v9/projects/${projectId}?teamId=${teamId}`,
+    { headers: { authorization: `Bearer ${getAuthToken()}` } },
   );
-  assert(response.ok, `Vercel bypass API returned ${response.status}`);
+  assert(response.ok, `Vercel project API returned ${response.status}`);
   const payload = await response.json();
-  const bypass = Object.keys(payload.protectionBypass ?? {}).find(
-    (candidate) => payload.protectionBypass[candidate]?.scope === 'automation-bypass',
+  const existingBypass = payload.protectionBypass;
+  assert(existingBypass && typeof existingBypass === 'object', 'No existing protection bypass map returned');
+  const existingSecret = Object.keys(existingBypass).find(
+    (candidate) => existingBypass[candidate]?.scope === 'automation-bypass'
+      && existingBypass[candidate]?.isEnvVar === true,
+  ) ?? Object.keys(existingBypass).find(
+    (candidate) => existingBypass[candidate]?.scope === 'automation-bypass',
   );
-  assert(bypass, 'No automation bypass token returned');
-  return bypass;
+  assert(existingSecret, 'No existing automation bypass token returned');
+  return existingSecret;
 }
 
 function monitor(page, label) {

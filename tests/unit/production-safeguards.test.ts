@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { GET } from '@/app/api/v1/health/route';
 import manifest from '@/app/manifest';
@@ -30,5 +32,16 @@ describe('production safeguards', () => {
       expect.stringMatching(/\/guardian\//),
     ]));
     expect(appManifest).toMatchObject({ name: '行屿 XINGYU', display: 'standalone' });
+  });
+
+  it('keeps the historical preview diagnostic read-only for Automation Bypass', () => {
+    const diagnostic = readFileSync(join(
+      process.cwd(),
+      'artifacts/design-qa-2026-08-19/diagnose-preview-trip-hydration.mjs',
+    ), 'utf8');
+
+    expect(diagnostic).toContain('/v9/projects/');
+    expect(diagnostic).not.toContain('/protection-bypass');
+    expect(diagnostic).not.toMatch(/method:\s*['"]PATCH['"]/);
   });
 });
