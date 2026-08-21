@@ -183,3 +183,20 @@ This section supersedes the deployment identifiers above while preserving the ea
 - The bounded one-hour Production error-level log scan returned no entry.
 - Previous known-good Production: `dpl_8Cr2HkEChsnCn1Mn6mkaBn7xQYWp` / `https://xingyu-travel-fs9wgz522-lirongouyang522-3492s-projects.vercel.app`, READY.
 - Prepared rollback command: `pnpm dlx vercel@59.1.4 rollback https://xingyu-travel-fs9wgz522-lirongouyang522-3492s-projects.vercel.app --scope lirongouyang522-3492s-projects`; recorded only, not executed.
+
+## Second annotated homepage correction — 2026-08-21
+
+- User evidence: the supplied Chrome screenshot shows the white flight planner covering the second description line, while `大理—丽江 / 下一站` sits over the bright right-side sun and is difficult to read. The requested order is complete description → left-aligned route → planner.
+- Root cause: Hero copy, route, and planner were three independently absolutely positioned siblings. At the supplied wide aspect ratio the fluid heading became taller, but the fixed planner position did not move with it.
+- Objective pre-fix evidence from the public page at 2280 × 858 CSS pixels: description bottom 549.078 px, planner top 517 px, therefore -32.078 px overlap; route x 1926 px versus description x 112 px, an 1814 px alignment delta.
+- Exact RED: the new local-Chrome regression required the route to sit at least 24 px below the complete description, the planner at least 24 px below the route, matching left alignment within 1 px, at least 96 px total description-to-planner clearance, and Hero containment. The old layout failed before implementation.
+- Fix: the existing Hero now uses a natural vertical flex flow. Copy, route, and planner remain the same content and components; only their layout ownership changes. The route is placed 32 px below the description on the dark left field, and the planner is placed 32 px below the route. Responsive breakpoints keep their existing widths while using the same flow.
+- Focused GREEN: wide-desktop Hero regression passed 1/1. Responsive GREEN: 13/13 passed after the readiness helper was shared with the existing compact-desktop contract so Motion entrance transforms cannot be mistaken for final geometry.
+- Local fixed metrics at 2280 × 858: description-to-route 32 px, route-to-planner 32 px, description-to-planner 104 px, left-alignment delta 0 px, planner contained in Hero, and zero runtime issues. Evidence: `artifacts/hero-layout-fix-2026-08-21/wide-after-local.json` and `wide-after-local.png`.
+- Design QA: `wide-comparison-board.png` and `wide-focused-comparison.png` were opened and inspected. The source screenshot is 2280 × 858 physical pixels but does not expose its CSS viewport density/zoom; the boards therefore evidence semantic order and contrast, while DOM bounds provide the exact geometry contract. No actionable P0/P1/P2 remained.
+- `pnpm lint`: exit 0.
+- `pnpm typecheck`: exit 0 after the sandbox-only `tsconfig.tsbuildinfo` EPERM was retried with permitted project-cache access.
+- `pnpm test --maxWorkers=1 --reporter=dot`: 42/42 files and 359/359 tests passed in 420.34 seconds.
+- `pnpm test:e2e`: 33/33 passed in 1.0 minute using local Google Chrome, including the new wide Hero and existing compact Hero contracts.
+- `pnpm build`: exit 0 after the sandbox-only `.next/trace-build` EPERM was retried with permitted project-cache access; Next.js 16.2.12 compiled in 7.0 seconds, TypeScript finished in 12.3 seconds, and 14/14 static pages were generated in 494 ms.
+- Release identifiers remain pending until this exact committed candidate passes protected Preview verification and that same artifact is promoted to public Production.

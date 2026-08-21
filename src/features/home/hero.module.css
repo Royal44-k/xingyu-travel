@@ -1,6 +1,10 @@
 .hero {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
   min-height: 768px;
+  padding: 136px 0 60px;
   overflow: hidden;
   color: var(--ivory);
   background: #171a18;
@@ -27,11 +31,10 @@
 }
 
 .copy {
-  position: absolute;
+  position: relative;
   z-index: 2;
-  top: 136px;
-  left: clamp(24px, 7.5vw, 112px);
   width: min(710px, 60vw);
+  margin-left: clamp(24px, 7.5vw, 112px);
 }
 
 .eyebrow {
@@ -61,14 +64,13 @@
 }
 
 .route {
-  position: absolute;
+  position: relative;
   z-index: 2;
-  top: 285px;
-  right: clamp(28px, 7vw, 104px);
   display: flex;
   align-items: center;
   gap: 10px;
   width: min(250px, 23vw);
+  margin: 32px 0 0 clamp(24px, 7.5vw, 112px);
   color: rgb(244 240 232 / 72%);
   font-size: 12px;
   letter-spacing: 0.08em;
@@ -90,14 +92,12 @@
 }
 
 .searchArea {
-  position: absolute;
+  position: relative;
   z-index: 3;
-  right: 0;
-  bottom: 60px;
-  left: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
+  margin-top: 32px;
 }
 
 .trustLine {
@@ -119,15 +119,14 @@
 @media (max-width: 900px) {
   .hero {
     min-height: 980px;
+    padding-top: 160px;
   }
 
   .copy {
-    top: 160px;
     width: min(760px, calc(100% - 48px));
   }
 
   .route {
-    top: 390px;
     width: 230px;
   }
 }
@@ -135,6 +134,8 @@
 @media (max-width: 720px) {
   .hero {
     min-height: 1120px;
+    padding-top: 184px;
+    padding-bottom: 28px;
   }
 
   .imageLayer {
@@ -155,8 +156,7 @@
   }
 
   .copy {
-    top: 184px;
-    left: 24px;
+    margin-left: 24px;
   }
 
   .eyebrow {
@@ -174,31 +174,23 @@
   }
 
   .route {
-    top: 430px;
-    right: 24px;
     width: 210px;
+    margin-left: 24px;
   }
 
   .searchArea {
-    bottom: 28px;
+    margin-top: 32px;
   }
 }
 
 @media (max-width: 450px) {
   .hero {
     min-height: 1180px;
-  }
-
-  .copy {
-    top: 178px;
+    padding-top: 178px;
   }
 
   .copy h1 {
     font-size: 34px;
-  }
-
-  .route {
-    top: 438px;
   }
 
   .trustLine {

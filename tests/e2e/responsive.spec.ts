@@ -48,6 +48,16 @@ async function waitForResponsiveReady(page: Page, routeReady: () => Promise<void
   await expect(menu).toHaveAttribute('aria-expanded', 'false');
 }
 
+async function waitForHeroCopySettled(page: Page) {
+  await page.waitForFunction(() => {
+    const copy = document.getElementById('hero-title')?.parentElement;
+    if (!copy) return false;
+    const style = getComputedStyle(copy);
+    return style.opacity === '1'
+      && (style.transform === 'none' || style.transform === 'matrix(1, 0, 0, 1, 0, 0)');
+  });
+}
+
 async function expectNoHorizontalOverflow(page: Page) {
   const width = await page.evaluate(() => ({
     body: document.body.scrollWidth,
@@ -194,6 +204,7 @@ test.describe('compact desktop hero layout', () => {
   test('keeps the planner clearly below the hero copy', async ({ page }) => {
     await page.goto('/', { waitUntil: 'commit' });
     await page.waitForFunction(() => document.fonts.status === 'loaded');
+    await waitForHeroCopySettled(page);
 
     const [descriptionBox, composerBox, heroBox] = await Promise.all([
       page.getByText('真实比价，严选资源，行程守护', { exact: false }).boundingBox(),
@@ -204,6 +215,33 @@ test.describe('compact desktop hero layout', () => {
     expect(descriptionBox).not.toBeNull();
     expect(composerBox).not.toBeNull();
     expect(heroBox).not.toBeNull();
+    expect(composerBox!.y - (descriptionBox!.y + descriptionBox!.height)).toBeGreaterThanOrEqual(96);
+    expect(composerBox!.y + composerBox!.height).toBeLessThan(heroBox!.y + heroBox!.height);
+  });
+});
+
+test.describe('wide desktop hero narrative flow', () => {
+  test.use({ viewport: { width: 2280, height: 858 } });
+
+  test('places the route below the complete copy and above the planner on the dark left edge', async ({ page }) => {
+    await page.goto('/', { waitUntil: 'commit' });
+    await page.waitForFunction(() => document.fonts.status === 'loaded');
+    await waitForHeroCopySettled(page);
+
+    const [descriptionBox, routeBox, composerBox, heroBox] = await Promise.all([
+      page.getByText('真实比价，严选资源，行程守护', { exact: false }).boundingBox(),
+      page.getByLabel('目的地路径：大理至丽江').boundingBox(),
+      page.locator('form[action="/compare"]').boundingBox(),
+      page.locator('section[aria-labelledby="hero-title"]').boundingBox(),
+    ]);
+
+    expect(descriptionBox).not.toBeNull();
+    expect(routeBox).not.toBeNull();
+    expect(composerBox).not.toBeNull();
+    expect(heroBox).not.toBeNull();
+    expect(routeBox!.y - (descriptionBox!.y + descriptionBox!.height)).toBeGreaterThanOrEqual(24);
+    expect(composerBox!.y - (routeBox!.y + routeBox!.height)).toBeGreaterThanOrEqual(24);
+    expect(Math.abs(routeBox!.x - descriptionBox!.x)).toBeLessThanOrEqual(1);
     expect(composerBox!.y - (descriptionBox!.y + descriptionBox!.height)).toBeGreaterThanOrEqual(96);
     expect(composerBox!.y + composerBox!.height).toBeLessThan(heroBox!.y + heroBox!.height);
   });
