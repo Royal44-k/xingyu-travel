@@ -230,4 +230,18 @@ This section supersedes the deployment identifiers above while preserving the ea
 - `pnpm test --maxWorkers=1 --reporter=dot`: 42/42 files and 361/361 tests passed in 666.50 seconds.
 - `pnpm test:e2e`: 34/34 passed in 1.7 minutes using local Google Chrome.
 - `pnpm build`: exit 0 after the sandbox-only `.next/trace-build` EPERM was retried with permitted project-cache access; Next.js 16.2.12 compiled in 6.4 seconds, TypeScript finished in 22.1 seconds, and 17/17 static pages/assets were generated.
-- Release identifiers remain pending until this exact committed candidate passes protected Preview verification and the same artifact is promoted to Production.
+- Release identifiers and exact-artifact promotion evidence are recorded immediately below.
+
+### Dedicated browser icon release result
+
+- Exact deployed source commit: `13d3f243d28c02168482ebc01240e4385cd1fd95`.
+- Protected Preview: `dpl_Ckz5XWR8VZurz94bMw2dQWjhMw3B`, `https://xingyu-travel-i6b25k20j-lirongouyang522-3492s-projects.vercel.app`, READY. Fresh unauthenticated Chrome still reached Vercel SSO.
+- Preview full matrix: `artifacts/design-qa-2026-08-19/preview-brand-icon-verification.json` passed 9/9 routes, 2/2 representative travel assets, 8/8 affected flows, and 4/4 closed loops with zero runtime errors or warnings.
+- Preview focused evidence: `artifacts/brand-icon-2026-08-21/preview-brand-icon-focused.json` confirmed the HTML published only the new favicon/icon links; `/favicon.ico`, `/icon.png`, `/apple-icon.png`, `/icon-192.png`, and `/icon-512.png` all returned 200 with the expected formats and dimensions; manifest icons matched the 192/512 declarations; zero runtime issues.
+- Exact-artifact promotion created Production `dpl_G15kfgFe28YqSxScLcqC67HwVNT8`, `https://xingyu-travel-3cd1mmql3-lirongouyang522-3492s-projects.vercel.app`, READY. `https://xingyu-travel.vercel.app` resolves to this deployment.
+- Public full matrix: `artifacts/design-qa-2026-08-19/production-brand-icon-verification.json` repeated the complete matrix without credentials or bypass headers and passed with zero console errors, warnings, page errors, or HTTP responses >=400.
+- Public focused evidence: `artifacts/brand-icon-2026-08-21/production-brand-icon-focused.json` repeated every icon, manifest, MIME, dimension, and old-photo-removal check with zero runtime issues.
+- Preview-only SSO remained unchanged. The final verifier used browser same-origin asset fetches and did not write any bypass value to files; Production was verified without credentials or bypass headers.
+- The bounded one-hour Production error-level log scan returned no entry.
+- Previous known-good Production: `dpl_5fKKMYN7AHXD5dygYWonN17E6xho` / `https://xingyu-travel-gyyviiegl-lirongouyang522-3492s-projects.vercel.app`, READY.
+- Prepared rollback command: `pnpm dlx vercel@59.1.4 rollback https://xingyu-travel-gyyviiegl-lirongouyang522-3492s-projects.vercel.app --scope lirongouyang522-3492s-projects`; recorded only, not executed.
