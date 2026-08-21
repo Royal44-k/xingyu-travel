@@ -4,6 +4,12 @@
 .hero h1 { max-width: 680px; margin: 0; font-family: var(--font-display); font-size: clamp(38px, 5vw, 64px); font-weight: 500; line-height: 1.12; }
 .hero > span { display: block; max-width: 650px; margin-top: 22px; color: rgb(244 240 232 / 74%); line-height: 1.75; }
 .askPanel { margin-top: 26px; padding: 25px; background: #e8e1d5; border: 1px solid #d1c7b9; }
+.contextCard { display: grid; gap: 10px; margin-bottom: 20px; padding: 15px 17px; color: #4f493f; background: #fffdf8; border-left: 3px solid var(--sand); }
+.contextCard > p, .contextCard div { margin: 0; }
+.contextCard div { display: grid; gap: 3px; }
+.contextCard span { color: #6b645b; font-size: 13px; line-height: 1.55; }
+.contextCard nav { display: flex; flex-wrap: wrap; gap: 14px; }
+.contextCard a { color: #385c4c; font-size: 13px; font-weight: 700; text-underline-offset: 3px; }
 .quickQuestions { display: flex; flex-wrap: wrap; gap: 9px; margin-bottom: 22px; }
 .quickQuestions button, .planCard button { min-height: 38px; padding: 8px 12px; color: #443d33; background: transparent; border: 1px solid #b9ad9c; border-radius: 6px; cursor: pointer; }
 .askPanel label { display: block; margin-bottom: 8px; font-size: 12px; font-weight: 700; }
@@ -28,6 +34,8 @@
 .planCard dt { color: #746b60; }.planCard dd { margin: 0; text-align: right; }
 .planCard ul { min-height: 64px; margin: 16px 0; padding-left: 17px; color: #5f5850; font-size: 12px; line-height: 1.65; }
 .planCard button { width: 100%; color: var(--ivory); border-color: var(--pine); background: var(--pine); }
+.planReadOnly { margin: 0; color: #6b645b; font-size: 12px; text-align: center; }
+.adviceOnly { margin: 17px 0 0; color: #6b645b; font-size: 13px; }
 .localStatus { margin: 17px 0 0; color: #41634e; font-size: 13px; }
 .page :is(button, input):focus-visible { outline: 3px solid var(--sand); outline-offset: 3px; }
 @media (max-width: 760px) { .page { width: min(100% - 24px, var(--content-max)); padding-top: 102px; }.hero { padding: 36px 24px; }.askPanel form > div { flex-direction: column; }.askPanel form button { justify-content: center; }.plans { grid-template-columns: 1fr; }.result { padding: 22px 18px; } }

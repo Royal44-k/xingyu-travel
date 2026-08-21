@@ -1,9 +1,14 @@
 'use client';
 
 import { PaperPlaneTilt, ShieldWarning, Sparkle } from '@phosphor-icons/react';
-import { useRef, useState } from 'react';
+import Link from 'next/link';
+import { useEffect, useRef, useState } from 'react';
 import type { AssistantAlternative, AssistantResponse } from '@/domain/assistant/schema';
-import { useTripStore } from '@/stores/trip-store';
+import {
+  hydrateWorkbenchTripStore,
+  useTripStore,
+  useTripStoreHydration,
+} from '@/stores/trip-store';
 import { AlternativePlan } from './alternative-plan';
 import { createLatestRequestGate } from './request-sequence';
 import styles from './assistant.module.css';
@@ -36,21 +41,41 @@ async function requestFromApi(request: AssistantRequest): Promise<AssistantRespo
   return payload;
 }
 
-export function AssistantClient({ tripId = 'dali-slow-5d', requestAssistant = requestFromApi }: AssistantClientProps) {
+export function AssistantClient({ tripId, requestAssistant = requestFromApi }: AssistantClientProps) {
   const [question, setQuestion] = useState('');
   const [result, setResult] = useState<AssistantResponse>();
   const [error, setError] = useState<string>();
   const [loading, setLoading] = useState(false);
+  const [selectedPlanId, setSelectedPlanId] = useState<string>();
+  const [selectionError, setSelectionError] = useState<string>();
   const requestGate = useRef(createLatestRequestGate());
+  const hydrated = useTripStoreHydration((state) => state.hydrated);
+  const hydrationError = useTripStoreHydration((state) => state.hydrationError);
+  const contextTrip = useTripStore((state) => {
+    if (!tripId) return undefined;
+    return state.trips[tripId] ?? Object.values(state.trips).find(
+      (trip) => trip.sourcePostSlug === tripId,
+    );
+  });
   const selectGuardianPlan = useTripStore((state) => state.selectGuardianPlan);
+  const canPersistSelection = hydrated && !hydrationError && Boolean(contextTrip);
+
+  useEffect(() => {
+    void hydrateWorkbenchTripStore();
+  }, []);
 
   const ask = async (nextQuestion: string) => {
     if (!nextQuestion.trim() || loading) return;
     const request = requestGate.current.start();
     setLoading(true);
     setError(undefined);
+    setSelectedPlanId(undefined);
+    setSelectionError(undefined);
     try {
-      const response = await requestAssistant({ tripId, question: nextQuestion });
+      const response = await requestAssistant({
+        tripId: contextTrip?.id ?? 'general-travel-advice',
+        question: nextQuestion,
+      });
       if (requestGate.current.isLatest(request)) setResult(response);
     } catch (caught) {
       if (requestGate.current.isLatest(request)) {
@@ -62,7 +87,15 @@ export function AssistantClient({ tripId = 'dali-slow-5d', requestAssistant = re
   };
 
   const selectPlan = (alternative: AssistantAlternative) => {
-    selectGuardianPlan(tripId, { id: alternative.id, title: alternative.title });
+    if (!canPersistSelection || !contextTrip) return;
+    try {
+      selectGuardianPlan(contextTrip.id, { id: alternative.id, title: alternative.title });
+      setSelectedPlanId(alternative.id);
+      setSelectionError(undefined);
+    } catch {
+      setSelectedPlanId(undefined);
+      setSelectionError('关联行程已不存在，方案未保存。你仍可直接参考本次建议。');
+    }
   };
 
   return (
@@ -74,16 +107,49 @@ export function AssistantClient({ tripId = 'dali-slow-5d', requestAssistant = re
       </section>
 
       <section className={styles.askPanel} aria-label="咨询旅行助手">
+        <div className={styles.contextCard}>
+          {!hydrated ? <p role="status">正在读取本地行程上下文…</p> : null}
+          {hydrated && hydrationError ? (
+            <div role="alert">
+              <strong>本地行程无法安全读取</strong>
+              <span>原数据未被覆盖；建议仍可查看，但不会保存到行程。</span>
+            </div>
+          ) : null}
+          {hydrated && !hydrationError && contextTrip ? (
+            <div>
+              <strong>已关联本地行程</strong>
+              <span>{contextTrip.title} · {contextTrip.destination}</span>
+            </div>
+          ) : null}
+          {hydrated && !hydrationError && tripId && !contextTrip ? (
+            <div role="status">
+              <strong>未找到要关联的本地行程</strong>
+              <span>本次按通用旅行问题回答，建议不会保存。</span>
+            </div>
+          ) : null}
+          {hydrated && !hydrationError && !tripId ? (
+            <div>
+              <strong>当前为通用旅行咨询</strong>
+              <span>可直接使用建议，不会自动写入任何行程。</span>
+            </div>
+          ) : null}
+          {hydrated && !canPersistSelection ? (
+            <nav aria-label="建立行程上下文">
+              <Link href="/square">从攻略创建行程</Link>
+              <Link href="/trips">查看我的行程</Link>
+            </nav>
+          ) : null}
+        </div>
         <div className={styles.quickQuestions} aria-label="快捷问题">
           {quickQuestions.map((item) => (
-            <button disabled={loading} key={item.label} onClick={() => void ask(item.question)} type="button">{item.label}</button>
+            <button disabled={loading || !hydrated} key={item.label} onClick={() => void ask(item.question)} type="button">{item.label}</button>
           ))}
         </div>
         <form onSubmit={(event) => { event.preventDefault(); void ask(question); }}>
           <label htmlFor="assistant-question">你的问题</label>
           <div>
-            <input id="assistant-question" onChange={(event) => setQuestion(event.target.value)} placeholder="例如：下雨后如何调整苍山行程？" value={question} />
-            <button disabled={loading || !question.trim()} type="submit"><PaperPlaneTilt aria-hidden size={18} />{loading ? '整理中…' : '获取建议'}</button>
+            <input id="assistant-question" onChange={(event) => setQuestion(event.target.value)} placeholder="例如：下雨后如何调整今天的户外行程？" value={question} />
+            <button disabled={loading || !hydrated || !question.trim()} type="submit"><PaperPlaneTilt aria-hidden size={18} />{loading ? '整理中…' : '获取建议'}</button>
           </div>
         </form>
         {error ? <p className={styles.error} role="alert">{error}</p> : null}
@@ -98,8 +164,18 @@ export function AssistantClient({ tripId = 'dali-slow-5d', requestAssistant = re
           <p className={styles.answer}>{result.answer}</p>
           <p className={styles.freshness}>数据新鲜度：{result.data_freshness}</p>
           <div className={styles.evidence}><strong>证据与时间</strong>{result.evidence.map((item) => <span key={`${item.source}-${item.observed_at}`}>{item.source} · 证据时间：{item.observed_at}</span>)}</div>
-          <div className={styles.plans}>{result.alternatives.map((alternative, index) => <AlternativePlan alternative={alternative} index={index} key={alternative.id} onSelect={selectPlan} />)}</div>
-          <p className={styles.localStatus} role="status">方案已保存到本浏览器的旅行决策，未创建订单</p>
+          <div className={styles.plans}>{result.alternatives.map((alternative, index) => (
+            <AlternativePlan
+              alternative={alternative}
+              index={index}
+              key={alternative.id}
+              onSelect={canPersistSelection ? selectPlan : undefined}
+              selected={selectedPlanId === alternative.id}
+            />
+          ))}</div>
+          {!canPersistSelection ? <p className={styles.adviceOnly}>这些建议不会保存到行程；你可以直接参考并自行决定下一步。</p> : null}
+          {selectionError ? <p className={styles.error} role="alert">{selectionError}</p> : null}
+          {selectedPlanId ? <p className={styles.localStatus} role="status">方案已保存到本浏览器的旅行决策，未创建订单</p> : null}
         </section>
       ) : null}
     </main>

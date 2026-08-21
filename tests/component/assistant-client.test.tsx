@@ -1,10 +1,10 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { AssistantClient } from '@/features/assistant/assistant-client';
 import { postsBySlug } from '@/data/posts';
 import { extractTripDraft } from '@/domain/trips/extract-draft';
-import { useTripStore } from '@/stores/trip-store';
+import { useTripStore, useTripStoreHydration } from '@/stores/trip-store';
 
 const emergencyResponse = {
   risk_level: 'critical' as const,
@@ -22,7 +22,9 @@ const emergencyResponse = {
 };
 
 beforeEach(() => {
+  window.localStorage.clear();
   useTripStore.setState({ trips: {}, partnerIntents: {}, guardianPlans: {} });
+  useTripStoreHydration.setState({ hydrated: false, hydrationError: false });
   useTripStore.getState().acceptDraft(extractTripDraft(postsBySlug['dali-slow-5d']));
 });
 
@@ -42,13 +44,14 @@ describe('AssistantClient', () => {
 
     await user.click(screen.getByRole('button', { name: '人身安全' }));
     expect(await screen.findByText('请立即拨打 110，并按现场官方人员指引行动。')).toBeInTheDocument();
-    expect(requests).toEqual([{ tripId: 'dali-slow-5d', question: '同行者失联且可能有人身危险，我现在应该怎么做？' }]);
+    expect(requests).toEqual([{ tripId: 'draft-dali-slow-5d', question: '同行者失联且可能有人身危险，我现在应该怎么做？' }]);
 
     const result = screen.getByRole('region', { name: '旅行助手回答' });
     expect(result).toHaveTextContent('演示引擎：xingyu-local-demo');
     expect(result).toHaveTextContent('证据时间：2026-08-16T09:00:00+08:00');
     expect(result).toHaveTextContent('110');
     expect(within(result).getAllByRole('article', { name: /方案/ })).toHaveLength(3);
+    expect(screen.queryByText('方案已保存到本浏览器的旅行决策，未创建订单')).not.toBeInTheDocument();
 
     await user.click(within(result).getByRole('button', { name: '选择联系公安机关方案' }));
     expect(screen.getByRole('status')).toHaveTextContent('方案已保存到本浏览器的旅行决策，未创建订单');
@@ -56,6 +59,53 @@ describe('AssistantClient', () => {
       id: 'EMERGENCY-110',
       title: '联系公安机关',
     });
+  });
+
+  it('answers a fresh user without inventing Dali context or offering persistence controls', async () => {
+    const user = userEvent.setup();
+    const requests: Array<{ tripId: string; question: string }> = [];
+    window.localStorage.clear();
+    useTripStore.setState({ trips: {}, partnerIntents: {}, guardianPlans: {} });
+    useTripStoreHydration.setState({ hydrated: false, hydrationError: false });
+
+    render(<AssistantClient requestAssistant={async (request) => {
+      requests.push(request);
+      return emergencyResponse;
+    }} />);
+
+    expect(await screen.findByText('当前为通用旅行咨询')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '人身安全' }));
+    const result = await screen.findByRole('region', { name: '旅行助手回答' });
+
+    expect(requests).toEqual([{
+      tripId: 'general-travel-advice',
+      question: '同行者失联且可能有人身危险，我现在应该怎么做？',
+    }]);
+    expect(within(result).getAllByRole('article', { name: /方案/ })).toHaveLength(3);
+    expect(within(result).queryByRole('button', { name: /选择.+方案/ })).not.toBeInTheDocument();
+    expect(result).toHaveTextContent('这些建议不会保存到行程');
+    expect(screen.getByRole('link', { name: '从攻略创建行程' })).toHaveAttribute('href', '/square');
+    expect(screen.getByRole('link', { name: '查看我的行程' })).toHaveAttribute('href', '/trips');
+    expect(screen.queryByText('方案已保存到本浏览器的旅行决策，未创建订单')).not.toBeInTheDocument();
+  });
+
+  it('fails closed on malformed trip persistence and preserves the original bytes', async () => {
+    const malformedBytes = '{broken-trip-store';
+    window.localStorage.clear();
+    useTripStore.setState({ trips: {}, partnerIntents: {}, guardianPlans: {} });
+    useTripStoreHydration.setState({ hydrated: false, hydrationError: false });
+    window.localStorage.setItem('xingyu-demo-v1', malformedBytes);
+
+    render(<AssistantClient requestAssistant={async () => emergencyResponse} tripId="dali-slow-5d" />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('本地行程无法安全读取');
+    expect(screen.getByText(/建议仍可查看，但不会保存到行程/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: '从攻略创建行程' })).toHaveAttribute('href', '/square');
+    await waitFor(() => expect(useTripStoreHydration.getState()).toEqual({
+      hydrated: true,
+      hydrationError: true,
+    }));
+    expect(window.localStorage.getItem('xingyu-demo-v1')).toBe(malformedBytes);
   });
 
   it('blocks a second shortcut while the current request is pending', async () => {
@@ -70,6 +120,6 @@ describe('AssistantClient', () => {
     expect(screen.getByRole('button', { name: '人身安全' })).toBeDisabled();
     expect(screen.getByRole('button', { name: '整理中…' })).toBeDisabled();
     await user.click(screen.getByRole('button', { name: '人身安全' }));
-    expect(requests).toEqual([{ tripId: 'dali-slow-5d', question: '请为我的行程给出规划建议。' }]);
+    expect(requests).toEqual([{ tripId: 'draft-dali-slow-5d', question: '请为我的行程给出规划建议。' }]);
   });
 });

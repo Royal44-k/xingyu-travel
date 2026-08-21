@@ -4,10 +4,11 @@ import styles from './assistant.module.css';
 interface AlternativePlanProps {
   alternative: AssistantAlternative;
   index: number;
-  onSelect: (alternative: AssistantAlternative) => void;
+  onSelect?: (alternative: AssistantAlternative) => void;
+  selected?: boolean;
 }
 
-export function AlternativePlan({ alternative, index, onSelect }: AlternativePlanProps) {
+export function AlternativePlan({ alternative, index, onSelect, selected = false }: AlternativePlanProps) {
   const label = String.fromCharCode(65 + index);
   return (
     <article aria-label={`方案 Plan ${label}`} className={styles.planCard}>
@@ -19,7 +20,13 @@ export function AlternativePlan({ alternative, index, onSelect }: AlternativePla
         <div><dt>风险</dt><dd>{alternative.risk}</dd></div>
       </dl>
       <ul>{alternative.actions.map((action) => <li key={action}>{action}</li>)}</ul>
-      <button onClick={() => onSelect(alternative)} type="button">选择{alternative.title}方案</button>
+      {onSelect ? (
+        <button
+          aria-pressed={selected}
+          onClick={() => onSelect(alternative)}
+          type="button"
+        >选择{alternative.title}方案</button>
+      ) : <p className={styles.planReadOnly}>仅查看建议</p>}
     </article>
   );
 }
