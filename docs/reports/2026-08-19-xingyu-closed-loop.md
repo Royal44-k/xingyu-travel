@@ -154,3 +154,18 @@ This section supersedes the deployment identifiers above while preserving the ea
 - One first-pass Preview CSS preload timing warning did not reproduce in the unique same-artifact full recheck. One first-pass Production navigation `net::ERR_FAILED` did not reproduce in an instrumented exact-flow diagnostic or the unique same-artifact full recheck. No source or verifier suppression was introduced; only the clean terminal matrices are retained as release evidence.
 - Previous known-good Production: `dpl_E9kpA1gNdjX54Zzu8YheTmTynteT` / `https://xingyu-travel-dvjn1hjjq-lirongouyang522-3492s-projects.vercel.app`, READY.
 - Prepared rollback command: `pnpm dlx vercel@59.1.4 rollback https://xingyu-travel-dvjn1hjjq-lirongouyang522-3492s-projects.vercel.app --scope lirongouyang522-3492s-projects`; recorded only, not executed.
+
+## Annotated homepage layout fix — 2026-08-21
+
+- User evidence: the browser annotation identified that the compact-desktop comparison planner visually crowded the upper-left Hero copy and requested that the planner move downward.
+- Root cause: at widths up to 1050 px the planner changes to a taller two-row layout, while the Hero previously retained the 768 px large-desktop minimum height.
+- Exact RED: the new 1024 × 640 local-Chrome regression measured only 37.96875 px between the rendered copy and planner, below the required 96 px separation, and failed 1/1.
+- Fix: the existing Hero gains a 840 px minimum height only in the compact-desktop `max-width: 1050px` band. Existing mobile breakpoints continue to override it, and typography, imagery, planner controls, and large-desktop geometry are unchanged.
+- Focused GREEN: the compact-desktop regression passed 1/1.
+- Same-input Design QA: `artifacts/hero-layout-fix-2026-08-21/comparison-board.png` combines the public pre-fix page and local implementation at 1024 × 640 CSS pixels, `deviceScaleFactor: 1`, and `scrollY: 192`. The visible copy-to-planner gap increased from 55.96875 px to 127.96875 px; both captures recorded zero runtime issues and the corrected layout introduced no actionable P0/P1/P2 finding.
+- `pnpm lint`: exit 0.
+- `pnpm typecheck`: exit 0.
+- `pnpm test --maxWorkers=1 --reporter=dot`: 42/42 files and 359/359 tests passed in 295.90 seconds.
+- `pnpm test:e2e`: 32/32 passed in 56.4 seconds using local Google Chrome, including the new compact-desktop Hero contract.
+- `pnpm build`: exit 0 after the sandbox-only `.next/trace` EPERM was retried with permitted project-cache access; Next.js 16.2.12 compiled in 4.9 seconds, TypeScript finished in 11.8 seconds, and 14/14 static pages were generated.
+- Production release identifiers and public verification will be appended after an exact committed Preview passes and that same artifact is promoted.

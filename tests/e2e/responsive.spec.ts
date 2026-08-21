@@ -187,3 +187,24 @@ test.describe('desktop design disclosure', () => {
     expect.soft(destinationBox!.y).toBeLessThanOrEqual(1024);
   });
 });
+
+test.describe('compact desktop hero layout', () => {
+  test.use({ viewport: { width: 1024, height: 640 } });
+
+  test('keeps the planner clearly below the hero copy', async ({ page }) => {
+    await page.goto('/', { waitUntil: 'commit' });
+    await page.waitForFunction(() => document.fonts.status === 'loaded');
+
+    const [descriptionBox, composerBox, heroBox] = await Promise.all([
+      page.getByText('真实比价，严选资源，行程守护', { exact: false }).boundingBox(),
+      page.locator('form[action="/compare"]').boundingBox(),
+      page.locator('section[aria-labelledby="hero-title"]').boundingBox(),
+    ]);
+
+    expect(descriptionBox).not.toBeNull();
+    expect(composerBox).not.toBeNull();
+    expect(heroBox).not.toBeNull();
+    expect(composerBox!.y - (descriptionBox!.y + descriptionBox!.height)).toBeGreaterThanOrEqual(96);
+    expect(composerBox!.y + composerBox!.height).toBeLessThan(heroBox!.y + heroBox!.height);
+  });
+});

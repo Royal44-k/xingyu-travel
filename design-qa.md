@@ -64,6 +64,7 @@ No actionable P0, P1, or P2 finding remains in the valid route-ready comparison.
 
 - Local Chrome capture: the original 15 route/state screenshots and the final five affected-state screenshots recorded zero `console.error`, page errors, HTTP responses ≥400, or console warnings in their manifests.
 - Second-round local Chrome capture: all three new affected-state screenshots recorded zero `console.error`, console warnings, page errors, or HTTP responses ≥400. The controlled latest-request failure used an application-shaped 200 error payload so the visual state could be exercised without introducing an intentional browser network error.
+- Annotated Hero-layout capture: `artifacts/hero-layout-fix-2026-08-21/comparison-board.png` compares the public pre-fix page and local fix at the same 1024 × 640 CSS viewport, `deviceScaleFactor: 1`, and `scrollY: 192`. Runtime issues were zero in both captures; the copy-to-planner gap increased from 56.0 px to 128.0 px.
 - Fresh second-round `pnpm test:e2e`: 31/31 passed in 1.2 minutes using local Chrome, including the discovery-city prefill contract, four browser-local closed loops, nine 390 × 844 routes, six Axe scans, keyboard focus, dialogs, and reduced motion. The earlier final-review run remains recorded as 31/31 in 1.4 minutes.
 - Axe: no critical or serious violations on home, square, detail, profile, trips, and compare.
 - Responsive evidence: all four primary captures report `documentWidth === viewportWidth`; the broader E2E route matrix also passed closed/open navigation overflow checks.
@@ -79,6 +80,7 @@ No actionable P0, P1, or P2 finding remains in the valid route-ready comparison.
 7. `artifacts/final-fixes-round2-2026-08-21/comparison-affected-surfaces.png` and all three readable captures were opened and inspected. No actionable P0/P1/P2 visual finding remained.
 8. The first second-round Preview verifier found a fresh-browser persistence-only defect: compensation changed absent PartnerStore bytes into an empty envelope. `6d10ef2` restores the absent state exactly. The visible workbench failure state and copy are unchanged, so the already-inspected `workbench-second-write-error.png` remains the accurate UI evidence and no redundant recapture was required.
 9. The third-round fix moves the exact persistence snapshot and rollback behind the PartnerStore owner API. TripWorkbench no longer reads a storage key or `localStorage`; its rendered branches, error copy, controls, layout, and styles are unchanged. The existing `workbench-second-write-error.png` therefore remains source-faithful evidence, and another visually identical recapture would add no Design QA signal.
+10. Browser annotation review found a P2 spacing issue at the 1024 px compact-desktop breakpoint: the planner became two rows tall while the Hero remained 768 px, leaving the lower copy visually crowded. The regression first measured an insufficient 38 px layout gap. The compact-desktop Hero now grows to 840 px, moving the complete planner downward without changing typography, imagery, controls, or mobile/large-desktop geometry. The normalized same-input board was opened and inspected; the final 128 px visual gap removes the crowding and introduces no new P0/P1/P2 issue.
 
 ## Remote release evidence
 
@@ -94,6 +96,7 @@ No actionable P0, P1, or P2 finding remains in the valid route-ready comparison.
 - [x] Route readiness, fonts, visible images, states, interactions, console, accessibility, and overflow are evidenced.
 - [x] Beijing CTA, assistant no-trip/error/saved, and workbench partner-error states are captured at identical desktop viewport and density with zero runtime errors.
 - [x] Assistant latest-failure/quota-error and workbench second-write-error states are captured at identical desktop viewport and density with zero runtime errors or warnings.
+- [x] The annotated 1024 px Hero spacing issue is reproduced, fixed, recaptured at the same scroll state, and compared in one board with zero runtime issues.
 - [x] Objective deviations are classified as required product constraints or P3 follow-up, not silently ignored.
 - [x] No actionable P0/P1/P2 remains.
 
