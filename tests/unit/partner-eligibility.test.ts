@@ -64,6 +64,38 @@ describe('partner intent and hard filters', () => {
     setItem.mockRestore();
   });
 
+  it('restores an exact owner snapshot without a semantic rollback persistence write', async () => {
+    const previousIntent = { ...defaultPartnerIntent, destination: '杭州', route: '西湖—龙井村' };
+    const previousBytes = `{
+  "version": 2,
+  "state": ${JSON.stringify({
+    blockedCandidateIds: [],
+    visibleMatchIds: [],
+    matches: {},
+    intents: { [eligibleProfile.id]: previousIntent },
+  }, null, 4)}
+}`;
+    window.localStorage.setItem('xingyu-partner-demo-v1', previousBytes);
+    const store = createPartnerStore();
+    await store.persist.rehydrate();
+
+    const rollback = store.getState().publishIntent(eligibleProfile, daliPartnerIntent);
+    expect(typeof rollback).toBe('function');
+    const originalSetItem = window.localStorage.setItem.bind(window.localStorage);
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation((key, value) => {
+      if (key === 'xingyu-partner-demo-v1' && value !== previousBytes) {
+        throw new Error('SEMANTIC_ROLLBACK_PERSISTENCE_BLOCKED');
+      }
+      originalSetItem(key, value);
+    });
+
+    if (typeof rollback === 'function') rollback();
+
+    expect(store.getState().intents[eligibleProfile.id]).toEqual(previousIntent);
+    expect(window.localStorage.getItem('xingyu-partner-demo-v1')).toBe(previousBytes);
+    setItem.mockRestore();
+  });
+
   it('requires every intent field and a valid date, budget, interest, and capacity', () => {
     expect(validatePartnerIntent({
       ...defaultPartnerIntent,

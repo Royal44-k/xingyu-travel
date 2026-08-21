@@ -18,7 +18,6 @@ import { postHrefForSlug } from '@/data/posts';
 import { tripToPartnerIntent } from '@/features/partners/trip-to-partner-intent';
 import {
   hydratePartnerStore,
-  partnerStoreStorageKey,
   usePartnerStore,
   usePartnerStoreHydration,
 } from '@/stores/partner-store';
@@ -30,7 +29,6 @@ export function TripWorkbench({ slug }: { slug: string }) {
   const partnerHydrationError = usePartnerStoreHydration((state) => state.hydrationError);
   const partnerIntent = usePartnerStore((state) => state.intents[demoViewerProfile.id]);
   const publishPartnerMatchIntent = usePartnerStore((state) => state.publishIntent);
-  const restorePartnerMatchIntent = usePartnerStore((state) => state.restoreIntent);
   const tripId = useTripStore((state) =>
     Object.keys(state.trips).find((id) => state.trips[id].sourcePostSlug === slug),
   );
@@ -76,24 +74,20 @@ export function TripWorkbench({ slug }: { slug: string }) {
   const publishPartnerIntentSafely = () => {
     if (!partnerPublishingAvailable) return;
     setPartnerPublishingError('');
-    const previousPartnerIntent = usePartnerStore.getState().intents[demoViewerProfile.id];
-    const partnerPersistenceWasAbsent = localStorage.getItem(partnerStoreStorageKey) === null;
-    let ownerIntentCommitted = false;
+    let rollbackPartnerIntent: (() => void) | undefined;
     try {
-      publishPartnerMatchIntent(demoViewerProfile, tripToPartnerIntent(trip, partnerIntent));
+      rollbackPartnerIntent = publishPartnerMatchIntent(
+        demoViewerProfile,
+        tripToPartnerIntent(trip, partnerIntent),
+      );
       if (!usePartnerStore.getState().intents[demoViewerProfile.id]) {
         throw new Error('PARTNER_INTENT_NOT_COMMITTED');
       }
-      ownerIntentCommitted = true;
       publishPartnerIntent(trip.id);
     } catch {
-      if (ownerIntentCommitted) {
+      if (rollbackPartnerIntent) {
         try {
-          restorePartnerMatchIntent(
-            demoViewerProfile.id,
-            previousPartnerIntent,
-            partnerPersistenceWasAbsent,
-          );
+          rollbackPartnerIntent();
         } catch {
           setPartnerPublishingError('搭子意愿与行程标记未能一致保存。请暂停重试并前往寻找搭子页检查本地状态。');
           return;

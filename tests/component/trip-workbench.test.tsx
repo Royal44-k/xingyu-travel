@@ -10,7 +10,7 @@ import {
   usePartnerStore,
   usePartnerStoreHydration,
 } from '@/stores/partner-store';
-import { demoViewerProfile } from '@/data/partners';
+import { defaultPartnerIntent, demoViewerProfile } from '@/data/partners';
 
 const draft = extractTripDraft(postsBySlug['dali-slow-5d']);
 
@@ -224,6 +224,57 @@ describe('TripWorkbench', () => {
     expect(useTripStore.getState().trips[draft.id]).toEqual(tripBefore);
     expect(window.localStorage.getItem('xingyu-partner-demo-v1')).toBe(partnerBytesBefore);
     expect(window.localStorage.getItem('xingyu-demo-v1')).toBe(tripBytesBefore);
+  });
+
+  it('restores distinctive existing partner bytes exactly when the trip marker write fails second', async () => {
+    const user = userEvent.setup();
+    const previousIntent = { ...defaultPartnerIntent, destination: '杭州', route: '西湖—龙井村' };
+    const previousPartnerState = {
+      intents: { [demoViewerProfile.id]: previousIntent },
+      matches: {},
+      visibleMatchIds: [],
+      blockedCandidateIds: [],
+    };
+    const partnerBytesBefore = `{
+  "version": 2,
+  "state": ${JSON.stringify({
+    blockedCandidateIds: [],
+    visibleMatchIds: [],
+    matches: {},
+    intents: previousPartnerState.intents,
+  }, null, 4)}
+}`;
+    usePartnerStore.setState(previousPartnerState);
+    window.localStorage.setItem('xingyu-partner-demo-v1', partnerBytesBefore);
+    const tripBytesBefore = window.localStorage.getItem('xingyu-demo-v1');
+    const tripBefore = structuredClone(useTripStore.getState().trips[draft.id]);
+    const originalSetItem = window.localStorage.setItem.bind(window.localStorage);
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation((key, value) => {
+      if (key === 'xingyu-demo-v1') throw new Error('TRIP_QUOTA_EXCEEDED');
+      originalSetItem(key, value);
+    });
+    render(<TripWorkbench slug="dali-slow-5d" />);
+    await screen.findByRole('heading', { name: /大理慢行计划/ });
+
+    await user.click(screen.getByRole('button', { name: '发布搭子意愿' }));
+
+    expect(screen.getByRole('alert')).toHaveTextContent('搭子意愿未能保存');
+    expect({
+      intents: usePartnerStore.getState().intents,
+      matches: usePartnerStore.getState().matches,
+      visibleMatchIds: usePartnerStore.getState().visibleMatchIds,
+      blockedCandidateIds: usePartnerStore.getState().blockedCandidateIds,
+    }).toEqual(previousPartnerState);
+    expect(useTripStore.getState().partnerIntents[draft.id]).toBeUndefined();
+    expect(useTripStore.getState().trips[draft.id]).toEqual(tripBefore);
+    expect(window.localStorage.getItem('xingyu-partner-demo-v1')).toBe(partnerBytesBefore);
+    expect(window.localStorage.getItem('xingyu-demo-v1')).toBe(tripBytesBefore);
+
+    setItem.mockRestore();
+    const reloadedPartner = createPartnerStore();
+    await reloadedPartner.persist.rehydrate();
+    expect(reloadedPartner.getState().intents[demoViewerProfile.id]).toEqual(previousIntent);
+    expect(window.localStorage.getItem('xingyu-partner-demo-v1')).toBe(partnerBytesBefore);
   });
 
   it('disables partner publishing after malformed partner hydration without mutating the trip marker', async () => {

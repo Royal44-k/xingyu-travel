@@ -44,8 +44,7 @@ export interface PartnerStoreState {
   matches: Record<string, PartnerMatch>;
   visibleMatchIds: string[];
   blockedCandidateIds: string[];
-  publishIntent: (profile: PartnerProfile, intent: PartnerIntent) => void;
-  restoreIntent: (profileId: string, intent?: PartnerIntent, persistenceWasAbsent?: boolean) => void;
+  publishIntent: (profile: PartnerProfile, intent: PartnerIntent) => () => void;
   requestMatch: (profile: PartnerProfile, candidateId: string) => string;
   simulateMutualApproval: (profile: PartnerProfile, matchId: string) => void;
   sendMessage: (profile: PartnerProfile, matchId: string, body: string) =>
@@ -69,7 +68,14 @@ const initialPartnerState: Pick<
 > = {
   intents: {}, matches: {}, visibleMatchIds: [], blockedCandidateIds: [],
 };
-export const partnerStoreStorageKey = 'xingyu-partner-demo-v1';
+const partnerStoreStorageKey = 'xingyu-partner-demo-v1';
+
+interface PartnerPersistenceOwner {
+  capture: () => string | null;
+  restore: (snapshot: string | null) => void;
+  runWithoutPersistence: <Result>(operation: () => Result) => Result;
+  allowPersistence: () => void;
+}
 
 const allowedTransitions: Readonly<Record<PartnerMatchStatus, readonly PartnerMatchStatus[]>> = {
   pending_mutual: ['matched', 'blocked', 'reported'],
@@ -173,7 +179,7 @@ function collisionSafeId(prefix: string, existing: Record<string, unknown>) {
 function stateCreator(
   set: (recipe: (state: PartnerStoreState) => Partial<PartnerStoreState>) => void,
   get: () => PartnerStoreState,
-  allowPersistence: () => void = () => {},
+  persistence: PartnerPersistenceOwner,
 ): PartnerStoreState {
   return {
     ...initialPartnerState,
@@ -182,54 +188,34 @@ function stateCreator(
       const parsed = validatePartnerIntent(intent);
       if (!parsed.success) throw new Error('PARTNER_INVALID_INTENT');
       const previousIntent = get().intents[profile.id];
-      try {
-        set((state) => ({ intents: { ...state.intents, [profile.id]: parsed.data } }));
-      } catch (error) {
-        try {
+      const persistenceSnapshot = persistence.capture();
+      const restoreOwnerSnapshot = () => {
+        persistence.runWithoutPersistence(() => {
           set((state) => {
             const intents = { ...state.intents };
             if (previousIntent) intents[profile.id] = previousIntent;
             else delete intents[profile.id];
             return { intents };
           });
-        } catch {
-          // State changes before persistence is attempted, so this still restores
-          // the owner-domain memory when storage fails again during rollback.
-        }
-        throw error;
-      }
-    },
-    restoreIntent: (profileId, intent, persistenceWasAbsent = false) => {
-      const previousIntent = get().intents[profileId];
-      try {
-        set((state) => {
-          const intents = { ...state.intents };
-          if (intent) intents[profileId] = intent;
-          else delete intents[profileId];
-          return { intents };
         });
+        persistence.restore(persistenceSnapshot);
+      };
+      try {
+        set((state) => ({ intents: { ...state.intents, [profile.id]: parsed.data } }));
       } catch (error) {
         try {
-          set((state) => {
-            const intents = { ...state.intents };
-            if (previousIntent) intents[profileId] = previousIntent;
-            else delete intents[profileId];
-            return { intents };
-          });
+          restoreOwnerSnapshot();
         } catch {
-          // Memory changes precede persistence, so the original owner snapshot is restored.
+          // Memory is restored before the exact persistence snapshot is attempted.
         }
         throw error;
       }
-      if (persistenceWasAbsent) {
-        const restored = get();
-        const canRestoreAbsentPersistence = Object.keys(restored.intents).length === 0
-          && Object.keys(restored.matches).length === 0
-          && restored.visibleMatchIds.length === 0
-          && restored.blockedCandidateIds.length === 0;
-        if (!canRestoreAbsentPersistence) throw new Error('PARTNER_COMPENSATION_PERSISTENCE_CONFLICT');
-        localStorage.removeItem(partnerStoreStorageKey);
-      }
+      let rolledBack = false;
+      return () => {
+        if (rolledBack) return;
+        restoreOwnerSnapshot();
+        rolledBack = true;
+      };
     },
     requestMatch: (profile, candidateId) => {
       requireEligibility(profile);
@@ -301,7 +287,7 @@ function stateCreator(
     blockMatch: (profile, matchId) => set((state) => lockMatch(state, profile, matchId, 'blocked')),
     reportMatch: (profile, matchId) => set((state) => lockMatch(state, profile, matchId, 'reported')),
     resetPartnerStore: () => {
-      allowPersistence();
+      persistence.allowPersistence();
       set(() => ({ intents: {}, matches: {}, visibleMatchIds: [], blockedCandidateIds: [] }));
     },
   };
@@ -373,7 +359,28 @@ function persistenceOptions(options: CreatePartnerStoreOptions = {}) {
 
 function createPersistedPartnerState(options: CreatePartnerStoreOptions = {}) {
   let preserveMalformedBytes = false;
+  let suppressPersistence = false;
   const allowPersistence = () => { preserveMalformedBytes = false; };
+  const rawStorage = () => typeof window === 'undefined' ? undefined : window.localStorage;
+  const persistenceOwner: PartnerPersistenceOwner = {
+    capture: () => rawStorage()?.getItem(partnerStoreStorageKey) ?? null,
+    restore: (snapshot) => {
+      const storage = rawStorage();
+      if (!storage) return;
+      if (snapshot === null) storage.removeItem(partnerStoreStorageKey);
+      else storage.setItem(partnerStoreStorageKey, snapshot);
+    },
+    runWithoutPersistence: (operation) => {
+      const previous = suppressPersistence;
+      suppressPersistence = true;
+      try {
+        return operation();
+      } finally {
+        suppressPersistence = previous;
+      }
+    },
+    allowPersistence,
+  };
   const jsonStorage = createJSONStorage<PersistedPartnerState>(() => localStorage) ?? {
     getItem: () => null,
     setItem: () => {},
@@ -388,13 +395,17 @@ function createPersistedPartnerState(options: CreatePartnerStoreOptions = {}) {
   };
 
   return persist<PartnerStoreState, [], [], PersistedPartnerState>(
-    (set, get) => stateCreator(set, get, allowPersistence),
+    (set, get) => stateCreator(set, get, persistenceOwner),
     {
       ...persistenceOptions(safeOptions),
       storage: {
         getItem: (name) => jsonStorage.getItem(name),
-        setItem: (name, value) => preserveMalformedBytes ? undefined : jsonStorage.setItem(name, value),
-        removeItem: (name) => preserveMalformedBytes ? undefined : jsonStorage.removeItem(name),
+        setItem: (name, value) => preserveMalformedBytes || suppressPersistence
+          ? undefined
+          : jsonStorage.setItem(name, value),
+        removeItem: (name) => preserveMalformedBytes || suppressPersistence
+          ? undefined
+          : jsonStorage.removeItem(name),
       },
     },
   );
