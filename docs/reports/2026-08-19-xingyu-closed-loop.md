@@ -199,4 +199,18 @@ This section supersedes the deployment identifiers above while preserving the ea
 - `pnpm test --maxWorkers=1 --reporter=dot`: 42/42 files and 359/359 tests passed in 420.34 seconds.
 - `pnpm test:e2e`: 33/33 passed in 1.0 minute using local Google Chrome, including the new wide Hero and existing compact Hero contracts.
 - `pnpm build`: exit 0 after the sandbox-only `.next/trace-build` EPERM was retried with permitted project-cache access; Next.js 16.2.12 compiled in 7.0 seconds, TypeScript finished in 12.3 seconds, and 14/14 static pages were generated in 494 ms.
-- Release identifiers remain pending until this exact committed candidate passes protected Preview verification and that same artifact is promoted to public Production.
+- Release identifiers and the exact-artifact promotion result are recorded immediately below.
+
+### Second annotated homepage release result
+
+- Exact deployed source commit: `755275eb5c59ce75f060f564318fd03fce528c87`.
+- Protected Preview: `dpl_6jLp72iYZFNybpo8qD5NMJWkTdGE`, `https://xingyu-travel-owkjquqg4-lirongouyang522-3492s-projects.vercel.app`, READY. A fresh unauthenticated Chrome context still reached Vercel SSO as required.
+- Preview full matrix: `artifacts/design-qa-2026-08-19/preview-wide-hero-verification.json` passed 9/9 routes, 2/2 image assets, 8/8 affected flows, and 4/4 closed loops with zero runtime errors or warnings.
+- Focused Preview evidence: `artifacts/hero-layout-fix-2026-08-21/preview-wide-layout.json` and `preview-wide-layout.png` measured 32 px description-to-route, 32 px route-to-planner, 104 px total description-to-planner clearance, 0 px left-alignment delta, Hero containment, and zero runtime issues at 2280 × 858.
+- Exact-artifact promotion created Production `dpl_5fKKMYN7AHXD5dygYWonN17E6xho`, `https://xingyu-travel-gyyviiegl-lirongouyang522-3492s-projects.vercel.app`, READY. Vercel inspection confirms `https://xingyu-travel.vercel.app` resolves to this deployment.
+- Public Production matrix: `artifacts/design-qa-2026-08-19/production-wide-hero-verification.json` repeated the complete matrix in fresh Chrome without credentials or bypass headers, with zero console errors, console warnings, page errors, or HTTP responses >=400.
+- Focused public evidence: `artifacts/hero-layout-fix-2026-08-21/production-wide-layout.json` and `production-wide-layout.png` repeated the exact 32/32/104/0 px geometry, Hero containment, and zero-runtime-issue checks.
+- Preview-only SSO remained unchanged; the Preview verifier read only the pre-existing official Automation Bypass in process memory and created no bypass entry. Production remained publicly accessible without credentials or bypass headers.
+- The bounded one-hour Production error-level log scan returned no entry.
+- Previous known-good Production: `dpl_A7BPmyHbnyxQ2KKWDhRoQi4q1L9u` / `https://xingyu-travel-au0uarq6d-lirongouyang522-3492s-projects.vercel.app`, READY.
+- Prepared rollback command: `pnpm dlx vercel@59.1.4 rollback https://xingyu-travel-au0uarq6d-lirongouyang522-3492s-projects.vercel.app --scope lirongouyang522-3492s-projects`; recorded only, not executed.

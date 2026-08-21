@@ -1,0 +1,17 @@
+{
+  "result": "passed",
+  "targetUrl": "https://xingyu-travel.vercel.app",
+  "mode": "public-production",
+  "viewport": {
+    "width": 2280,
+    "height": 858,
+    "deviceScaleFactor": 1
+  },
+  "scrollY": 120,
+  "descriptionToRouteGap": 32,
+  "routeToComposerGap": 32,
+  "descriptionToComposerGap": 104,
+  "leftAlignmentDelta": 0,
+  "plannerInsideHero": true,
+  "runtimeIssues": []
+}
