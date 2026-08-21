@@ -256,7 +256,9 @@ try {
 
   async function createDaliTrip(page) {
     await navigate(page, '/square/dali-slow-5d');
-    await page.getByRole('button', { name: '转为行程' }).click();
+    const convert = page.getByRole('button', { name: '转为行程' });
+    await expect(convert).toBeEnabled({ timeout: 60_000 });
+    await convert.click();
     await expect(page.getByRole('dialog', { name: '确认行程草稿' })).toBeVisible();
     await clickAndWaitForUrl(
       page,
@@ -307,6 +309,71 @@ try {
     await selection.click();
     await expect(selection).toHaveAttribute('aria-pressed', 'true');
     await expect(page.getByRole('status')).toContainText('方案已保存到本浏览器的旅行决策');
+  });
+
+  await runAffectedFlow('assistant latest failure -> previous trip plan controls invalidated', async (page) => {
+    await createDaliTrip(page);
+    await navigate(page, '/assistant?tripId=draft-dali-slow-5d');
+    await page.getByRole('button', { name: '人身安全' }).click();
+    await expect(page.getByRole('button', { name: '选择立即联系公安机关方案' })).toBeVisible();
+    await page.route('**/api/v1/assistant', async (route) => {
+      await route.fulfill({
+        body: JSON.stringify({ error: { message: '最新请求暂时失败，请稍后重试。' } }),
+        contentType: 'application/json',
+        status: 200,
+      });
+    });
+    await page.getByRole('button', { name: '规划建议' }).click();
+    await expect(page.getByRole('alert').filter({ hasText: '最新请求暂时失败' })).toBeVisible();
+    await expect(page.getByRole('region', { name: '旅行助手回答' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /选择.+方案/ })).toHaveCount(0);
+    await expect(page.getByText('方案已保存到本浏览器的旅行决策，未创建订单')).toHaveCount(0);
+  });
+
+  await runAffectedFlow('assistant trip quota -> plan memory and bytes rolled back', async (page) => {
+    await createDaliTrip(page);
+    await navigate(page, '/assistant?tripId=draft-dali-slow-5d');
+    await page.getByRole('button', { name: '人身安全' }).click();
+    const selection = page.getByRole('button', { name: '选择立即联系公安机关方案' });
+    await expect(selection).toBeVisible();
+    const tripBytesBefore = await page.evaluate(() => localStorage.getItem('xingyu-demo-v1'));
+    await page.evaluate(() => {
+      const originalSetItem = Storage.prototype.setItem;
+      Storage.prototype.setItem = function setItem(key, value) {
+        if (key === 'xingyu-demo-v1') throw new DOMException('QUOTA_EXCEEDED', 'QuotaExceededError');
+        return originalSetItem.call(this, key, value);
+      };
+    });
+    await selection.click();
+    await expect(page.getByRole('alert').filter({ hasText: '方案未能保存到本地行程' })).toBeVisible();
+    await expect(selection).toHaveAttribute('aria-pressed', 'false');
+    await expect(page.getByText('方案已保存到本浏览器的旅行决策，未创建订单')).toHaveCount(0);
+    assert(await page.evaluate(() => localStorage.getItem('xingyu-demo-v1')) === tripBytesBefore, 'Trip bytes changed after plan quota failure');
+  });
+
+  await runAffectedFlow('workbench trip quota -> partner owner write compensated', async (page) => {
+    await createDaliTrip(page);
+    const persistedBefore = await page.evaluate(() => ({
+      partner: localStorage.getItem('xingyu-partner-demo-v1'),
+      trip: localStorage.getItem('xingyu-demo-v1'),
+    }));
+    await page.evaluate(() => {
+      const originalSetItem = Storage.prototype.setItem;
+      Storage.prototype.setItem = function setItem(key, value) {
+        if (key === 'xingyu-demo-v1') throw new DOMException('QUOTA_EXCEEDED', 'QuotaExceededError');
+        return originalSetItem.call(this, key, value);
+      };
+    });
+    const publish = page.getByRole('button', { name: '发布搭子意愿' });
+    await publish.click();
+    await expect(page.getByRole('alert').filter({ hasText: '搭子意愿未能保存' })).toBeVisible();
+    await expect(publish).toBeEnabled();
+    const persistedAfter = await page.evaluate(() => ({
+      partner: localStorage.getItem('xingyu-partner-demo-v1'),
+      trip: localStorage.getItem('xingyu-demo-v1'),
+    }));
+    assert(persistedAfter.partner === persistedBefore.partner, 'Partner bytes changed after trip marker quota failure');
+    assert(persistedAfter.trip === persistedBefore.trip, 'Trip bytes changed after trip marker quota failure');
   });
 
   await runAffectedFlow(
