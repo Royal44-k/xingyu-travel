@@ -44,6 +44,22 @@ const publicRoutes: readonly {
   { route: '/compare?kind=flight&destination=%E5%A4%A7%E7%90%86&from=2026-08-22&to=2026-08-27&travelers=2', ready: async (page) => { await expect(page.getByText('¥1,010 含税总价')).toBeVisible(); } },
 ];
 
+test('publishes a dedicated 行屿 favicon instead of the former travel photograph', async ({ page }) => {
+  await page.goto('/');
+  const iconHrefs = await page.locator('link[rel~="icon"]').evaluateAll((links) =>
+    links.map((link) => (link as HTMLLinkElement).href));
+
+  expect(iconHrefs).not.toEqual(expect.arrayContaining([
+    expect.stringContaining('guardian-rainy-mountain'),
+  ]));
+  expect(iconHrefs.some((href) => /favicon\.ico|\/icon/.test(href))).toBe(true);
+
+  const favicon = await page.request.get('/favicon.ico');
+  expect(favicon.status()).toBe(200);
+  expect(favicon.headers()['content-type']).toContain('image/x-icon');
+  expect((await favicon.body()).length).toBeGreaterThan(1_000);
+});
+
 for (const { route, prepare, ready } of publicRoutes) {
   test(`has no critical or serious axe violations on ${route}`, async ({ page }) => {
     if (prepare) await prepare(page);

@@ -214,3 +214,20 @@ This section supersedes the deployment identifiers above while preserving the ea
 - The bounded one-hour Production error-level log scan returned no entry.
 - Previous known-good Production: `dpl_A7BPmyHbnyxQ2KKWDhRoQi4q1L9u` / `https://xingyu-travel-au0uarq6d-lirongouyang522-3492s-projects.vercel.app`, READY.
 - Prepared rollback command: `pnpm dlx vercel@59.1.4 rollback https://xingyu-travel-au0uarq6d-lirongouyang522-3492s-projects.vercel.app --scope lirongouyang522-3492s-projects`; recorded only, not executed.
+
+## Dedicated XINGYU browser icon — 2026-08-21
+
+- User evidence: the URL opened with a small landscape photograph beside `https://xingyu-travel.vercel.app`, which looked like an arbitrary thumbnail rather than a website identity.
+- Root cause: `src/app/layout.tsx` explicitly set `metadata.icons.icon` to `/assets/guardian-rainy-mountain.png`.
+- Approved design: deep pine-black square, bold ivory mountain/island and winding path, plus one sand-gold sun point; no text, gradients, photography, watermark, or fragile detail.
+- ImageGen: two built-in calls. The first concept was rejected for excessive scenic detail; the second targeted simplification was accepted. The generated-original source and exact prompt are recorded in `docs/design/brand-icon-provenance.md`.
+- Deterministic output: `scripts/build-brand-icons.py` flattens the accepted source to the three brand colors and produces the 1024 px master, 512 px Next icon, 180 px Apple icon, multi-size ICO, and 192/512 px PWA icons.
+- RED: focused unit test failed 2/5 because the icon assets and manifest declarations were absent. The Chrome contract then failed 1/34 because the page still published `guardian-rainy-mountain.png` as an icon.
+- GREEN: focused unit test passed 5/5; focused Chrome favicon contract passed 1/1 and confirmed `/favicon.ico` returned 200 with an icon MIME type and no old photo link.
+- Design QA: `artifacts/brand-icon-2026-08-21/icon-size-board.png` and `favicon-comparison-board.png` were opened and inspected. The actual mark remains identifiable at 16/24/32 px and has no text, logos, watermarks, people, or photographic content.
+- `pnpm lint`: exit 0.
+- `pnpm typecheck`: exit 0.
+- `pnpm test --maxWorkers=1 --reporter=dot`: 42/42 files and 361/361 tests passed in 666.50 seconds.
+- `pnpm test:e2e`: 34/34 passed in 1.7 minutes using local Google Chrome.
+- `pnpm build`: exit 0 after the sandbox-only `.next/trace-build` EPERM was retried with permitted project-cache access; Next.js 16.2.12 compiled in 6.4 seconds, TypeScript finished in 22.1 seconds, and 17/17 static pages/assets were generated.
+- Release identifiers remain pending until this exact committed candidate passes protected Preview verification and the same artifact is promoted to Production.

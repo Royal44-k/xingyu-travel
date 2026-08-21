@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -32,6 +33,42 @@ describe('production safeguards', () => {
       expect.stringMatching(/\/guardian\//),
     ]));
     expect(appManifest).toMatchObject({ name: '行屿 XINGYU', display: 'standalone' });
+  });
+
+  it('ships dedicated square brand icons instead of reusing a travel photo as the favicon', () => {
+    const appIcon = readFileSync(join(process.cwd(), 'src/app/icon.png'));
+    const appleIcon = readFileSync(join(process.cwd(), 'src/app/apple-icon.png'));
+    const pwa192 = readFileSync(join(process.cwd(), 'public/icon-192.png'));
+    const pwa512 = readFileSync(join(process.cwd(), 'public/icon-512.png'));
+    const favicon = readFileSync(join(process.cwd(), 'src/app/favicon.ico'));
+    const formerTravelPhoto = readFileSync(join(
+      process.cwd(),
+      'public/assets/guardian-rainy-mountain.png',
+    ));
+
+    for (const [bytes, width, height] of [
+      [appIcon, 512, 512],
+      [appleIcon, 180, 180],
+      [pwa192, 192, 192],
+      [pwa512, 512, 512],
+    ] as const) {
+      expect(bytes.subarray(0, 8).toString('hex')).toBe('89504e470d0a1a0a');
+      expect(bytes.readUInt32BE(16)).toBe(width);
+      expect(bytes.readUInt32BE(20)).toBe(height);
+      expect(bytes.length).toBeGreaterThan(1_000);
+    }
+
+    expect(favicon.subarray(0, 4).toString('hex')).toBe('00000100');
+    expect(createHash('sha256').update(appIcon).digest('hex')).not.toBe(
+      createHash('sha256').update(formerTravelPhoto).digest('hex'),
+    );
+  });
+
+  it('advertises installable 行屿 icons in the web manifest', () => {
+    expect(manifest().icons).toEqual([
+      { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+    ]);
   });
 
   it('keeps the historical preview diagnostic read-only for Automation Bypass', () => {
