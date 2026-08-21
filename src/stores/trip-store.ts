@@ -494,13 +494,34 @@ function stateCreator(
         },
       };
     }),
-    publishPartnerIntent: (tripId: string) => set((state) => {
-      const trip = getTrip(state, tripId);
-      return {
-        trips: { ...state.trips, [trip.id]: updatedTrip(trip, {}) },
-        partnerIntents: { ...state.partnerIntents, [trip.id]: true },
-      };
-    }),
+    publishPartnerIntent: (tripId: string) => {
+      const stateBefore = get();
+      const trip = getTrip(stateBefore, tripId);
+      const previousTrip = stateBefore.trips[trip.id];
+      const previousIntentMarker = stateBefore.partnerIntents[trip.id];
+      try {
+        set((state) => ({
+          trips: { ...state.trips, [trip.id]: updatedTrip(getTrip(state, trip.id), {}) },
+          partnerIntents: { ...state.partnerIntents, [trip.id]: true },
+        }));
+      } catch (error) {
+        try {
+          set((state) => {
+            const partnerIntents = { ...state.partnerIntents };
+            if (previousIntentMarker) partnerIntents[trip.id] = previousIntentMarker;
+            else delete partnerIntents[trip.id];
+            return {
+              trips: { ...state.trips, [trip.id]: previousTrip },
+              partnerIntents,
+            };
+          });
+        } catch {
+          // Zustand updates memory before persistence; the rollback still restores
+          // the in-memory snapshot when the same storage write fails again.
+        }
+        throw error;
+      }
+    },
     selectGuardianPlan: (tripId: string, plan: GuardianPlanSelection) => {
       const stateBefore = get();
       const trip = getTrip(stateBefore, tripId);

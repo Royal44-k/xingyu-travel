@@ -208,6 +208,26 @@ describe('decision room', () => {
     setItem.mockRestore();
   });
 
+  it('restores the partner marker and trip snapshot when browser storage rejects the write', async () => {
+    const store = createTripStore();
+    await store.persist.rehydrate();
+    store.getState().acceptDraft(daliDraft);
+    const tripBefore = structuredClone(store.getState().trips[daliDraft.id]);
+    const persistedBefore = window.localStorage.getItem(canonicalKey);
+    const originalSetItem = window.localStorage.setItem.bind(window.localStorage);
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation((key, value) => {
+      if (key === canonicalKey) throw new Error('QUOTA_EXCEEDED');
+      originalSetItem(key, value);
+    });
+
+    expect(() => store.getState().publishPartnerIntent(daliDraft.id)).toThrow('QUOTA_EXCEEDED');
+
+    expect(store.getState().partnerIntents[daliDraft.id]).toBeUndefined();
+    expect(store.getState().trips[daliDraft.id]).toEqual(tripBefore);
+    expect(window.localStorage.getItem(canonicalKey)).toBe(persistedBefore);
+    setItem.mockRestore();
+  });
+
   it('selects guarded trips by updated time, then created time, then source slug', () => {
     const store = createTripStore();
     const dali = store.getState().savePostAsTrip(daliDraft);

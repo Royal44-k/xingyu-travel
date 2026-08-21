@@ -1,6 +1,6 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { postsBySlug } from '@/data/posts';
 import { extractTripDraft } from '@/domain/trips/extract-draft';
 import { TripWorkbench } from '@/features/trips/trip-workbench';
@@ -28,6 +28,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.restoreAllMocks();
   window.localStorage.clear();
   useTripStore.setState({ trips: {}, partnerIntents: {}, guardianPlans: {} });
   useTripStoreHydration.setState({ hydrated: false, hydrationError: false });
@@ -176,6 +177,52 @@ describe('TripWorkbench', () => {
     ]);
     expect(reloadedPartner.getState().intents[demoViewerProfile.id]).toBeDefined();
     expect(reloadedTrip.getState().partnerIntents[draft.id]).toBe(true);
+  });
+
+  it('leaves both stores unchanged when the owner partner-intent write fails', async () => {
+    const user = userEvent.setup();
+    const partnerBytesBefore = window.localStorage.getItem('xingyu-partner-demo-v1');
+    const tripBytesBefore = window.localStorage.getItem('xingyu-demo-v1');
+    const tripBefore = structuredClone(useTripStore.getState().trips[draft.id]);
+    const originalSetItem = window.localStorage.setItem.bind(window.localStorage);
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation((key, value) => {
+      if (key === 'xingyu-partner-demo-v1') throw new Error('PARTNER_QUOTA_EXCEEDED');
+      originalSetItem(key, value);
+    });
+    render(<TripWorkbench slug="dali-slow-5d" />);
+    await screen.findByRole('heading', { name: /大理慢行计划/ });
+
+    await user.click(screen.getByRole('button', { name: '发布搭子意愿' }));
+
+    expect(screen.getByRole('alert')).toHaveTextContent('搭子意愿未能保存');
+    expect(usePartnerStore.getState().intents[demoViewerProfile.id]).toBeUndefined();
+    expect(useTripStore.getState().partnerIntents[draft.id]).toBeUndefined();
+    expect(useTripStore.getState().trips[draft.id]).toEqual(tripBefore);
+    expect(window.localStorage.getItem('xingyu-partner-demo-v1')).toBe(partnerBytesBefore);
+    expect(window.localStorage.getItem('xingyu-demo-v1')).toBe(tripBytesBefore);
+  });
+
+  it('compensates the owner write when the trip marker persistence fails second', async () => {
+    const user = userEvent.setup();
+    const partnerBytesBefore = window.localStorage.getItem('xingyu-partner-demo-v1');
+    const tripBytesBefore = window.localStorage.getItem('xingyu-demo-v1');
+    const tripBefore = structuredClone(useTripStore.getState().trips[draft.id]);
+    const originalSetItem = window.localStorage.setItem.bind(window.localStorage);
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation((key, value) => {
+      if (key === 'xingyu-demo-v1') throw new Error('TRIP_QUOTA_EXCEEDED');
+      originalSetItem(key, value);
+    });
+    render(<TripWorkbench slug="dali-slow-5d" />);
+    await screen.findByRole('heading', { name: /大理慢行计划/ });
+
+    await user.click(screen.getByRole('button', { name: '发布搭子意愿' }));
+
+    expect(screen.getByRole('alert')).toHaveTextContent('搭子意愿未能保存');
+    expect(usePartnerStore.getState().intents[demoViewerProfile.id]).toBeUndefined();
+    expect(useTripStore.getState().partnerIntents[draft.id]).toBeUndefined();
+    expect(useTripStore.getState().trips[draft.id]).toEqual(tripBefore);
+    expect(window.localStorage.getItem('xingyu-partner-demo-v1')).toBe(partnerBytesBefore);
+    expect(window.localStorage.getItem('xingyu-demo-v1')).toBe(tripBytesBefore);
   });
 
   it('disables partner publishing after malformed partner hydration without mutating the trip marker', async () => {

@@ -45,6 +45,7 @@ export interface PartnerStoreState {
   visibleMatchIds: string[];
   blockedCandidateIds: string[];
   publishIntent: (profile: PartnerProfile, intent: PartnerIntent) => void;
+  restoreIntent: (profileId: string, intent?: PartnerIntent) => void;
   requestMatch: (profile: PartnerProfile, candidateId: string) => string;
   simulateMutualApproval: (profile: PartnerProfile, matchId: string) => void;
   sendMessage: (profile: PartnerProfile, matchId: string, body: string) =>
@@ -193,6 +194,29 @@ function stateCreator(
         } catch {
           // State changes before persistence is attempted, so this still restores
           // the owner-domain memory when storage fails again during rollback.
+        }
+        throw error;
+      }
+    },
+    restoreIntent: (profileId, intent) => {
+      const previousIntent = get().intents[profileId];
+      try {
+        set((state) => {
+          const intents = { ...state.intents };
+          if (intent) intents[profileId] = intent;
+          else delete intents[profileId];
+          return { intents };
+        });
+      } catch (error) {
+        try {
+          set((state) => {
+            const intents = { ...state.intents };
+            if (previousIntent) intents[profileId] = previousIntent;
+            else delete intents[profileId];
+            return { intents };
+          });
+        } catch {
+          // Memory changes precede persistence, so the original owner snapshot is restored.
         }
         throw error;
       }
