@@ -21,6 +21,7 @@ const result = {
   routes: [],
   assets: [],
   securityHeaders: {},
+  affectedFlows: [],
   loops: [],
   runtimeErrors: [],
   runtimeWarnings: [],
@@ -44,26 +45,22 @@ async function getPreviewBypassSecret() {
 
   const projectId = 'prj_IeyWF8pZrE35C9Sp6eJWHcFpIiCl';
   const teamId = 'team_GXUbEGjD0inFlQqufnaKsSVQ';
-  const response = await fetch(
-    `https://api.vercel.com/v1/projects/${projectId}/protection-bypass?teamId=${teamId}`,
-    {
-      method: 'PATCH',
-      headers: {
-        authorization: `Bearer ${auth.token}`,
-        'content-type': 'application/json',
-      },
-      body: '{}',
-    },
+  const projectResponse = await fetch(
+    `https://api.vercel.com/v9/projects/${projectId}?teamId=${teamId}`,
+    { headers: { authorization: `Bearer ${auth.token}` } },
   );
-  assert(response.ok, `Vercel bypass API returned ${response.status}`);
-  const payload = await response.json();
-  const protectionBypass = payload.protectionBypass;
-  assert(protectionBypass && typeof protectionBypass === 'object', 'No protection bypass map returned');
-  const secret = Object.keys(protectionBypass).find(
-    (candidate) => protectionBypass[candidate]?.scope === 'automation-bypass',
+  assert(projectResponse.ok, `Vercel project API returned ${projectResponse.status}`);
+  const project = await projectResponse.json();
+  const existingBypass = project.protectionBypass;
+  assert(existingBypass && typeof existingBypass === 'object', 'No existing protection bypass map returned');
+  const existingSecret = Object.keys(existingBypass).find(
+    (candidate) => existingBypass[candidate]?.scope === 'automation-bypass'
+      && existingBypass[candidate]?.isEnvVar === true,
+  ) ?? Object.keys(existingBypass).find(
+    (candidate) => existingBypass[candidate]?.scope === 'automation-bypass',
   );
-  assert(secret, 'No automation bypass token returned');
-  return secret;
+  assert(existingSecret, 'No existing automation bypass token returned');
+  return existingSecret;
 }
 
 function monitorPage(page, label) {
@@ -230,6 +227,18 @@ try {
     await context.close();
   }
 
+  async function runAffectedFlow(name, callback, initScript) {
+    const context = await newContext(browser, extraHTTPHeaders);
+    if (initScript) await context.addInitScript(initScript);
+    const page = await context.newPage();
+    page.setDefaultTimeout(30_000);
+    monitorPage(page, `affected ${name}`);
+    await callback(page);
+    result.affectedFlows.push({ name, result: 'passed' });
+    console.log(JSON.stringify({ stage: 'affected', name, result: 'passed' }));
+    await context.close();
+  }
+
   async function navigate(page, path) {
     const response = await page.goto(new URL(path, normalizedTarget.origin).href, {
       waitUntil: 'domcontentloaded',
@@ -244,6 +253,84 @@ try {
       locator.click(),
     ]);
   }
+
+  async function createDaliTrip(page) {
+    await navigate(page, '/square/dali-slow-5d');
+    await page.getByRole('button', { name: '转为行程' }).click();
+    await expect(page.getByRole('dialog', { name: '确认行程草稿' })).toBeVisible();
+    await clickAndWaitForUrl(
+      page,
+      page.getByRole('button', { name: '确认并保存行程' }),
+      /\/trips\/dali-slow-5d$/,
+    );
+    await expect(page.getByRole('heading', { name: '大理慢行计划' })).toBeVisible();
+  }
+
+  await runAffectedFlow('discovery city -> comparison destination prefilled', async (page) => {
+    await navigate(page, '/');
+    await waitForReady(page);
+    const beijing = page.getByRole('button', { name: '查看北京' });
+    await expect.poll(async () => {
+      await beijing.click();
+      return beijing.getAttribute('aria-pressed');
+    }, { timeout: 60_000 }).toBe('true');
+    await expect(page.getByRole('link', { name: '比价北京行程' })).toBeVisible();
+    await clickAndWaitForUrl(
+      page,
+      page.getByRole('link', { name: '比价北京行程' }),
+      /\/compare\?kind=hotel&destination=%E5%8C%97%E4%BA%AC$/,
+    );
+    await expect(page.getByText('北京 · 沙箱演示报价', { exact: true })).toBeVisible();
+    await expect(page.getByRole('tab', { name: '酒店' })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  await runAffectedFlow('fresh assistant -> advice only without invented trip', async (page) => {
+    await navigate(page, '/assistant');
+    await expect(page.getByText('当前为通用旅行咨询')).toBeVisible();
+    await page.getByRole('button', { name: '人身安全' }).click();
+    const answer = page.getByRole('region', { name: '旅行助手回答' });
+    await expect(answer).toBeVisible();
+    await expect(answer.getByRole('article', { name: /方案 Plan/ })).toHaveCount(3);
+    await expect(answer.getByRole('button', { name: /选择.+方案/ })).toHaveCount(0);
+    await expect(answer).toContainText('这些建议不会保存到行程');
+    await expect(page.getByText('方案已保存到本浏览器的旅行决策，未创建订单')).toHaveCount(0);
+  });
+
+  await runAffectedFlow('assistant trip -> explicit selection saves once', async (page) => {
+    await createDaliTrip(page);
+    await navigate(page, '/assistant?tripId=draft-dali-slow-5d');
+    await expect(page.getByText('已关联本地行程')).toBeVisible();
+    await page.getByRole('button', { name: '人身安全' }).click();
+    const selection = page.getByRole('button', { name: '选择立即联系公安机关方案' });
+    await expect(selection).toBeVisible();
+    await expect(page.getByText('方案已保存到本浏览器的旅行决策，未创建订单')).toHaveCount(0);
+    await selection.click();
+    await expect(selection).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByRole('status')).toContainText('方案已保存到本浏览器的旅行决策');
+  });
+
+  await runAffectedFlow(
+    'assistant malformed trip store -> fail closed and preserve bytes',
+    async (page) => {
+      await navigate(page, '/assistant?tripId=dali-slow-5d');
+      await expect(page.getByRole('alert').filter({ hasText: '本地行程无法安全读取' })).toBeVisible();
+      await expect(page.getByRole('link', { name: '从攻略创建行程' })).toBeVisible();
+      assert(await page.evaluate(() => localStorage.getItem('xingyu-demo-v1')) === '{malformed-trip-store', 'Malformed trip bytes were overwritten');
+    },
+    () => localStorage.setItem('xingyu-demo-v1', '{malformed-trip-store'),
+  );
+
+  await runAffectedFlow('workbench malformed partner store -> publishing disabled without trip marker', async (page) => {
+    await createDaliTrip(page);
+    await page.evaluate(() => localStorage.setItem('xingyu-partner-demo-v1', '{malformed-partner-store'));
+    await page.reload({ waitUntil: 'domcontentloaded', timeout: 60_000 });
+    const publish = page.getByRole('button', { name: '发布搭子意愿' });
+    await expect(publish).toBeDisabled();
+    await expect(page.getByRole('alert').filter({ hasText: '搭子意愿存储无法安全读取' })).toBeVisible();
+    assert(await page.evaluate(() => localStorage.getItem('xingyu-partner-demo-v1')) === '{malformed-partner-store', 'Malformed partner bytes were overwritten');
+    const tripEnvelope = await page.evaluate(() => JSON.parse(localStorage.getItem('xingyu-demo-v1')));
+    assert(!tripEnvelope.state.partnerIntents['draft-dali-slow-5d'], 'Trip marker mutated during partner hydration error');
+  });
 
   await runLoop('interest clear -> re-add -> recommendation survives reload', async (page) => {
     await navigate(page, '/profile?tab=preferences');
@@ -349,6 +436,7 @@ try {
     routeCount: result.routes.length,
     assetCount: result.assets.length,
     loopCount: result.loops.length,
+    affectedFlowCount: result.affectedFlows.length,
     runtimeErrors: result.runtimeErrors.length,
     runtimeWarnings: result.runtimeWarnings.length,
   }));

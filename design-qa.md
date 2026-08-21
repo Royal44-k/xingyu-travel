@@ -69,6 +69,12 @@ No actionable P0, P1, or P2 finding remains in the valid route-ready comparison.
 4. The first final-fix spot script used an overly broad `alert` locator that also matched Next.js's empty route announcer; the locator was narrowed to visible product copy. A subsequent full-page capture retained a prior scroll position and placed the sticky header mid-image; the capture was normalized to `scrollY === 0` and rebuilt. These were evidence-readiness defects, not product defects.
 5. The normalized `comparison-affected-surfaces.png` was opened and inspected with both source visual-truth inputs in the same comparison. No actionable P0/P1/P2 difference remained, so no post-comparison production CSS or component change was required.
 
+## Remote release evidence
+
+- Protected Preview `dpl_AXdEaEHnUubPbBJXbC1x8DRGBXNW` passed `preview-final-verification.json`: 9/9 routes, 2/2 assets, 5/5 affected flows, and 4/4 closed loops; zero runtime errors or warnings. A fresh unauthenticated Chrome context still reached Vercel login.
+- The exact candidate artifact was promoted to public Production `dpl_JCoM3n81ch8oogaaj85KKLonKaZj`. `production-final-verification.json` repeated the same matrix through `https://xingyu-travel.vercel.app` in a fresh context without credentials or bypass headers and passed with zero runtime errors or warnings.
+- The bounded one-hour Production error-log query returned no entry. Security headers remained `nosniff`, strict-origin referrer policy, camera/microphone/geolocation denial, and `SAMEORIGIN` framing.
+
 ## Implementation checklist
 
 - [x] Source and implementation appear in the same full and focused comparison inputs.

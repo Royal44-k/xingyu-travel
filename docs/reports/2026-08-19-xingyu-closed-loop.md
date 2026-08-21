@@ -85,3 +85,17 @@ The production verifier initially over-constrained dynamic and lazy images by wa
 - Prepared command: `pnpm dlx vercel@59.1.4 rollback https://xingyu-travel-5upep3p2h-lirongouyang522-3492s-projects.vercel.app`.
 - The rollback command was recorded only and was not executed.
 - Structured release metadata: `artifacts/design-qa-2026-08-19/vercel-release.json`.
+
+## Final review release — 2026-08-21
+
+This section supersedes the deployment identifiers above while preserving the earlier release history.
+
+- Exact deployed source commit: `51818da9514cc756f1c01a114570ee8878a46904`.
+- Preview: `dpl_AXdEaEHnUubPbBJXbC1x8DRGBXNW`, `https://xingyu-travel-88ifag4pc-lirongouyang522-3492s-projects.vercel.app`, Preview, READY, unauthenticated Chrome redirected to Vercel login.
+- Preview verification: `preview-final-verification.json`; 9 routes and 2 assets returned 200, all 5 final-review flows and all 4 closed loops passed, security headers passed, and runtime errors/warnings were both zero.
+- Exact-artifact Production promotion: `dpl_JCoM3n81ch8oogaaj85KKLonKaZj`, `https://xingyu-travel-nqssihr6y-lirongouyang522-3492s-projects.vercel.app`, Production, READY.
+- Public alias: `https://xingyu-travel.vercel.app`; `production-final-verification.json` repeated the full Preview matrix in a fresh Chrome context without credentials or bypass headers and passed.
+- Bounded one-hour Production `--level error` query: no entry returned.
+- Preview-only SSO remained unchanged. The verifier was corrected to read the existing default Automation Bypass in memory instead of creating one. Two non-default entries accidentally created by this final-review task were precisely revoked; the count returned from 10 to 8 and the original default remained selected.
+- Previous known-good Production: `dpl_7tBjfSPxfbJXzwTX7PGGBUWCwgoE` / `https://xingyu-travel-c6zd0kuwa-lirongouyang522-3492s-projects.vercel.app`, READY.
+- Prepared rollback command: `pnpm dlx vercel@59.1.4 rollback https://xingyu-travel-c6zd0kuwa-lirongouyang522-3492s-projects.vercel.app --scope lirongouyang522-3492s-projects`; recorded only, not executed.
