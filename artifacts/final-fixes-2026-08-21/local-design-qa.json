@@ -1,0 +1,77 @@
+{
+  "browser": "Google Chrome via Playwright channel=chrome",
+  "sourceVisualTruth": [
+    "docs/design/selected-homepage-option-1.png",
+    "docs/design/xingyu-content-hub-target.png"
+  ],
+  "evidence": [
+    {
+      "name": "homepage-beijing-cta",
+      "route": "/",
+      "state": "北京取景窗选中，真实比价 CTA 可见",
+      "output": "artifacts/final-fixes-2026-08-21/homepage-beijing-cta.png",
+      "cssViewport": {
+        "width": 1440,
+        "height": 1024
+      },
+      "density": 1,
+      "documentWidth": 1440,
+      "documentHeight": 5514
+    },
+    {
+      "name": "assistant-fresh-no-trip",
+      "route": "/assistant",
+      "state": "全新浏览器：通用咨询、Plan A/B/C 只读",
+      "output": "artifacts/final-fixes-2026-08-21/assistant-fresh-no-trip.png",
+      "cssViewport": {
+        "width": 1440,
+        "height": 1024
+      },
+      "density": 1,
+      "documentWidth": 1440,
+      "documentHeight": 1649
+    },
+    {
+      "name": "assistant-hydration-error",
+      "route": "/assistant?tripId=dali-slow-5d",
+      "state": "行程存储损坏：失败关闭、保留恢复入口",
+      "output": "artifacts/final-fixes-2026-08-21/assistant-hydration-error.png",
+      "cssViewport": {
+        "width": 1440,
+        "height": 1024
+      },
+      "density": 1,
+      "documentWidth": 1440,
+      "documentHeight": 1024
+    },
+    {
+      "name": "assistant-existing-trip-saved",
+      "route": "/assistant?tripId=draft-dali-slow-5d",
+      "state": "真实本地行程：用户选择后才显示保存成功",
+      "output": "artifacts/final-fixes-2026-08-21/assistant-existing-trip-saved.png",
+      "cssViewport": {
+        "width": 1440,
+        "height": 1024
+      },
+      "density": 1,
+      "documentWidth": 1440,
+      "documentHeight": 1634
+    },
+    {
+      "name": "workbench-partner-hydration-error",
+      "route": "/trips/dali-slow-5d",
+      "state": "搭子存储损坏：发布停用且解释原因",
+      "output": "artifacts/final-fixes-2026-08-21/workbench-partner-hydration-error.png",
+      "cssViewport": {
+        "width": 1440,
+        "height": 1024
+      },
+      "density": 1,
+      "documentWidth": 1440,
+      "documentHeight": 3602
+    }
+  ],
+  "runtimeErrors": [],
+  "runtimeWarnings": [],
+  "result": "passed"
+}
