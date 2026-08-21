@@ -18,6 +18,16 @@ const unexpectedConsoleMessages = (page: import('@playwright/test').Page) => {
 
 test.use({ viewport: { width: 1440, height: 1024 } });
 
+test('discovery-only destination enters comparison with the city prefilled', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: '查看北京' }).click();
+  await page.getByRole('link', { name: '比价北京行程' }).click();
+
+  await expect(page).toHaveURL('/compare?kind=hotel&destination=%E5%8C%97%E4%BA%AC');
+  await expect(page.getByText('北京 · 沙箱演示报价', { exact: true })).toBeVisible();
+  await expect(page.getByRole('tab', { name: '酒店' })).toHaveAttribute('aria-selected', 'true');
+});
+
 test('guide to guarded alternative plan through the public UI', async ({ page }) => {
   const errors = unexpectedConsoleMessages(page);
 

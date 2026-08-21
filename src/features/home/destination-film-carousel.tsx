@@ -26,6 +26,7 @@ export interface DestinationFilmItem {
   season: string;
   image: PostMedia;
   href: string;
+  ctaLabel: string;
 }
 
 interface DestinationFilmCarouselProps {
@@ -272,7 +273,7 @@ export function DestinationFilmCarousel({
                     href={destination.href}
                     tabIndex={active ? 0 : -1}
                   >
-                    打开{destination.destination}攻略
+                    {destination.ctaLabel}
                     <CaretRight aria-hidden size={18} weight="light" />
                   </Link>
                 </div>

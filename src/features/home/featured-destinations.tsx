@@ -24,6 +24,7 @@ const guideDestinations: readonly DestinationFilmItem[] = posts.map((post) => ({
   season: seasons[post.destination] ?? '当季',
   image: post.media[0],
   href: `/square/${post.slug}`,
+  ctaLabel: `打开${post.destination}攻略`,
 }));
 
 const discoveryDestinations: readonly DestinationFilmItem[] = [
@@ -39,7 +40,8 @@ const discoveryDestinations: readonly DestinationFilmItem[] = [
       height: 1024,
       alt: '晨光中的北京故宫建筑群与城市中轴线',
     },
-    href: '/square?destination=%E5%8C%97%E4%BA%AC',
+    href: '/compare?kind=hotel&destination=%E5%8C%97%E4%BA%AC',
+    ctaLabel: '比价北京行程',
   },
   {
     destination: '西安',
@@ -53,7 +55,8 @@ const discoveryDestinations: readonly DestinationFilmItem[] = [
       height: 1024,
       alt: '蓝调暮色中的西安明城墙与角楼',
     },
-    href: '/square?destination=%E8%A5%BF%E5%AE%89',
+    href: '/compare?kind=hotel&destination=%E8%A5%BF%E5%AE%89',
+    ctaLabel: '比价西安行程',
   },
   {
     destination: '重庆',
@@ -67,7 +70,8 @@ const discoveryDestinations: readonly DestinationFilmItem[] = [
       height: 1024,
       alt: '蓝调时刻的重庆山城建筑与江面桥梁',
     },
-    href: '/square?destination=%E9%87%8D%E5%BA%86',
+    href: '/compare?kind=hotel&destination=%E9%87%8D%E5%BA%86',
+    ctaLabel: '比价重庆行程',
   },
   {
     destination: '厦门',
@@ -81,7 +85,8 @@ const discoveryDestinations: readonly DestinationFilmItem[] = [
       height: 1024,
       alt: '晨光中的厦门鼓浪屿红屋顶与鹭江海岸',
     },
-    href: '/square?destination=%E5%8E%A6%E9%97%A8',
+    href: '/compare?kind=hotel&destination=%E5%8E%A6%E9%97%A8',
+    ctaLabel: '比价厦门行程',
   },
 ];
 

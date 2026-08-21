@@ -36,6 +36,7 @@ const destinations: readonly DestinationFilmItem[] = posts.slice(0, 4).map((post
   season: '初秋',
   image: post.media[0],
   href: `/square/${post.slug}`,
+  ctaLabel: `打开${post.destination}攻略`,
 }));
 
 function position() {
@@ -294,15 +295,16 @@ describe('DestinationFilmCarousel', () => {
   it('maps eight guides and four discovery cities to complete valid routes', () => {
     render(<FeaturedDestinations />);
 
-    const destinationNames = [
-      '大理', '桂林', '川西', '三亚', '杭州', '南京', '上海', '贵州',
-      '北京', '西安', '重庆', '厦门',
-    ];
+    const guideNames = ['大理', '桂林', '川西', '三亚', '杭州', '南京', '上海', '贵州'];
+    const discoveryNames = ['北京', '西安', '重庆', '厦门'];
+    const destinationNames = [...guideNames, ...discoveryNames];
     expect(screen.getByRole('status', { name: '目的地位置' })).toHaveTextContent('1 / 12');
     for (const destination of destinationNames) {
       expect(screen.getByRole('button', { name: `查看${destination}` })).toBeInTheDocument();
-      const link = screen.getByRole('link', { name: `打开${destination}攻略`, hidden: true });
-      expect(link.getAttribute('href')).toMatch(/^\/(square(?:\/[^?]+|\?destination=)|compare\?)/);
+      const action = guideNames.includes(destination)
+        ? `打开${destination}攻略`
+        : `比价${destination}行程`;
+      const link = screen.getByRole('link', { name: action, hidden: true });
       const article = link.closest('article');
       expect(article).not.toBeNull();
       expect(within(article as HTMLElement).getByText(/\d+ 天 · \S+/)).toBeInTheDocument();
@@ -310,14 +312,14 @@ describe('DestinationFilmCarousel', () => {
     }
 
     const discoveryRoutes = {
-      北京: '/square?destination=%E5%8C%97%E4%BA%AC',
-      西安: '/square?destination=%E8%A5%BF%E5%AE%89',
-      重庆: '/square?destination=%E9%87%8D%E5%BA%86',
-      厦门: '/square?destination=%E5%8E%A6%E9%97%A8',
+      北京: '/compare?kind=hotel&destination=%E5%8C%97%E4%BA%AC',
+      西安: '/compare?kind=hotel&destination=%E8%A5%BF%E5%AE%89',
+      重庆: '/compare?kind=hotel&destination=%E9%87%8D%E5%BA%86',
+      厦门: '/compare?kind=hotel&destination=%E5%8E%A6%E9%97%A8',
     } as const;
     for (const [destination, href] of Object.entries(discoveryRoutes)) {
       expect(screen.getByRole('link', {
-        name: `打开${destination}攻略`,
+        name: `比价${destination}行程`,
         hidden: true,
       })).toHaveAttribute('href', href);
     }
