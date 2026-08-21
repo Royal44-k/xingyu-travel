@@ -59,15 +59,26 @@ export function AssistantClient({ tripId, requestAssistant = requestFromApi }: A
   });
   const selectGuardianPlan = useTripStore((state) => state.selectGuardianPlan);
   const canPersistSelection = hydrated && !hydrationError && Boolean(contextTrip);
+  const contextIdentity = contextTrip?.id ?? (tripId ? `missing:${tripId}` : 'general-travel-advice');
 
   useEffect(() => {
     void hydrateWorkbenchTripStore();
   }, []);
 
+  useEffect(() => {
+    requestGate.current.start();
+    setResult(undefined);
+    setError(undefined);
+    setLoading(false);
+    setSelectedPlanId(undefined);
+    setSelectionError(undefined);
+  }, [contextIdentity]);
+
   const ask = async (nextQuestion: string) => {
     if (!nextQuestion.trim() || loading) return;
     const request = requestGate.current.start();
     setLoading(true);
+    setResult(undefined);
     setError(undefined);
     setSelectedPlanId(undefined);
     setSelectionError(undefined);
@@ -94,7 +105,7 @@ export function AssistantClient({ tripId, requestAssistant = requestFromApi }: A
       setSelectionError(undefined);
     } catch {
       setSelectedPlanId(undefined);
-      setSelectionError('关联行程已不存在，方案未保存。你仍可直接参考本次建议。');
+      setSelectionError('方案未能保存到本地行程。你仍可直接参考本次建议，或稍后重试。');
     }
   };
 

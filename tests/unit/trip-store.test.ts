@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { extractTripDraft } from '@/domain/trips/extract-draft';
 import { postsBySlug } from '@/data/posts';
 import {
@@ -25,6 +25,8 @@ beforeEach(() => {
   vi.useRealTimers();
   window.localStorage.clear();
 });
+
+afterEach(() => vi.restoreAllMocks());
 
 describe('trip state machine', () => {
   it('coalesces concurrent hydration requests from the header and route content', async () => {
@@ -181,6 +183,29 @@ describe('decision room', () => {
     expect(store.getState().guardianPlans).toEqual({ [daliDraft.id]: { id: 'PLAN-A', title: '室内备选' } });
     expect(() => store.getState().selectGuardianPlan('unknown-trip', { id: 'PLAN-B', title: '不应保存' })).toThrow('TRIP_NOT_FOUND:unknown-trip');
     expect(store.getState().guardianPlans).toEqual({ [daliDraft.id]: { id: 'PLAN-A', title: '室内备选' } });
+  });
+
+  it('restores guardian-plan memory and persisted bytes when browser storage rejects the write', async () => {
+    const store = createTripStore();
+    await store.persist.rehydrate();
+    store.getState().acceptDraft(daliDraft);
+    const tripBefore = structuredClone(store.getState().trips[daliDraft.id]);
+    const persistedBefore = window.localStorage.getItem(canonicalKey);
+    const originalSetItem = window.localStorage.setItem.bind(window.localStorage);
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation((key, value) => {
+      if (key === canonicalKey) throw new Error('QUOTA_EXCEEDED');
+      originalSetItem(key, value);
+    });
+
+    expect(() => store.getState().selectGuardianPlan(
+      daliDraft.id,
+      { id: 'PLAN-A', title: '室内备选' },
+    )).toThrow('QUOTA_EXCEEDED');
+
+    expect(store.getState().guardianPlans[daliDraft.id]).toBeUndefined();
+    expect(store.getState().trips[daliDraft.id]).toEqual(tripBefore);
+    expect(window.localStorage.getItem(canonicalKey)).toBe(persistedBefore);
+    setItem.mockRestore();
   });
 
   it('selects guarded trips by updated time, then created time, then source slug', () => {

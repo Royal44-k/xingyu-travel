@@ -1,6 +1,6 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AssistantClient } from '@/features/assistant/assistant-client';
 import { postsBySlug } from '@/data/posts';
 import { extractTripDraft } from '@/domain/trips/extract-draft';
@@ -27,6 +27,8 @@ beforeEach(() => {
   useTripStoreHydration.setState({ hydrated: false, hydrationError: false });
   useTripStore.getState().acceptDraft(extractTripDraft(postsBySlug['dali-slow-5d']));
 });
+
+afterEach(() => vi.restoreAllMocks());
 
 describe('AssistantClient', () => {
   it('shows structured emergency advice with model and evidence labels, then saves a selected plan locally', async () => {
@@ -59,6 +61,29 @@ describe('AssistantClient', () => {
       id: 'EMERGENCY-110',
       title: '联系公安机关',
     });
+  });
+
+  it('reports a browser persistence failure without showing a false saved state', async () => {
+    const user = userEvent.setup();
+    render(
+      <AssistantClient requestAssistant={async () => emergencyResponse} tripId="dali-slow-5d" />,
+    );
+    await user.click(screen.getByRole('button', { name: '人身安全' }));
+    const result = await screen.findByRole('region', { name: '旅行助手回答' });
+    const persistedBefore = window.localStorage.getItem('xingyu-demo-v1');
+    const originalSetItem = window.localStorage.setItem.bind(window.localStorage);
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation((key, value) => {
+      if (key === 'xingyu-demo-v1') throw new Error('QUOTA_EXCEEDED');
+      originalSetItem(key, value);
+    });
+
+    await user.click(within(result).getByRole('button', { name: '选择联系公安机关方案' }));
+
+    expect(screen.getByRole('alert')).toHaveTextContent('方案未能保存到本地行程');
+    expect(screen.queryByText('方案已保存到本浏览器的旅行决策，未创建订单')).not.toBeInTheDocument();
+    expect(useTripStore.getState().guardianPlans['draft-dali-slow-5d']).toBeUndefined();
+    expect(window.localStorage.getItem('xingyu-demo-v1')).toBe(persistedBefore);
+    setItem.mockRestore();
   });
 
   it('answers a fresh user without inventing Dali context or offering persistence controls', async () => {
@@ -121,5 +146,81 @@ describe('AssistantClient', () => {
     expect(screen.getByRole('button', { name: '整理中…' })).toBeDisabled();
     await user.click(screen.getByRole('button', { name: '人身安全' }));
     expect(requests).toEqual([{ tripId: 'draft-dali-slow-5d', question: '请为我的行程给出规划建议。' }]);
+  });
+
+  it('invalidates the previous answer while the latest request is pending and after it fails', async () => {
+    const user = userEvent.setup();
+    let rejectLatest: ((reason: Error) => void) | undefined;
+    const requestAssistant = vi.fn()
+      .mockResolvedValueOnce(emergencyResponse)
+      .mockImplementationOnce(() => new Promise<never>((_resolve, reject) => {
+        rejectLatest = reject;
+      }));
+    render(<AssistantClient requestAssistant={requestAssistant} tripId="dali-slow-5d" />);
+
+    await user.click(screen.getByRole('button', { name: '人身安全' }));
+    const firstResult = await screen.findByRole('region', { name: '旅行助手回答' });
+    expect(within(firstResult).getByRole('button', { name: '选择联系公安机关方案' })).toBeEnabled();
+
+    await user.click(screen.getByRole('button', { name: '规划建议' }));
+    expect(screen.queryByRole('region', { name: '旅行助手回答' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '选择联系公安机关方案' })).not.toBeInTheDocument();
+
+    rejectLatest?.(new Error('LATEST_REQUEST_FAILED'));
+    expect(await screen.findByRole('alert')).toHaveTextContent('LATEST_REQUEST_FAILED');
+    expect(screen.queryByRole('region', { name: '旅行助手回答' })).not.toBeInTheDocument();
+    expect(useTripStore.getState().guardianPlans).toEqual({});
+  });
+
+  it('removes a completed answer as soon as its trip context changes', async () => {
+    const user = userEvent.setup();
+    const sichuanDraft = extractTripDraft(postsBySlug['sichuan-autumn-road']);
+    useTripStore.getState().acceptDraft(sichuanDraft);
+    const { rerender } = render(
+      <AssistantClient requestAssistant={async () => emergencyResponse} tripId="dali-slow-5d" />,
+    );
+
+    await user.click(screen.getByRole('button', { name: '人身安全' }));
+    expect(await screen.findByRole('region', { name: '旅行助手回答' })).toBeInTheDocument();
+
+    rerender(<AssistantClient requestAssistant={async () => emergencyResponse} tripId="sichuan-autumn-road" />);
+    expect(await screen.findByText('川西慢行计划 · 川西')).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: '旅行助手回答' })).not.toBeInTheDocument();
+  });
+
+  it('ignores a response bound to the trip context that was replaced while it was pending', async () => {
+    const user = userEvent.setup();
+    const sichuanDraft = extractTripDraft(postsBySlug['sichuan-autumn-road']);
+    useTripStore.getState().acceptDraft(sichuanDraft);
+    let resolveDali: ((response: typeof emergencyResponse) => void) | undefined;
+    const requests: Array<{ tripId: string; question: string }> = [];
+    const requestAssistant = vi.fn((request: { tripId: string; question: string }) => {
+      requests.push(request);
+      if (request.tripId === 'draft-dali-slow-5d') {
+        return new Promise<typeof emergencyResponse>((resolve) => { resolveDali = resolve; });
+      }
+      return Promise.resolve(emergencyResponse);
+    });
+    const { rerender } = render(
+      <AssistantClient requestAssistant={requestAssistant} tripId="dali-slow-5d" />,
+    );
+
+    await user.click(screen.getByRole('button', { name: '人身安全' }));
+    rerender(<AssistantClient requestAssistant={requestAssistant} tripId="sichuan-autumn-road" />);
+    expect(await screen.findByText('川西慢行计划 · 川西')).toBeInTheDocument();
+    resolveDali?.(emergencyResponse);
+    await waitFor(() => expect(screen.getByRole('button', { name: '人身安全' })).toBeEnabled());
+    expect(screen.queryByRole('region', { name: '旅行助手回答' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: '人身安全' }));
+    const result = await screen.findByRole('region', { name: '旅行助手回答' });
+    await user.click(within(result).getByRole('button', { name: '选择联系公安机关方案' }));
+
+    expect(requests.map(({ tripId }) => tripId)).toEqual([
+      'draft-dali-slow-5d',
+      sichuanDraft.id,
+    ]);
+    expect(useTripStore.getState().guardianPlans['draft-dali-slow-5d']).toBeUndefined();
+    expect(useTripStore.getState().guardianPlans[sichuanDraft.id]).toMatchObject({ id: 'EMERGENCY-110' });
   });
 });
