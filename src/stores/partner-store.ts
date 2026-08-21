@@ -45,7 +45,7 @@ export interface PartnerStoreState {
   visibleMatchIds: string[];
   blockedCandidateIds: string[];
   publishIntent: (profile: PartnerProfile, intent: PartnerIntent) => void;
-  restoreIntent: (profileId: string, intent?: PartnerIntent) => void;
+  restoreIntent: (profileId: string, intent?: PartnerIntent, persistenceWasAbsent?: boolean) => void;
   requestMatch: (profile: PartnerProfile, candidateId: string) => string;
   simulateMutualApproval: (profile: PartnerProfile, matchId: string) => void;
   sendMessage: (profile: PartnerProfile, matchId: string, body: string) =>
@@ -69,6 +69,7 @@ const initialPartnerState: Pick<
 > = {
   intents: {}, matches: {}, visibleMatchIds: [], blockedCandidateIds: [],
 };
+export const partnerStoreStorageKey = 'xingyu-partner-demo-v1';
 
 const allowedTransitions: Readonly<Record<PartnerMatchStatus, readonly PartnerMatchStatus[]>> = {
   pending_mutual: ['matched', 'blocked', 'reported'],
@@ -198,7 +199,7 @@ function stateCreator(
         throw error;
       }
     },
-    restoreIntent: (profileId, intent) => {
+    restoreIntent: (profileId, intent, persistenceWasAbsent = false) => {
       const previousIntent = get().intents[profileId];
       try {
         set((state) => {
@@ -219,6 +220,15 @@ function stateCreator(
           // Memory changes precede persistence, so the original owner snapshot is restored.
         }
         throw error;
+      }
+      if (persistenceWasAbsent) {
+        const restored = get();
+        const canRestoreAbsentPersistence = Object.keys(restored.intents).length === 0
+          && Object.keys(restored.matches).length === 0
+          && restored.visibleMatchIds.length === 0
+          && restored.blockedCandidateIds.length === 0;
+        if (!canRestoreAbsentPersistence) throw new Error('PARTNER_COMPENSATION_PERSISTENCE_CONFLICT');
+        localStorage.removeItem(partnerStoreStorageKey);
       }
     },
     requestMatch: (profile, candidateId) => {
@@ -342,7 +352,7 @@ function migrateV1PersistedState(state: unknown): PersistedPartnerState {
 
 function persistenceOptions(options: CreatePartnerStoreOptions = {}) {
   return {
-    name: 'xingyu-partner-demo-v1', version: 2, skipHydration: true,
+    name: partnerStoreStorageKey, version: 2, skipHydration: true,
     partialize: (state: PartnerStoreState): PersistedPartnerState => ({
       intents: state.intents, matches: state.matches,
       visibleMatchIds: state.visibleMatchIds, blockedCandidateIds: state.blockedCandidateIds,

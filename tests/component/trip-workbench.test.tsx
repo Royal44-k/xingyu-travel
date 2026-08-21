@@ -204,6 +204,7 @@ describe('TripWorkbench', () => {
 
   it('compensates the owner write when the trip marker persistence fails second', async () => {
     const user = userEvent.setup();
+    window.localStorage.removeItem('xingyu-partner-demo-v1');
     const partnerBytesBefore = window.localStorage.getItem('xingyu-partner-demo-v1');
     const tripBytesBefore = window.localStorage.getItem('xingyu-demo-v1');
     const tripBefore = structuredClone(useTripStore.getState().trips[draft.id]);

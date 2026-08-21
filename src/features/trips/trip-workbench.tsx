@@ -16,7 +16,12 @@ import styles from './trips.module.css';
 import { demoViewerProfile } from '@/data/partners';
 import { postHrefForSlug } from '@/data/posts';
 import { tripToPartnerIntent } from '@/features/partners/trip-to-partner-intent';
-import { hydratePartnerStore, usePartnerStore, usePartnerStoreHydration } from '@/stores/partner-store';
+import {
+  hydratePartnerStore,
+  partnerStoreStorageKey,
+  usePartnerStore,
+  usePartnerStoreHydration,
+} from '@/stores/partner-store';
 
 export function TripWorkbench({ slug }: { slug: string }) {
   const workbenchHydrated = useTripStoreHydration((state) => state.hydrated);
@@ -72,6 +77,7 @@ export function TripWorkbench({ slug }: { slug: string }) {
     if (!partnerPublishingAvailable) return;
     setPartnerPublishingError('');
     const previousPartnerIntent = usePartnerStore.getState().intents[demoViewerProfile.id];
+    const partnerPersistenceWasAbsent = localStorage.getItem(partnerStoreStorageKey) === null;
     let ownerIntentCommitted = false;
     try {
       publishPartnerMatchIntent(demoViewerProfile, tripToPartnerIntent(trip, partnerIntent));
@@ -83,7 +89,11 @@ export function TripWorkbench({ slug }: { slug: string }) {
     } catch {
       if (ownerIntentCommitted) {
         try {
-          restorePartnerMatchIntent(demoViewerProfile.id, previousPartnerIntent);
+          restorePartnerMatchIntent(
+            demoViewerProfile.id,
+            previousPartnerIntent,
+            partnerPersistenceWasAbsent,
+          );
         } catch {
           setPartnerPublishingError('搭子意愿与行程标记未能一致保存。请暂停重试并前往寻找搭子页检查本地状态。');
           return;
