@@ -1,6 +1,7 @@
 import type { MetadataRoute } from 'next';
+import { resolveSiteOrigin } from '@/lib/site-origin';
 
-const origin = (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://xingyu-travel.vercel.app').replace(/\/$/, '');
+const origin = resolveSiteOrigin();
 const paths = ['/', '/compare', '/square', '/trips', '/partners', '/assistant', '/profile'] as const;
 
 export default function sitemap(): MetadataRoute.Sitemap {

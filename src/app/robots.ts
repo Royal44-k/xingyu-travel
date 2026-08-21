@@ -1,6 +1,7 @@
 import type { MetadataRoute } from 'next';
+import { resolveSiteOrigin } from '@/lib/site-origin';
 
-const origin = (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://xingyu-travel.vercel.app').replace(/\/$/, '');
+const origin = resolveSiteOrigin();
 
 export default function robots(): MetadataRoute.Robots {
   return {
