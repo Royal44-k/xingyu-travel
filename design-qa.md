@@ -5,8 +5,8 @@
 - Source visual truth: `docs/design/selected-homepage-option-1.png` and `docs/design/xingyu-content-hub-target.png`.
 - Browser implementation: local production build at `http://127.0.0.1:4173`.
 - Browser: locally installed Google Chrome through Playwright `channel: "chrome"`; this run did not use the in-app browser.
-- Primary routes/states: `/`, `/square`, `/square/dali-slow-5d`, `/profile`, hover, focus, selected favorite, empty likes, expired offer, malformed-library hydration error, Beijing discovery CTA, assistant with no trip, assistant trip-hydration error, assistant saved-plan success, and workbench partner-hydration error.
-- Capture manifests: `artifacts/design-qa-2026-08-19/capture-manifest.json` and `artifacts/final-fixes-2026-08-21/local-design-qa.json`.
+- Primary routes/states: `/`, `/square`, `/square/dali-slow-5d`, `/profile`, hover, focus, selected favorite, empty likes, expired offer, malformed-library hydration error, Beijing discovery CTA, assistant with no trip, assistant trip-hydration error, assistant saved-plan success, workbench partner-hydration error, assistant latest-request failure, assistant plan-persistence failure, and workbench second-write failure.
+- Capture manifests: `artifacts/design-qa-2026-08-19/capture-manifest.json`, `artifacts/final-fixes-2026-08-21/local-design-qa.json`, and `artifacts/final-fixes-round2-2026-08-21/local-design-qa.json`.
 
 ## Normalization
 
@@ -15,6 +15,7 @@
 - Desktop implementation: 1440 × 1024 CSS px at `deviceScaleFactor: 1`; screenshot pixels are 1440 × 1024.
 - Mobile implementation: 390 × 844 CSS px at `deviceScaleFactor: 1`; screenshot pixels are 390 × 844.
 - Final-fix spot captures: 1440 × 1024 CSS px at `deviceScaleFactor: 1`; viewport screenshots are 1440 × 1024 pixels and the two assistant full-page states are 1440 × 1649 and 1440 × 1634 pixels. The combined comparison board is 1920 × 2846 pixels.
+- Second-round spot captures: 1440 × 1024 CSS px at `deviceScaleFactor: 1`; all three report `documentWidth === viewportWidth`. Full-page heights are 1024, 1634, and 3602 pixels for latest-request failure, plan-persistence failure, and workbench second-write failure respectively.
 - Every capture waited for route-specific content, `document.readyState === "complete"`, `document.fonts.status === "loaded"`, visible images with non-zero natural width, and the finite entrance motion to reach its settled state.
 
 ## Full-view comparison evidence
@@ -23,6 +24,7 @@
 - Content hub: `artifacts/design-qa-2026-08-19/comparison-content-hub-full.png`.
 - Responsive quartet: `artifacts/design-qa-2026-08-19/comparison-mobile-responsiveness.png`.
 - Final affected surfaces beside both visual-truth inputs: `artifacts/final-fixes-2026-08-21/comparison-affected-surfaces.png`.
+- Second-round affected surfaces beside both visual-truth inputs: `artifacts/final-fixes-round2-2026-08-21/comparison-affected-surfaces.png`.
 
 ## Focused comparison evidence
 
@@ -30,6 +32,7 @@
 - Square, guide detail, and profile target-panel comparisons: `artifacts/design-qa-2026-08-19/comparison-content-hub-focus.png`.
 - Hover, selected, focus, empty, expired, and hydration-error states: `artifacts/design-qa-2026-08-19/comparison-interaction-states.png`.
 - Affected-state readable captures: `artifacts/final-fixes-2026-08-21/homepage-beijing-cta.png`, `assistant-fresh-no-trip.png`, `assistant-hydration-error.png`, `assistant-existing-trip-saved.png`, and `workbench-partner-hydration-error.png` in the same artifact directory. The source boards do not prescribe assistant/workbench null or persistence-error states, so these were judged against the established typography, spacing, tokens, copy, recovery, and control-state system rather than claiming pixel identity to an absent source state.
+- Second-round readable captures: `artifacts/final-fixes-round2-2026-08-21/assistant-latest-request-failure.png`, `assistant-plan-persistence-error.png`, and `workbench-second-write-error.png`. They were inspected individually after opening the combined same-input board.
 
 ## Findings
 
@@ -38,6 +41,9 @@ No actionable P0, P1, or P2 finding remains in the valid route-ready comparison.
 - [Passed · final-fix spot check] The Beijing film keeps the dark editorial treatment while the visible CTA truthfully says `比价北京行程`; the destination is no longer presented as a nonexistent guide.
 - [Passed · final-fix spot check] Fresh-user and hydration-error assistant states clearly separate advice-only use from trip persistence. Plan A/B/C remains readable, selection controls appear only for a real trip, and saved status appears only after a successful selection.
 - [Passed · final-fix spot check] The partner-store error appears adjacent to the disabled publish action in the decision room, preserves the established error color, and explains the recovery boundary without collapsing the surrounding layout.
+- [Passed · second-round spot check] A failed latest Assistant request removes the older Plan A/B/C cards and save controls, leaves a concise retry message adjacent to the prompt, and does not create a blank or misleading result panel.
+- [Passed · second-round spot check] Browser quota failure leaves the current structured advice readable but shows no saved status or selected control. The revised message accurately distinguishes persistence failure from a missing trip.
+- [Passed · second-round spot check] A failed TripStore marker write compensates the PartnerStore intent, returns the publish button to an enabled retry state, and places the error immediately beside that control without disturbing the long workbench layout.
 
 - [P3 · accepted] The generated Hero places the brightest sun and water reflection farther right than the homepage concept. The delivered asset keeps the same dark-left/bright-right mountain-lake art direction and avoids copied hotel-brand photography.
 - [P3 · accepted] The implementation adds an explicit public-MVP disclosure, real date fields, a complete navigation inventory, and local-library entry points. These are required product and safety semantics; they preserve the reference hierarchy while making the standalone prototype honest and operable.
@@ -57,7 +63,8 @@ No actionable P0, P1, or P2 finding remains in the valid route-ready comparison.
 ## Interaction, accessibility, and runtime evidence
 
 - Local Chrome capture: the original 15 route/state screenshots and the final five affected-state screenshots recorded zero `console.error`, page errors, HTTP responses ≥400, or console warnings in their manifests.
-- `pnpm test:e2e`: 31/31 passed in 1.4 minutes using local Chrome, including the discovery-city prefill contract, four browser-local closed loops, nine 390 × 844 routes, six Axe scans, keyboard focus, dialogs, and reduced motion.
+- Second-round local Chrome capture: all three new affected-state screenshots recorded zero `console.error`, console warnings, page errors, or HTTP responses ≥400. The controlled latest-request failure used an application-shaped 200 error payload so the visual state could be exercised without introducing an intentional browser network error.
+- Fresh second-round `pnpm test:e2e`: 31/31 passed in 1.2 minutes using local Chrome, including the discovery-city prefill contract, four browser-local closed loops, nine 390 × 844 routes, six Axe scans, keyboard focus, dialogs, and reduced motion. The earlier final-review run remains recorded as 31/31 in 1.4 minutes.
 - Axe: no critical or serious violations on home, square, detail, profile, trips, and compare.
 - Responsive evidence: all four primary captures report `documentWidth === viewportWidth`; the broader E2E route matrix also passed closed/open navigation overflow checks.
 
@@ -68,6 +75,8 @@ No actionable P0, P1, or P2 finding remains in the valid route-ready comparison.
 3. The rebuilt full and focused same-input boards show the settled implementation. Inspection found no actionable P0/P1/P2 mismatch, so no production source change was made during Design QA.
 4. The first final-fix spot script used an overly broad `alert` locator that also matched Next.js's empty route announcer; the locator was narrowed to visible product copy. A subsequent full-page capture retained a prior scroll position and placed the sticky header mid-image; the capture was normalized to `scrollY === 0` and rebuilt. These were evidence-readiness defects, not product defects.
 5. The normalized `comparison-affected-surfaces.png` was opened and inspected with both source visual-truth inputs in the same comparison. No actionable P0/P1/P2 difference remained, so no post-comparison production CSS or component change was required.
+6. The second-round capture initially matched Next.js's empty route announcer in addition to the product alert; the locator was narrowed to visible product copy. A deliberate HTTP 503 also produced expected browser console noise, so the harness switched to an application-shaped error payload with HTTP 200. These were evidence-harness defects only. The clean rerun recorded three captures with zero runtime errors or warnings.
+7. `artifacts/final-fixes-round2-2026-08-21/comparison-affected-surfaces.png` and all three readable captures were opened and inspected. No actionable P0/P1/P2 visual finding remained.
 
 ## Remote release evidence
 
@@ -81,6 +90,7 @@ No actionable P0, P1, or P2 finding remains in the valid route-ready comparison.
 - [x] Desktop and mobile captures use the required CSS viewports and density.
 - [x] Route readiness, fonts, visible images, states, interactions, console, accessibility, and overflow are evidenced.
 - [x] Beijing CTA, assistant no-trip/error/saved, and workbench partner-error states are captured at identical desktop viewport and density with zero runtime errors.
+- [x] Assistant latest-failure/quota-error and workbench second-write-error states are captured at identical desktop viewport and density with zero runtime errors or warnings.
 - [x] Objective deviations are classified as required product constraints or P3 follow-up, not silently ignored.
 - [x] No actionable P0/P1/P2 remains.
 

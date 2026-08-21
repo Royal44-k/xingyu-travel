@@ -1,0 +1,51 @@
+{
+  "browser": "Google Chrome via Playwright channel=chrome",
+  "sourceVisualTruth": [
+    "docs/design/selected-homepage-option-1.png",
+    "docs/design/xingyu-content-hub-target.png"
+  ],
+  "evidence": [
+    {
+      "name": "assistant-latest-request-failure",
+      "route": "/assistant",
+      "state": "最新请求失败：旧 Plan A/B/C 与保存控件已失效",
+      "output": "artifacts/final-fixes-round2-2026-08-21/assistant-latest-request-failure.png",
+      "cssViewport": {
+        "width": 1440,
+        "height": 1024
+      },
+      "density": 1,
+      "documentWidth": 1440,
+      "documentHeight": 1024
+    },
+    {
+      "name": "assistant-plan-persistence-error",
+      "route": "/assistant?tripId=draft-dali-slow-5d",
+      "state": "浏览器写入失败：不显示虚假成功，并提供重试建议",
+      "output": "artifacts/final-fixes-round2-2026-08-21/assistant-plan-persistence-error.png",
+      "cssViewport": {
+        "width": 1440,
+        "height": 1024
+      },
+      "density": 1,
+      "documentWidth": 1440,
+      "documentHeight": 1634
+    },
+    {
+      "name": "workbench-second-write-error",
+      "route": "/trips/dali-slow-5d",
+      "state": "行程标记写入失败：搭子意愿已补偿，允许安全重试",
+      "output": "artifacts/final-fixes-round2-2026-08-21/workbench-second-write-error.png",
+      "cssViewport": {
+        "width": 1440,
+        "height": 1024
+      },
+      "density": 1,
+      "documentWidth": 1440,
+      "documentHeight": 3602
+    }
+  ],
+  "runtimeErrors": [],
+  "runtimeWarnings": [],
+  "result": "passed"
+}

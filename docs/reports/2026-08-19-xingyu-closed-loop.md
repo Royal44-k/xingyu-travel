@@ -99,3 +99,22 @@ This section supersedes the deployment identifiers above while preserving the ea
 - Preview-only SSO remained unchanged. The verifier was corrected to read the existing default Automation Bypass in memory instead of creating one. Two non-default entries accidentally created by this final-review task were precisely revoked; the count returned from 10 to 8 and the original default remained selected.
 - Previous known-good Production: `dpl_7tBjfSPxfbJXzwTX7PGGBUWCwgoE` / `https://xingyu-travel-c6zd0kuwa-lirongouyang522-3492s-projects.vercel.app`, READY.
 - Prepared rollback command: `pnpm dlx vercel@59.1.4 rollback https://xingyu-travel-c6zd0kuwa-lirongouyang522-3492s-projects.vercel.app --scope lirongouyang522-3492s-projects`; recorded only, not executed.
+
+### Final-review local gates already evidenced
+
+- `pnpm lint`: exit 0.
+- `pnpm typecheck`: exit 0.
+- `pnpm test --maxWorkers=1`: 42/42 files, 348/348 tests, 489.89 s.
+- `pnpm test:e2e`: 31/31 passed in 1.4 minutes using local Google Chrome.
+- `pnpm build`: exit 0; Next.js 16.2.12; 14/14 static pages generated.
+
+## Second final-review candidate — 2026-08-21
+
+- Production-fix commits: `dc0a3bb` (Assistant request invalidation and transactional plan selection), `fd63609` (cross-store partner publication compensation), `7bf184a` (read-only historical Preview diagnostic), and `3ddca47` (React-compliant trip-context session binding).
+- `pnpm lint`: exit 0; ESLint emitted no finding after the React best-practices refactor.
+- `pnpm typecheck`: exit 0; the initial sandboxed attempt encountered only `tsconfig.tsbuildinfo` EPERM, then the exact command completed with permitted project-cache access.
+- `pnpm test --maxWorkers=1`: 42/42 files, 357/357 tests, 467.65 s.
+- `pnpm test:e2e`: 31/31 passed in 1.2 minutes using local Google Chrome; port 4173 was free after the runner stopped its server.
+- `pnpm build`: exit 0; Next.js 16.2.12; compile 6.8 s, TypeScript 12.7 s, 14/14 static pages generated in 530 ms.
+- Second-round same-input Design QA: `artifacts/final-fixes-round2-2026-08-21/comparison-affected-surfaces.png` plus three readable affected-state captures; manifest result `passed`, with zero runtime errors or warnings and no actionable P0/P1/P2.
+- `design-qa.md` remains `final result: passed`.
