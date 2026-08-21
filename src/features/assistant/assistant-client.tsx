@@ -6,6 +6,8 @@ import { useEffect, useRef, useState } from 'react';
 import type { AssistantAlternative, AssistantResponse } from '@/domain/assistant/schema';
 import {
   hydrateWorkbenchTripStore,
+  type TripStoreState,
+  type WorkbenchTrip,
   useTripStore,
   useTripStoreHydration,
 } from '@/stores/trip-store';
@@ -42,13 +44,6 @@ async function requestFromApi(request: AssistantRequest): Promise<AssistantRespo
 }
 
 export function AssistantClient({ tripId, requestAssistant = requestFromApi }: AssistantClientProps) {
-  const [question, setQuestion] = useState('');
-  const [result, setResult] = useState<AssistantResponse>();
-  const [error, setError] = useState<string>();
-  const [loading, setLoading] = useState(false);
-  const [selectedPlanId, setSelectedPlanId] = useState<string>();
-  const [selectionError, setSelectionError] = useState<string>();
-  const requestGate = useRef(createLatestRequestGate());
   const hydrated = useTripStoreHydration((state) => state.hydrated);
   const hydrationError = useTripStoreHydration((state) => state.hydrationError);
   const contextTrip = useTripStore((state) => {
@@ -58,21 +53,49 @@ export function AssistantClient({ tripId, requestAssistant = requestFromApi }: A
     );
   });
   const selectGuardianPlan = useTripStore((state) => state.selectGuardianPlan);
-  const canPersistSelection = hydrated && !hydrationError && Boolean(contextTrip);
   const contextIdentity = contextTrip?.id ?? (tripId ? `missing:${tripId}` : 'general-travel-advice');
 
   useEffect(() => {
     void hydrateWorkbenchTripStore();
   }, []);
 
-  useEffect(() => {
-    requestGate.current.start();
-    setResult(undefined);
-    setError(undefined);
-    setLoading(false);
-    setSelectedPlanId(undefined);
-    setSelectionError(undefined);
-  }, [contextIdentity]);
+  return (
+    <AssistantSession
+      contextTrip={contextTrip}
+      hydrated={hydrated}
+      hydrationError={hydrationError}
+      key={contextIdentity}
+      requestAssistant={requestAssistant}
+      selectGuardianPlan={selectGuardianPlan}
+      tripId={tripId}
+    />
+  );
+}
+
+interface AssistantSessionProps extends AssistantClientProps {
+  contextTrip?: WorkbenchTrip;
+  hydrated: boolean;
+  hydrationError: boolean;
+  requestAssistant: NonNullable<AssistantClientProps['requestAssistant']>;
+  selectGuardianPlan: TripStoreState['selectGuardianPlan'];
+}
+
+function AssistantSession({
+  contextTrip,
+  hydrated,
+  hydrationError,
+  requestAssistant,
+  selectGuardianPlan,
+  tripId,
+}: AssistantSessionProps) {
+  const [question, setQuestion] = useState('');
+  const [result, setResult] = useState<AssistantResponse>();
+  const [error, setError] = useState<string>();
+  const [loading, setLoading] = useState(false);
+  const [selectedPlanId, setSelectedPlanId] = useState<string>();
+  const [selectionError, setSelectionError] = useState<string>();
+  const requestGate = useRef(createLatestRequestGate());
+  const canPersistSelection = hydrated && !hydrationError && Boolean(contextTrip);
 
   const ask = async (nextQuestion: string) => {
     if (!nextQuestion.trim() || loading) return;
