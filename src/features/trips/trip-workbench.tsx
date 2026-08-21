@@ -22,6 +22,7 @@ export function TripWorkbench({ slug }: { slug: string }) {
   const workbenchHydrated = useTripStoreHydration((state) => state.hydrated);
   const workbenchHydrationError = useTripStoreHydration((state) => state.hydrationError);
   const partnerHydrated = usePartnerStoreHydration((state) => state.hydrated);
+  const partnerHydrationError = usePartnerStoreHydration((state) => state.hydrationError);
   const partnerIntent = usePartnerStore((state) => state.intents[demoViewerProfile.id]);
   const publishPartnerMatchIntent = usePartnerStore((state) => state.publishIntent);
   const tripId = useTripStore((state) =>
@@ -36,6 +37,7 @@ export function TripWorkbench({ slug }: { slug: string }) {
   const vote = useTripStore((state) => state.vote);
   const enableGuardian = useTripStore((state) => state.enableGuardian);
   const publishPartnerIntent = useTripStore((state) => state.publishPartnerIntent);
+  const [partnerPublishingError, setPartnerPublishingError] = useState('');
   useEffect(() => {
     void Promise.all([hydrateWorkbenchTripStore(), hydratePartnerStore()]);
   }, []);
@@ -64,6 +66,20 @@ export function TripWorkbench({ slug }: { slug: string }) {
   }
 
   const budgetSummary = getBudgetSummary(trip);
+  const partnerPublishingAvailable = partnerHydrated && !partnerHydrationError;
+  const publishPartnerIntentSafely = () => {
+    if (!partnerPublishingAvailable) return;
+    setPartnerPublishingError('');
+    try {
+      publishPartnerMatchIntent(demoViewerProfile, tripToPartnerIntent(trip, partnerIntent));
+      if (!usePartnerStore.getState().intents[demoViewerProfile.id]) {
+        throw new Error('PARTNER_INTENT_NOT_COMMITTED');
+      }
+      publishPartnerIntent(trip.id);
+    } catch {
+      setPartnerPublishingError('搭子意愿未能保存，行程未标记为已发布。请稍后重试。');
+    }
+  };
   return (
     <main className={styles.page}>
       {workbenchHydrationError && <p className={styles.hydrationWarning} role="status">工作台存储校验失败，继续使用当前安全的内存状态；原存储未被覆盖。</p>}
@@ -112,9 +128,14 @@ export function TripWorkbench({ slug }: { slug: string }) {
 
       <DecisionRoom
         onEnableGuardian={(consent) => enableGuardian(trip.id, consent)}
-        onPublishPartnerIntent={() => { publishPartnerMatchIntent(demoViewerProfile, tripToPartnerIntent(trip, partnerIntent)); publishPartnerIntent(trip.id); }}
+        onPublishPartnerIntent={publishPartnerIntentSafely}
         onVote={(memberId, candidateId) => vote(trip.id, memberId, candidateId)}
         partnerIntentPublished={partnerIntentPublished}
+        partnerPublishingAvailable={partnerPublishingAvailable}
+        partnerPublishingError={partnerHydrationError || Boolean(partnerPublishingError)}
+        partnerPublishingMessage={partnerHydrationError
+          ? '搭子意愿存储无法安全读取，发布已停用；原数据未被覆盖。请前往寻找搭子页显式重置后再试。'
+          : partnerPublishingError || undefined}
         trip={trip}
       />
 

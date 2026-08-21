@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   defaultPartnerIntent,
   demoPartnerCandidates,
@@ -49,6 +49,21 @@ describe('partner eligibility', () => {
 });
 
 describe('partner intent and hard filters', () => {
+  it('rolls back owner memory when browser persistence rejects an intent write', async () => {
+    const store = createPartnerStore();
+    await store.persist.rehydrate();
+    const originalSetItem = window.localStorage.setItem.bind(window.localStorage);
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation((key, value) => {
+      if (key === 'xingyu-partner-demo-v1') throw new Error('QUOTA_EXCEEDED');
+      originalSetItem(key, value);
+    });
+
+    expect(() => store.getState().publishIntent(eligibleProfile, daliPartnerIntent)).toThrow('QUOTA_EXCEEDED');
+    expect(store.getState().intents[eligibleProfile.id]).toBeUndefined();
+
+    setItem.mockRestore();
+  });
+
   it('requires every intent field and a valid date, budget, interest, and capacity', () => {
     expect(validatePartnerIntent({
       ...defaultPartnerIntent,

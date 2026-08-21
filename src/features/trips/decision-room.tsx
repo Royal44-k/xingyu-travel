@@ -13,6 +13,9 @@ interface DecisionRoomProps {
   onEnableGuardian: (consent: boolean) => void;
   onPublishPartnerIntent: () => void;
   onVote: (memberId: string, candidateId: string) => void;
+  partnerPublishingAvailable: boolean;
+  partnerPublishingMessage?: string;
+  partnerPublishingError?: boolean;
 }
 
 export function DecisionRoom({
@@ -21,6 +24,9 @@ export function DecisionRoom({
   onEnableGuardian,
   onPublishPartnerIntent,
   onVote,
+  partnerPublishingAvailable,
+  partnerPublishingMessage,
+  partnerPublishingError = false,
 }: DecisionRoomProps) {
   const [guardianDialogOpen, setGuardianDialogOpen] = useState(false);
   const [consent, setConsent] = useState(false);
@@ -104,11 +110,23 @@ export function DecisionRoom({
 
       <div className={styles.localActions}>
         <div><UsersThree aria-hidden size={21} /><span><strong>寻找同行</strong><small>仅创建浏览器本地演示意愿</small></span></div>
-        <button disabled={partnerIntentPublished} onClick={onPublishPartnerIntent} type="button">
+        <button
+          aria-describedby={partnerPublishingMessage ? 'partner-publishing-message' : undefined}
+          disabled={partnerIntentPublished || !partnerPublishingAvailable}
+          onClick={onPublishPartnerIntent}
+          type="button"
+        >
           {partnerIntentPublished ? '已保存搭子意愿' : '发布搭子意愿'}
         </button>
       </div>
       {partnerIntentPublished && <p className={styles.localConfirmation} role="status">搭子意愿已保存到本浏览器，未发布到平台。</p>}
+      {!partnerIntentPublished && partnerPublishingMessage ? (
+        <p
+          className={partnerPublishingError ? styles.formError : styles.localActionMessage}
+          id="partner-publishing-message"
+          role={partnerPublishingError ? 'alert' : 'status'}
+        >{partnerPublishingMessage}</p>
+      ) : null}
 
       <div className={styles.localActions}>
         <div><ShieldCheck aria-hidden size={21} /><span><strong>行程守护</strong><small>{guardianSupported ? '不读取实时坐标，不连接真实监测服务' : '当前守护沙箱只支持大理慢行示例'}</small></span></div>

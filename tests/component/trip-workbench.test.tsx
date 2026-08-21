@@ -5,13 +5,21 @@ import { postsBySlug } from '@/data/posts';
 import { extractTripDraft } from '@/domain/trips/extract-draft';
 import { TripWorkbench } from '@/features/trips/trip-workbench';
 import { createTripStore, useTripStore, useTripStoreHydration } from '@/stores/trip-store';
+import {
+  createPartnerStore,
+  usePartnerStore,
+  usePartnerStoreHydration,
+} from '@/stores/partner-store';
+import { demoViewerProfile } from '@/data/partners';
 
 const draft = extractTripDraft(postsBySlug['dali-slow-5d']);
 
 function readyStores() {
+  usePartnerStore.getState().resetPartnerStore();
   useTripStore.setState({ trips: {}, partnerIntents: {}, guardianPlans: {} });
   useTripStore.getState().savePostAsTrip(draft, postsBySlug['dali-slow-5d'].media[0].src);
   useTripStoreHydration.setState({ hydrated: true, hydrationError: false });
+  usePartnerStoreHydration.setState({ hydrated: true, hydrationError: false });
 }
 
 beforeEach(() => {
@@ -23,6 +31,9 @@ afterEach(() => {
   window.localStorage.clear();
   useTripStore.setState({ trips: {}, partnerIntents: {}, guardianPlans: {} });
   useTripStoreHydration.setState({ hydrated: false, hydrationError: false });
+  usePartnerStore.getState().resetPartnerStore();
+  usePartnerStoreHydration.setState({ hydrated: false, hydrationError: false });
+  window.localStorage.clear();
 });
 
 describe('TripWorkbench', () => {
@@ -154,6 +165,38 @@ describe('TripWorkbench', () => {
     await user.click(screen.getByRole('button', { name: '发布搭子意愿' }));
     expect(screen.getByRole('status')).toHaveTextContent('搭子意愿已保存到本浏览器');
     expect(screen.getByRole('status')).toHaveTextContent('未发布到平台');
+    expect(usePartnerStore.getState().intents[demoViewerProfile.id]).toBeDefined();
+    expect(useTripStore.getState().partnerIntents[draft.id]).toBe(true);
+
+    const reloadedPartner = createPartnerStore();
+    const reloadedTrip = createTripStore();
+    await Promise.all([
+      reloadedPartner.persist.rehydrate(),
+      reloadedTrip.persist.rehydrate(),
+    ]);
+    expect(reloadedPartner.getState().intents[demoViewerProfile.id]).toBeDefined();
+    expect(reloadedTrip.getState().partnerIntents[draft.id]).toBe(true);
+  });
+
+  it('disables partner publishing after malformed partner hydration without mutating the trip marker', async () => {
+    const user = userEvent.setup();
+    const malformedBytes = '{broken-partner-store';
+    usePartnerStore.setState({
+      intents: {}, matches: {}, visibleMatchIds: [], blockedCandidateIds: [],
+    });
+    usePartnerStoreHydration.setState({ hydrated: false, hydrationError: false });
+    window.localStorage.setItem('xingyu-partner-demo-v1', malformedBytes);
+
+    render(<TripWorkbench slug="dali-slow-5d" />);
+
+    const publish = await screen.findByRole('button', { name: '发布搭子意愿' });
+    await waitFor(() => expect(publish).toBeDisabled());
+    expect(screen.getByRole('alert')).toHaveTextContent('搭子意愿存储无法安全读取');
+    await user.click(publish);
+
+    expect(usePartnerStore.getState().intents[demoViewerProfile.id]).toBeUndefined();
+    expect(useTripStore.getState().partnerIntents[draft.id]).toBeUndefined();
+    expect(window.localStorage.getItem('xingyu-partner-demo-v1')).toBe(malformedBytes);
   });
 
   it('requires explicit guardian consent and can turn the local demo off again', async () => {

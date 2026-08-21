@@ -304,6 +304,7 @@
 .localActions > button:disabled { cursor: default; opacity: .65; }
 .localConfirmation,
 .guardianNotice { margin: 8px 0 0; color: #45604e; font-size: 12px; }
+.localActionMessage { margin: 8px 0 0; color: #6b645b; font-size: 12px; }
 .switch { position: relative; width: 48px; height: 27px; padding: 0 !important; background: #a9a298 !important; border-radius: 999px !important; }
 .switch span { position: absolute; top: 4px; left: 4px; width: 19px; height: 19px; background: white; border-radius: 50%; transition: transform .18s ease; }
 .switch[aria-checked="true"] { background: #486351 !important; }

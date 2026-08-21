@@ -179,7 +179,23 @@ function stateCreator(
       requireEligibility(profile);
       const parsed = validatePartnerIntent(intent);
       if (!parsed.success) throw new Error('PARTNER_INVALID_INTENT');
-      set((state) => ({ intents: { ...state.intents, [profile.id]: parsed.data } }));
+      const previousIntent = get().intents[profile.id];
+      try {
+        set((state) => ({ intents: { ...state.intents, [profile.id]: parsed.data } }));
+      } catch (error) {
+        try {
+          set((state) => {
+            const intents = { ...state.intents };
+            if (previousIntent) intents[profile.id] = previousIntent;
+            else delete intents[profile.id];
+            return { intents };
+          });
+        } catch {
+          // State changes before persistence is attempted, so this still restores
+          // the owner-domain memory when storage fails again during rollback.
+        }
+        throw error;
+      }
     },
     requestMatch: (profile, candidateId) => {
       requireEligibility(profile);
