@@ -1,0 +1,14 @@
+{
+  "result": "passed",
+  "target": "https://xingyu-travel-h08ayatmv-lirongouyang522-3492s-projects.vercel.app",
+  "viewport": {
+    "width": 1024,
+    "height": 640,
+    "deviceScaleFactor": 1
+  },
+  "gap": 127.96875,
+  "plannerBottom": 551,
+  "heroBottom": 648,
+  "scrollY": 192,
+  "runtimeIssues": []
+}

@@ -1,0 +1,144 @@
+{
+  "targetUrl": "https://xingyu-travel-h08ayatmv-lirongouyang522-3492s-projects.vercel.app",
+  "mode": "protected-preview",
+  "browser": "Google Chrome (Playwright channel: chrome)",
+  "startedAt": "2026-08-21T07:34:04.468Z",
+  "unauthenticated": {
+    "status": 200,
+    "finalOrigin": "https://vercel.com",
+    "finalPath": "/login",
+    "result": "expected Preview SSO login"
+  },
+  "routes": [
+    {
+      "route": "/",
+      "label": "首页",
+      "status": 200,
+      "finalPath": "/"
+    },
+    {
+      "route": "/square",
+      "label": "灵感广场",
+      "status": 200,
+      "finalPath": "/square"
+    },
+    {
+      "route": "/square/dali-slow-5d",
+      "label": "攻略详情",
+      "status": 200,
+      "finalPath": "/square/dali-slow-5d"
+    },
+    {
+      "route": "/profile",
+      "label": "个人中心",
+      "status": 200,
+      "finalPath": "/profile"
+    },
+    {
+      "route": "/trips",
+      "label": "我的行程",
+      "status": 200,
+      "finalPath": "/trips"
+    },
+    {
+      "route": "/compare?kind=flight&destination=%E5%A4%A7%E7%90%86&origin=%E4%B8%8A%E6%B5%B7&from=2026-09-18&to=2026-09-22&travelers=3",
+      "label": "统一比价",
+      "status": 200,
+      "finalPath": "/compare"
+    },
+    {
+      "route": "/partners",
+      "label": "旅游搭子",
+      "status": 200,
+      "finalPath": "/partners"
+    },
+    {
+      "route": "/assistant",
+      "label": "AI 旅行助手",
+      "status": 200,
+      "finalPath": "/assistant"
+    },
+    {
+      "route": "/guardian/dali-slow-5d",
+      "label": "行程守护",
+      "status": 200,
+      "finalPath": "/guardian/dali-slow-5d"
+    }
+  ],
+  "assets": [
+    {
+      "path": "/assets/destinations/dali/01.png",
+      "status": 200,
+      "contentType": "image/png",
+      "byteLength": 2487912
+    },
+    {
+      "path": "/_next/image?url=%2Fassets%2Fdestinations%2Fdali%2F01.png&w=1080&q=75",
+      "status": 200,
+      "contentType": "image/png",
+      "byteLength": 364221
+    }
+  ],
+  "securityHeaders": {
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "permissions-policy": "camera=(), microphone=(), geolocation=()",
+    "x-frame-options": "SAMEORIGIN"
+  },
+  "affectedFlows": [
+    {
+      "name": "discovery city -> comparison destination prefilled",
+      "result": "passed"
+    },
+    {
+      "name": "fresh assistant -> advice only without invented trip",
+      "result": "passed"
+    },
+    {
+      "name": "assistant trip -> explicit selection saves once",
+      "result": "passed"
+    },
+    {
+      "name": "assistant latest failure -> previous trip plan controls invalidated",
+      "result": "passed"
+    },
+    {
+      "name": "assistant trip quota -> plan memory and bytes rolled back",
+      "result": "passed"
+    },
+    {
+      "name": "workbench trip quota -> partner owner write compensated",
+      "result": "passed"
+    },
+    {
+      "name": "assistant malformed trip store -> fail closed and preserve bytes",
+      "result": "passed"
+    },
+    {
+      "name": "workbench malformed partner store -> publishing disabled without trip marker",
+      "result": "passed"
+    }
+  ],
+  "loops": [
+    {
+      "name": "interest clear -> re-add -> recommendation survives reload",
+      "result": "passed"
+    },
+    {
+      "name": "like guide -> reload -> profile likes -> unlike",
+      "result": "passed"
+    },
+    {
+      "name": "guide conversion -> My Trips -> workbench -> compare",
+      "result": "passed"
+    },
+    {
+      "name": "favorite offer + alert -> profile -> re-search -> remove confirmation",
+      "result": "passed"
+    }
+  ],
+  "runtimeErrors": [],
+  "runtimeWarnings": [],
+  "completedAt": "2026-08-21T07:37:37.365Z",
+  "result": "passed"
+}
