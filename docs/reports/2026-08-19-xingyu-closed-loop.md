@@ -143,3 +143,14 @@ This section supersedes the deployment identifiers above while preserving the ea
 - `pnpm build`: exit 0; Next.js 16.2.12; compile 6.1 seconds, TypeScript 18.2 seconds, and 14/14 static pages generated in 938 ms.
 - Visible UI, copy, interaction state, styles, and responsive behavior are unchanged. The previously passed workbench second-write-error comparison remains accurate; `design-qa.md` records why a visually identical recapture was not repeated and still ends `final result: passed`.
 - The exact-byte distinction cannot be produced through ordinary visible UI because normal user writes intentionally serialize canonical valid JSON. Unit and real-component tests cover byte identity; Preview and Production verification will repeat the visible second-write failure, semantic state, route, closed-loop, security, and runtime contracts.
+
+### Third final-review release result
+
+- Exact deployed source and evidence commit: `cc88e274c628457eb74af587a19e22a2991911b3`; Preview was created from a clean worktree after all fresh local gates passed.
+- Protected Preview: `dpl_7bL9cTHePAJyGgKrJDeQzewJyGoM`, `https://xingyu-travel-fvetaopy2-lirongouyang522-3492s-projects.vercel.app`, READY. `preview-round3-final-verification-clean.json` passed 9/9 routes, 2/2 image assets, 8/8 affected flows, and 4/4 closed loops with zero runtime errors or warnings. Unauthenticated fresh Chrome reached Vercel SSO.
+- Exact-artifact promotion created Production `dpl_8Cr2HkEChsnCn1Mn6mkaBn7xQYWp`, `https://xingyu-travel-fs9wgz522-lirongouyang522-3492s-projects.vercel.app`, READY. Public alias `https://xingyu-travel.vercel.app` resolves to that deployment.
+- `production-round3-final-verification-clean.json` repeated the complete matrix without credentials or bypass headers and passed with zero console errors, console warnings, page errors, or HTTP responses >=400. The bounded one-hour Production error-log query returned no error-level entry.
+- Preview-only SSO remained unchanged. The verifier used only the pre-existing official Automation Bypass through a read-only lookup and created no new bypass credential or entry.
+- One first-pass Preview CSS preload timing warning did not reproduce in the unique same-artifact full recheck. One first-pass Production navigation `net::ERR_FAILED` did not reproduce in an instrumented exact-flow diagnostic or the unique same-artifact full recheck. No source or verifier suppression was introduced; only the clean terminal matrices are retained as release evidence.
+- Previous known-good Production: `dpl_E9kpA1gNdjX54Zzu8YheTmTynteT` / `https://xingyu-travel-dvjn1hjjq-lirongouyang522-3492s-projects.vercel.app`, READY.
+- Prepared rollback command: `pnpm dlx vercel@59.1.4 rollback https://xingyu-travel-dvjn1hjjq-lirongouyang522-3492s-projects.vercel.app --scope lirongouyang522-3492s-projects`; recorded only, not executed.
