@@ -1,0 +1,18 @@
+
+ RUN  v4.1.10 D:/Codex-chat/xingyu-travel/.worktrees/xingyu-public-mvp
+
+ ❯ tests/e2e/core-journey.spec.ts (0 test)
+ ❯ tests/e2e/accessibility.spec.ts (0 test)
+ ❯ tests/e2e/responsive.spec.ts (0 test)
+ ❯ tests/component/site-header.test.tsx (2 tests | 1 failed) 372ms
+   × renders usable primary navigation with the homepage marked current 329ms
+ ❯ tests/component/risk-timeline.test.tsx (1 test | 1 failed) 347ms
+     × makes demo risk freshness explicit and records a Plan A choice only in local trip decisions 345ms
+
+ Test Files  5 failed | 26 passed (31)
+      Tests  2 failed | 212 passed (214)
+   Start at  14:33:00
+   Duration  52.90s (transform 1.79s, setup 36.44s, import 466.45s, tests 17.98s, environment 205.75s)
+
+[ELIFECYCLE] Test failed. See above for more details.
+[ELIFECYCLE] Command failed with exit code 1.

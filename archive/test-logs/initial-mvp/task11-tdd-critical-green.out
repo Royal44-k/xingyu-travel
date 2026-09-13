@@ -1,0 +1,10 @@
+
+ RUN  v4.1.10 D:/Codex-chat/xingyu-travel/.worktrees/xingyu-public-mvp
+
+ ✓ tests/unit/trip-to-partner-intent.test.ts > tripToPartnerIntent > uses canonical trip fields while preserving personal preferences and keeps 木雨 at score 92 4ms
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  14:59:17
+   Duration  3.80s (transform 90ms, setup 639ms, import 133ms, tests 6ms, environment 2.64s)
+

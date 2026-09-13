@@ -1,0 +1,451 @@
+{
+  "baselineCommit": "9bdfa5ca6bc885778567ae58e7a4be3687b70951",
+  "count": 89,
+  "commits": [
+    {
+      "commit": "f6e43d5b9ae26349259257267b927594497c33a7",
+      "date": "2026-08-16T15:03:57+08:00",
+      "subject": "docs: define xingyu web product design"
+    },
+    {
+      "commit": "5703a96ae0afb43c12a6c75f0cc7bd7c457564d8",
+      "date": "2026-08-16T15:18:27+08:00",
+      "subject": "docs: plan xingyu public mvp implementation"
+    },
+    {
+      "commit": "104eedc954ebf0fb112c67d5996b0d785babdab0",
+      "date": "2026-08-16T15:28:18+08:00",
+      "subject": "chore: ignore isolated development workspaces"
+    },
+    {
+      "commit": "c65bbb75ae5859385518b33028fe47fe4e7e1ed9",
+      "date": "2026-08-16T15:35:17+08:00",
+      "subject": "docs: correct weighted match score"
+    },
+    {
+      "commit": "20679924edba552db7c7e4d376f38a84ea7264cb",
+      "date": "2026-08-16T15:59:32+08:00",
+      "subject": "chore: initialize xingyu next app"
+    },
+    {
+      "commit": "3442a5618561c7c0d18bdb900a64ef14b3efe20d",
+      "date": "2026-08-16T16:29:38+08:00",
+      "subject": "feat: add travel domain contracts and sandbox adapters"
+    },
+    {
+      "commit": "7b1e61d0f8bd50989f8c7d6d1b4590d4ec5bd168",
+      "date": "2026-08-16T16:41:10+08:00",
+      "subject": "fix: harden offer and match domain boundaries"
+    },
+    {
+      "commit": "eb044c3e734617c361c0705cd4a24370f292404e",
+      "date": "2026-08-16T16:47:40+08:00",
+      "subject": "fix: reject overflowing offer totals"
+    },
+    {
+      "commit": "4598c274ef1ab041ea1fcb7fbff17cc68859c22f",
+      "date": "2026-08-16T17:40:28+08:00",
+      "subject": "feat: add original xingyu destination imagery"
+    },
+    {
+      "commit": "088927c9a9de97d2895a0076e538ab4896e04df6",
+      "date": "2026-08-16T18:10:52+08:00",
+      "subject": "feat: build immersive xingyu home search"
+    },
+    {
+      "commit": "fd4401e85aa84c98c19a15d671c917b7249c415c",
+      "date": "2026-08-16T18:24:08+08:00",
+      "subject": "fix: address home review feedback"
+    },
+    {
+      "commit": "776ac02b97c065264be85e13ec239ded44817015",
+      "date": "2026-08-16T18:47:58+08:00",
+      "subject": "feat: add transparent incremental comparison"
+    },
+    {
+      "commit": "4993cd2774b07cd195e83ba0824f79ab04e212d9",
+      "date": "2026-08-16T19:12:14+08:00",
+      "subject": "fix: complete comparison workflows and validation"
+    },
+    {
+      "commit": "f6881f9aa6df6da777b5d23f392bf866dd0cb513",
+      "date": "2026-08-16T19:23:04+08:00",
+      "subject": "fix: make comparison offer identity collision-safe"
+    },
+    {
+      "commit": "6a737074d782e7df470a9e7e8edba5c41da19686",
+      "date": "2026-08-16T19:41:32+08:00",
+      "subject": "feat: add guide square and trip conversion"
+    },
+    {
+      "commit": "202c161be5f8d0bf21e2e5000af24e7ff32f5c78",
+      "date": "2026-08-16T19:53:59+08:00",
+      "subject": "fix: complete square conversion and feed behavior"
+    },
+    {
+      "commit": "7387126f280c7c23be918ca9c79fab758c02237d",
+      "date": "2026-08-16T20:04:53+08:00",
+      "subject": "fix: harden square preferences and draft hydration"
+    },
+    {
+      "commit": "64cbb9085b9096a286de3cc844e5aea92091f1cc",
+      "date": "2026-08-16T20:14:59+08:00",
+      "subject": "fix: hydrate drafts before square conversion"
+    },
+    {
+      "commit": "5033cf6813fe487098e40d90b7fa0437e797aec4",
+      "date": "2026-08-16T20:24:52+08:00",
+      "subject": "fix: block conversion after draft hydration failure"
+    },
+    {
+      "commit": "67bf060603a84dd16999a74bb4ab34c95f6af27e",
+      "date": "2026-08-16T20:53:17+08:00",
+      "subject": "feat: add itinerary workbench and decision room"
+    },
+    {
+      "commit": "e0a5bb47a5dc3ab622a3f4a3035f7360675566fd",
+      "date": "2026-08-16T21:17:35+08:00",
+      "subject": "fix: harden trip hydration and guardian consent"
+    },
+    {
+      "commit": "058c03d1d34e7a431319d3fd2fc8ab2e5162cc78",
+      "date": "2026-08-16T22:00:20+08:00",
+      "subject": "feat: add explainable safe partner matching"
+    },
+    {
+      "commit": "a452a17e02f57b21573bb463307e39ed97c3a5a1",
+      "date": "2026-08-16T22:23:36+08:00",
+      "subject": "fix: harden partner scoring and safety gates"
+    },
+    {
+      "commit": "343263e3c3ca5c2286c6feed1b6ca111194178d1",
+      "date": "2026-08-16T22:36:57+08:00",
+      "subject": "fix: close partner contact and consent migration gaps"
+    },
+    {
+      "commit": "f3ef8bdbd81123f228ba62afbb451da500f848f8",
+      "date": "2026-08-17T10:54:17+08:00",
+      "subject": "feat: add structured travel assistant and guardian"
+    },
+    {
+      "commit": "3b9d1576bb8504d7d13951c0542e013f4f1d70e7",
+      "date": "2026-08-17T11:21:25+08:00",
+      "subject": "fix: harden assistant safety and guardian isolation"
+    },
+    {
+      "commit": "ef385053fd8f37fd3bb56f6522b7abe45f5fd182",
+      "date": "2026-08-17T11:46:29+08:00",
+      "subject": "fix: enforce trusted assistant output and canonical trip keys"
+    },
+    {
+      "commit": "faa2ef87a6abd0950170269aba595e72cdfdab8e",
+      "date": "2026-08-17T12:25:14+08:00",
+      "subject": "feat: add privacy controls and production safeguards"
+    },
+    {
+      "commit": "994a05afd103308b1264287c5bbd1a6a62747c59",
+      "date": "2026-08-17T12:45:03+08:00",
+      "subject": "fix: harden profile hydration and report focus"
+    },
+    {
+      "commit": "b7023ff5053d44b5d467411ecdfa799e1564c331",
+      "date": "2026-08-17T14:45:11+08:00",
+      "subject": "test: verify the complete xingyu travel journey"
+    },
+    {
+      "commit": "59a6f6223f3bd8504759c86ed0ab326f0a74082b",
+      "date": "2026-08-17T15:43:47+08:00",
+      "subject": "fix: connect journey state and strengthen browser acceptance"
+    },
+    {
+      "commit": "ccde7f49fdcbf8c219fc278c4be8c8dfb5b21880",
+      "date": "2026-08-17T16:06:33+08:00",
+      "subject": "test: cover hydrated mobile trip workbench"
+    },
+    {
+      "commit": "5d834e6331dc8f9107afafbe89074a87d469cab8",
+      "date": "2026-08-17T21:04:31+08:00",
+      "subject": "fix: pass responsive design qa"
+    },
+    {
+      "commit": "3b52f239904f02b2caf8aac53b4695c6d4791668",
+      "date": "2026-08-18T21:34:00+08:00",
+      "subject": "docs: design local travel content closed loop"
+    },
+    {
+      "commit": "2fea008b79c2399ff5279557a351ed7eaf1c3e5e",
+      "date": "2026-08-19T10:25:40+08:00",
+      "subject": "docs: plan local travel workspace implementation"
+    },
+    {
+      "commit": "96a162b9182be11c9e2dc63983458bd75bc1b1d3",
+      "date": "2026-08-19T11:12:03+08:00",
+      "subject": "feat: restore editable travel interests"
+    },
+    {
+      "commit": "e74cbd36eeaabdcc9680c9f49a2a50770886134b",
+      "date": "2026-08-19T11:23:37+08:00",
+      "subject": "fix: canonicalize persisted interest tags"
+    },
+    {
+      "commit": "812a9cddc1e302021c27424388428c66cb99cf7d",
+      "date": "2026-08-19T11:45:33+08:00",
+      "subject": "feat: persist local travel library"
+    },
+    {
+      "commit": "c413cfe075e1701e0a2130c173a08c2012a0ba36",
+      "date": "2026-08-19T11:59:02+08:00",
+      "subject": "fix: validate local library persistence"
+    },
+    {
+      "commit": "f92df1a013e123828e0e394386885ab10930ff3e",
+      "date": "2026-08-19T12:20:36+08:00",
+      "subject": "feat: connect guide and offer favorites"
+    },
+    {
+      "commit": "c614b5f532a6f880b2c34f95f156db6858d0b540",
+      "date": "2026-08-19T12:43:30+08:00",
+      "subject": "fix: explain unavailable guide favorites"
+    },
+    {
+      "commit": "1730df7fba22cc92ffd6dcfb88b9a817719cc444",
+      "date": "2026-08-19T13:43:05+08:00",
+      "subject": "feat: add canonical my trips collection"
+    },
+    {
+      "commit": "7486e30b5622f894a257ca460ea7d0385f1ca4ab",
+      "date": "2026-08-19T14:02:59+08:00",
+      "subject": "fix: reject duplicate trip source slugs"
+    },
+    {
+      "commit": "fb953e59c83fe5dc10c66cddc96f042193b91bf7",
+      "date": "2026-08-19T14:53:34+08:00",
+      "subject": "feat: build the local travel profile hub"
+    },
+    {
+      "commit": "17d2d755ac587a368e7cfe4b231545f059f207b4",
+      "date": "2026-08-19T19:40:30+08:00",
+      "subject": "fix: harden profile recovery and accessibility"
+    },
+    {
+      "commit": "87bffa29cf0e0af8298e744714a97de4ae22f2f5",
+      "date": "2026-08-20T09:38:45+08:00",
+      "subject": "feat: expand xingyu destination stories"
+    },
+    {
+      "commit": "5d8ec9826f3faa3997b8a87eeaf38669703a9c70",
+      "date": "2026-08-20T10:35:20+08:00",
+      "subject": "fix: harden destination content contracts"
+    },
+    {
+      "commit": "268787b0433e01167c58d9ae862a23e86afac66d",
+      "date": "2026-08-20T11:13:32+08:00",
+      "subject": "test: enforce exact destination asset inventory"
+    },
+    {
+      "commit": "9a8b855fbee9c730bdb8cec2c3eeec7596fdb187",
+      "date": "2026-08-20T11:20:42+08:00",
+      "subject": "test: make destination asset contract explicit"
+    },
+    {
+      "commit": "8ccc7478080ed97a29e4677b6ac91134b5038e20",
+      "date": "2026-08-20T12:44:49+08:00",
+      "subject": "feat: enrich guide discovery and galleries"
+    },
+    {
+      "commit": "9581aabbe5f27d457d9503f261f9f089a1ca4937",
+      "date": "2026-08-20T13:23:18+08:00",
+      "subject": "fix: harden square gallery interactions"
+    },
+    {
+      "commit": "7b95447d890114f048e133c1fb2d537db2e3d646",
+      "date": "2026-08-20T13:32:56+08:00",
+      "subject": "fix: remove no-op guide duration filters"
+    },
+    {
+      "commit": "c9ccd47911c546237a38f56b664ce3071d4495e7",
+      "date": "2026-08-20T14:22:32+08:00",
+      "subject": "feat: add cinematic destination discovery"
+    },
+    {
+      "commit": "9db40a74a5c47e72b94a6e4a9fec157efa29326d",
+      "date": "2026-08-20T15:20:09+08:00",
+      "subject": "fix: harden cinematic discovery controls"
+    },
+    {
+      "commit": "4a94c326b0a2ea77bbeaf0c7c1d81af171763011",
+      "date": "2026-08-20T15:36:23+08:00",
+      "subject": "fix: preserve carousel focus pause contracts"
+    },
+    {
+      "commit": "0b3fd9d79ed5e99a61675e6c6b769c16a04d21b6",
+      "date": "2026-08-20T16:03:58+08:00",
+      "subject": "fix: connect navigation to real local journeys"
+    },
+    {
+      "commit": "acb2fe296b4e7161f4e550375e8438e0ec01590c",
+      "date": "2026-08-20T16:35:10+08:00",
+      "subject": "fix: guard local guardian activation flows"
+    },
+    {
+      "commit": "3761f378caefcaa74a934ddddc55e4c9fe807c0e",
+      "date": "2026-08-20T17:12:44+08:00",
+      "subject": "test: verify the complete local travel library"
+    },
+    {
+      "commit": "6c69936d77de696bae5be8ebadf0fed56814b973",
+      "date": "2026-08-20T17:41:25+08:00",
+      "subject": "test: harden browser acceptance ownership"
+    },
+    {
+      "commit": "6c39b03b4be0046216cdbd609c831e26040bfcc2",
+      "date": "2026-08-20T19:40:17+08:00",
+      "subject": "fix: preserve saved offer search context"
+    },
+    {
+      "commit": "ab4b31e0e9f3dcc6184c780444678d073936dfc4",
+      "date": "2026-08-20T19:41:19+08:00",
+      "subject": "docs: update local library e2e evidence"
+    },
+    {
+      "commit": "e14c5960aacf48848c063b46ef521af3ae5d31e1",
+      "date": "2026-08-20T19:54:13+08:00",
+      "subject": "test: cover saved offer origin context"
+    },
+    {
+      "commit": "1e8802080044b7a603817848fd503481d82f2dda",
+      "date": "2026-08-20T19:54:57+08:00",
+      "subject": "docs: record saved offer origin evidence"
+    },
+    {
+      "commit": "d58c254767d483f353897ba82d726ccc036d8c79",
+      "date": "2026-08-20T20:38:24+08:00",
+      "subject": "docs: record xingyu design qa and release evidence"
+    },
+    {
+      "commit": "2d7691e01a6c9e514539a8c3fd8cec03de0c43e3",
+      "date": "2026-08-20T21:51:17+08:00",
+      "subject": "docs: record xingyu production deployment"
+    },
+    {
+      "commit": "6a60ee278a2191a74aa7ee011d6cd790f36d425a",
+      "date": "2026-08-21T09:56:18+08:00",
+      "subject": "fix: route discovery cities into comparison"
+    },
+    {
+      "commit": "bddb82656fd53f8f73ed9325aced6cf5b5724f70",
+      "date": "2026-08-21T10:05:48+08:00",
+      "subject": "fix: hydrate assistant trip context safely"
+    },
+    {
+      "commit": "5fe27ea53f2f11459143dce1226e716a5167e73f",
+      "date": "2026-08-21T10:13:44+08:00",
+      "subject": "fix: prevent cross-store partner split brain"
+    },
+    {
+      "commit": "e77c96e52ba333c5aabf6303c9cea6a1e6bef483",
+      "date": "2026-08-21T10:15:57+08:00",
+      "subject": "fix: stabilize crawler production origin"
+    },
+    {
+      "commit": "51818da9514cc756f1c01a114570ee8878a46904",
+      "date": "2026-08-21T10:39:33+08:00",
+      "subject": "docs: record final fix design QA"
+    },
+    {
+      "commit": "69b013de2cabda9d2290829082c4eb25a8a16527",
+      "date": "2026-08-21T11:12:05+08:00",
+      "subject": "docs: record final vercel release evidence"
+    },
+    {
+      "commit": "dc0a3bbafdc360ac85bed9a6d99b63d04b20795c",
+      "date": "2026-08-21T11:40:52+08:00",
+      "subject": "fix(assistant): invalidate stale advice and roll back failed saves"
+    },
+    {
+      "commit": "fd636093e52c36b815eb3bbbb847f2e43e1f998b",
+      "date": "2026-08-21T11:45:13+08:00",
+      "subject": "fix(trips): compensate failed partner intent publication"
+    },
+    {
+      "commit": "7bf184a797f2193af1cc585ac4bdb04780e64c16",
+      "date": "2026-08-21T11:48:22+08:00",
+      "subject": "test(release): keep preview diagnostics read-only"
+    },
+    {
+      "commit": "3ddca476a949aac988d000646159036b7d363def",
+      "date": "2026-08-21T11:51:13+08:00",
+      "subject": "refactor(assistant): bind answer state to trip sessions"
+    },
+    {
+      "commit": "36c35a5e52e1f2ddc179f784ffe01fdb8dea58c8",
+      "date": "2026-08-21T12:11:22+08:00",
+      "subject": "docs: record second final-review evidence"
+    },
+    {
+      "commit": "6d10ef2891e9d0f148984df21a9dda59ee6115d7",
+      "date": "2026-08-21T12:35:16+08:00",
+      "subject": "fix(trips): preserve absent partner persistence on compensation"
+    },
+    {
+      "commit": "a4cd194632577d03414c963fa26eb427dbfd73b7",
+      "date": "2026-08-21T12:50:17+08:00",
+      "subject": "docs: record fresh-browser compensation evidence"
+    },
+    {
+      "commit": "4b7a911f1c322f539e80a7f28138fc92301f02e9",
+      "date": "2026-08-21T13:04:34+08:00",
+      "subject": "docs: record verified second final release"
+    },
+    {
+      "commit": "f4ef6f00a57de4dd8940ab3df6aba2419ce80d42",
+      "date": "2026-08-21T13:33:51+08:00",
+      "subject": "fix(trips): restore partner publication bytes exactly"
+    },
+    {
+      "commit": "cc88e274c628457eb74af587a19e22a2991911b3",
+      "date": "2026-08-21T13:46:41+08:00",
+      "subject": "docs: record third final-review gates"
+    },
+    {
+      "commit": "a225a0465ac812c0ac14ce65e382fb914decf8a7",
+      "date": "2026-08-21T14:15:51+08:00",
+      "subject": "docs: record verified third final release"
+    },
+    {
+      "commit": "fef5e9783e86403d1be7dc697903e3b6643d8e04",
+      "date": "2026-08-21T15:25:42+08:00",
+      "subject": "fix: lower the compact desktop planner"
+    },
+    {
+      "commit": "63067404e6017004b4b12e126670426f5153f366",
+      "date": "2026-08-21T15:51:19+08:00",
+      "subject": "docs: record hero layout production evidence"
+    },
+    {
+      "commit": "755275eb5c59ce75f060f564318fd03fce528c87",
+      "date": "2026-08-21T16:44:16+08:00",
+      "subject": "fix: flow the hero narrative above search"
+    },
+    {
+      "commit": "9fec919c75a1660045c7e217454f98695175ca5d",
+      "date": "2026-08-21T17:06:13+08:00",
+      "subject": "docs: record wide hero production evidence"
+    },
+    {
+      "commit": "13d3f243d28c02168482ebc01240e4385cd1fd95",
+      "date": "2026-08-21T17:57:18+08:00",
+      "subject": "feat: add the xingyu browser identity"
+    },
+    {
+      "commit": "9208e41464fa1a7e4eb037d5038ead77dce8dc3d",
+      "date": "2026-08-21T18:15:44+08:00",
+      "subject": "docs: record xingyu icon production evidence"
+    },
+    {
+      "commit": "9bdfa5ca6bc885778567ae58e7a4be3687b70951",
+      "date": "2026-08-24T12:00:28+08:00",
+      "subject": "docs: add deployment and usage guides"
+    }
+  ]
+}

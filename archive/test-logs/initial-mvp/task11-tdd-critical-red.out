@@ -1,0 +1,9 @@
+
+ RUN  v4.1.10 D:/Codex-chat/xingyu-travel/.worktrees/xingyu-public-mvp
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  14:57:33
+   Duration  3.78s (transform 33ms, setup 640ms, import 0ms, tests 0ms, environment 2.70s)
+

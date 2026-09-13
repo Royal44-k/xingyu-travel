@@ -1,0 +1,1382 @@
+# COMMITS
+058c03d feat: add explainable safe partner matching
+
+# STAT
+ src/app/chat/[matchId]/page.tsx           |  13 ++
+ src/app/partners/page.tsx                 |  12 ++
+ src/components/safety-consent.tsx         |  31 +++
+ src/data/partners.ts                      | 223 ++++++++++++++++++++++
+ src/features/chat/chat-room.tsx           | 104 ++++++++++
+ src/features/chat/chat.module.css         |  54 ++++++
+ src/features/partners/intent-form.tsx     |  96 ++++++++++
+ src/features/partners/match-list.tsx      |  80 ++++++++
+ src/features/partners/partners.module.css |  64 +++++++
+ src/stores/partner-store.ts               | 307 ++++++++++++++++++++++++++++++
+ tests/component/partner-flow.test.tsx     | 117 ++++++++++++
+ tests/unit/partner-eligibility.test.ts    | 190 ++++++++++++++++++
+ 12 files changed, 1291 insertions(+)
+
+# DIFF
+diff --git a/src/app/chat/[matchId]/page.tsx b/src/app/chat/[matchId]/page.tsx
+new file mode 100644
+index 0000000..548c3ac
+--- /dev/null
++++ b/src/app/chat/[matchId]/page.tsx
+@@ -0,0 +1,13 @@
++import type { Metadata } from 'next';
++import { SiteHeader } from '@/components/site-header';
++import { ChatRoom } from '@/features/chat/chat-room';
++
++export const metadata: Metadata = {
++  title: '搭子聊天演示',
++  description: '仅对完成双方同意的本地演示匹配开放，包含联系方式双向同意与安全工具。',
++};
++
++export default async function ChatPage({ params }: { params: Promise<{ matchId: string }> }) {
++  const { matchId } = await params;
++  return <><SiteHeader /><ChatRoom matchId={matchId} /></>;
++}
+diff --git a/src/app/partners/page.tsx b/src/app/partners/page.tsx
+new file mode 100644
+index 0000000..7edbc3d
+--- /dev/null
++++ b/src/app/partners/page.tsx
+@@ -0,0 +1,12 @@
++import type { Metadata } from 'next';
++import { SiteHeader } from '@/components/site-header';
++import { PartnerMatchExperience } from '@/features/partners/match-list';
++
++export const metadata: Metadata = {
++  title: '可信搭子匹配',
++  description: '浏览公开搭子卡片，以明确边界、可解释分数和双方同意开始一次本地演示匹配。',
++};
++
++export default function PartnersPage() {
++  return <><SiteHeader activePath="/partners" /><PartnerMatchExperience /></>;
++}
+diff --git a/src/components/safety-consent.tsx b/src/components/safety-consent.tsx
+new file mode 100644
+index 0000000..f69305d
+--- /dev/null
++++ b/src/components/safety-consent.tsx
+@@ -0,0 +1,31 @@
++'use client';
++
++import { X } from '@phosphor-icons/react';
++import { useRef, useState } from 'react';
++import { useDialogFocus } from '@/features/comparison/use-dialog-focus';
++import styles from '@/features/chat/chat.module.css';
++
++export function SafetyConsent({ open, returnFocusRef, onClose, onConfirm }: {
++  open: boolean;
++  returnFocusRef: React.RefObject<HTMLButtonElement | null>;
++  onClose: () => void;
++  onConfirm: () => void;
++}) {
++  const [consented, setConsented] = useState(false);
++  const dialogRef = useRef<HTMLDivElement>(null);
++  const close = () => { setConsented(false); onClose(); };
++  useDialogFocus(open, dialogRef, returnFocusRef, close);
++  if (!open) return null;
++
++  return (
++    <div className={styles.dialogBackdrop}>
++      <div aria-labelledby="trusted-contact-title" aria-modal="true" className={styles.safetyDialog} ref={dialogRef} role="dialog">
++        <label className={styles.consentCheck}><input checked={consented} onChange={(event) => setConsented(event.target.checked)} type="checkbox" /><span>我已告知可信联系人本次结伴信息，并确认共享内容不含精确实时坐标。</span></label>
++        <button aria-label="关闭可信联系人确认" className={styles.dialogClose} onClick={close} type="button"><X aria-hidden size={20} /></button>
++        <p>SAFETY ACKNOWLEDGEMENT</p><h2 id="trusted-contact-title">可信联系人确认</h2>
++        <span>这是浏览器本地演示确认，不会向任何联系人自动发送消息，也不会上传身份材料。</span>
++        <button className={styles.confirmButton} disabled={!consented} onClick={() => { onConfirm(); close(); }} type="button">确认已告知</button>
++      </div>
++    </div>
++  );
++}
+diff --git a/src/data/partners.ts b/src/data/partners.ts
+new file mode 100644
+index 0000000..60cfd51
+--- /dev/null
++++ b/src/data/partners.ts
+@@ -0,0 +1,223 @@
++import { scoreMatch, type MatchReasonKey, type MatchSignals } from '@/domain/partners/score-match';
++
++export type PartnerRiskStatus = 'clear' | 'review' | 'restricted';
++
++export interface PartnerProfile {
++  id: string;
++  age: number;
++  identityVerified: boolean;
++  riskStatus: PartnerRiskStatus;
++}
++
++export interface PartnerIntent {
++  destination: string;
++  startDate: string;
++  endDate: string;
++  budget: number;
++  pace: string;
++  interests: string[];
++  route: string;
++  lodgingBoundary: string;
++  schedule: string;
++  socialPreference: string;
++  capacity: number;
++  certificationRequired: boolean;
++}
++
++export interface PartnerCandidate extends PartnerProfile {
++  displayName: string;
++  introduction: string;
++  destination: string;
++  startDate: string;
++  endDate: string;
++  budget: number;
++  pace: string;
++  interests: string[];
++  route: string;
++  lodgingBoundary: string;
++  schedule: string;
++  socialPreference: string;
++  capacity: number;
++  certified: boolean;
++  blockedUserIds: string[];
++  matchSignals: MatchSignals;
++}
++
++export type EligibilityResult =
++  | { allowed: true }
++  | { allowed: false; code: 'AGE_RESTRICTED' | 'IDENTITY_REQUIRED' | 'RISK_RESTRICTED' };
++
++export const defaultPartnerIntent: PartnerIntent = {
++  destination: '川西',
++  startDate: '2026-09-18',
++  endDate: '2026-09-23',
++  budget: 5200,
++  pace: '舒缓',
++  interests: ['雪山', '摄影'],
++  route: '成都—康定—新都桥',
++  lodgingBoundary: '接受同性拼房，需独立床位',
++  schedule: '早起，22:30 前休息',
++  socialPreference: '结伴活动，也保留独处时间',
++  capacity: 2,
++  certificationRequired: true,
++};
++
++export const demoViewerProfile: PartnerProfile = {
++  id: 'viewer-demo',
++  age: 28,
++  identityVerified: true,
++  riskStatus: 'clear',
++};
++
++export const demoPartnerCandidates: PartnerCandidate[] = [{
++  id: 'user-muyu',
++  displayName: '木雨',
++  age: 27,
++  identityVerified: true,
++  riskStatus: 'clear',
++  introduction: '慢节奏风光摄影爱好者，习惯提前确认边界与每日安排。',
++  destination: '川西',
++  startDate: '2026-09-17',
++  endDate: '2026-09-24',
++  budget: 5000,
++  pace: '舒缓',
++  interests: ['雪山', '摄影'],
++  route: '成都—康定—新都桥',
++  lodgingBoundary: '接受同性拼房，需独立床位',
++  schedule: '早起，22:30 前休息',
++  socialPreference: '结伴活动，也保留独处时间',
++  capacity: 3,
++  certified: true,
++  blockedUserIds: [],
++  matchSignals: {
++    destination: '川西',
++    dateOverlap: 1,
++    budgetFit: 0.9,
++    paceFit: 1,
++    interestFit: 0.8,
++    routeFit: 1,
++    lodgingFit: 1,
++    scheduleFit: 0.6,
++    socialFit: 0.8,
++  },
++}, {
++  id: 'user-azhou',
++  displayName: '阿舟',
++  age: 30,
++  identityVerified: true,
++  riskStatus: 'clear',
++  introduction: '轻装徒步与在地饮食爱好者，重视预算透明和分开住宿。',
++  destination: '川西',
++  startDate: '2026-09-19',
++  endDate: '2026-09-22',
++  budget: 5600,
++  pace: '适中',
++  interests: ['徒步', '在地饮食'],
++  route: '成都—康定—塔公',
++  lodgingBoundary: '各自独立房间',
++  schedule: '自然醒，23:00 前休息',
++  socialPreference: '白天同行，晚间自由安排',
++  capacity: 2,
++  certified: true,
++  blockedUserIds: [],
++  matchSignals: {
++    destination: '川西',
++    dateOverlap: 0.75,
++    budgetFit: 0.82,
++    paceFit: 0.72,
++    interestFit: 0.65,
++    routeFit: 0.78,
++    lodgingFit: 0.65,
++    scheduleFit: 0.75,
++    socialFit: 0.82,
++  },
++}];
++
++const reasonLabels: Readonly<Record<MatchReasonKey, string>> = {
++  date: '旅行日期高度重合',
++  budget: '预算范围很接近',
++  pace: '旅行节奏很合拍',
++  interest: '共同兴趣较多',
++  route: '期待路线方向一致',
++  lodging: '住宿边界相容',
++  schedule: '每日作息较一致',
++  social: '社交偏好相近',
++};
++
++export function isPartnerEligible(profile: PartnerProfile): EligibilityResult {
++  if (profile.age < 18) return { allowed: false, code: 'AGE_RESTRICTED' };
++  if (!profile.identityVerified) return { allowed: false, code: 'IDENTITY_REQUIRED' };
++  if (profile.riskStatus !== 'clear') return { allowed: false, code: 'RISK_RESTRICTED' };
++  return { allowed: true };
++}
++
++export function validatePartnerIntent(intent: PartnerIntent):
++  | { success: true; data: PartnerIntent }
++  | { success: false; fieldErrors: Record<string, string> } {
++  const fieldErrors: Record<string, string> = {};
++  if (!intent.destination.trim()) fieldErrors.destination = '请输入目的地';
++  if (!isIsoDate(intent.startDate)) fieldErrors.startDate = '请选择有效的出发日期';
++  if (!isIsoDate(intent.endDate)) fieldErrors.endDate = '请选择有效的返程日期';
++  else if (isIsoDate(intent.startDate) && intent.endDate < intent.startDate) {
++    fieldErrors.endDate = '返程日期不能早于出发日期';
++  }
++  if (!Number.isFinite(intent.budget) || intent.budget <= 0) fieldErrors.budget = '请输入大于 0 的预算';
++  if (!intent.pace.trim()) fieldErrors.pace = '请选择旅行节奏';
++  if (!intent.interests.length || intent.interests.some((interest) => !interest.trim())) {
++    fieldErrors.interests = '请至少选择一项兴趣';
++  }
++  if (!intent.route.trim()) fieldErrors.route = '请输入期待路线';
++  if (!intent.lodgingBoundary.trim()) fieldErrors.lodgingBoundary = '请说明住宿边界';
++  if (!intent.schedule.trim()) fieldErrors.schedule = '请说明日常作息';
++  if (!intent.socialPreference.trim()) fieldErrors.socialPreference = '请说明社交偏好';
++  if (!Number.isInteger(intent.capacity) || intent.capacity < 1) fieldErrors.capacity = '同行容量至少为 1 人';
++  if (Object.keys(fieldErrors).length) return { success: false, fieldErrors };
++  return { success: true, data: {
++    ...intent,
++    destination: intent.destination.trim(),
++    interests: intent.interests.map((interest) => interest.trim()),
++    route: intent.route.trim(),
++    lodgingBoundary: intent.lodgingBoundary.trim(),
++    schedule: intent.schedule.trim(),
++    socialPreference: intent.socialPreference.trim(),
++  } };
++}
++
++export function filterPartnerCandidates(
++  intent: PartnerIntent,
++  candidates: PartnerCandidate[],
++  relations: { viewerId: string; blockedCandidateIds: string[] },
++) {
++  const blocked = new Set(relations.blockedCandidateIds);
++  return candidates.filter((candidate) =>
++    candidate.destination === intent.destination &&
++    candidate.startDate <= intent.endDate &&
++    candidate.endDate >= intent.startDate &&
++    candidate.capacity >= intent.capacity &&
++    (!intent.certificationRequired || candidate.certified) &&
++    !candidate.blockedUserIds.includes(relations.viewerId) &&
++    !blocked.has(candidate.id) &&
++    isPartnerEligible(candidate).allowed,
++  );
++}
++
++export function scorePartnerCandidate(_intent: PartnerIntent, candidate: PartnerCandidate): {
++  candidate: PartnerCandidate;
++  score: number;
++  reasons: string[];
++  reasonKeys: MatchReasonKey[];
++} {
++  const result = scoreMatch(candidate.matchSignals, candidate);
++  return {
++    candidate,
++    score: result.score,
++    reasons: result.reasons.map(({ key }) => reasonLabels[key]),
++    reasonKeys: result.reasons.map(({ key }) => key),
++  };
++}
++
++function isIsoDate(value: string) {
++  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
++  const parsed = new Date(`${value}T00:00:00.000Z`);
++  return !Number.isNaN(parsed.valueOf()) && parsed.toISOString().slice(0, 10) === value;
++}
+diff --git a/src/features/chat/chat-room.tsx b/src/features/chat/chat-room.tsx
+new file mode 100644
+index 0000000..9630533
+--- /dev/null
++++ b/src/features/chat/chat-room.tsx
+@@ -0,0 +1,104 @@
++'use client';
++
++import { CheckCircle, Flag, LinkSimple, ShieldCheck, UserMinus, UsersThree, WarningCircle } from '@phosphor-icons/react';
++import Link from 'next/link';
++import { useEffect, useRef, useState } from 'react';
++import { SafetyConsent } from '@/components/safety-consent';
++import { demoPartnerCandidates, demoViewerProfile } from '@/data/partners';
++import { hydratePartnerStore, usePartnerStore, usePartnerStoreHydration } from '@/stores/partner-store';
++import styles from './chat.module.css';
++
++export function ChatRoom({ matchId }: { matchId: string }) {
++  const match = usePartnerStore((state) => state.matches[matchId]);
++  const sendMessage = usePartnerStore((state) => state.sendMessage);
++  const setContactConsent = usePartnerStore((state) => state.setContactConsent);
++  const acknowledgeTrustedContact = usePartnerStore((state) => state.acknowledgeTrustedContact);
++  const shareTrip = usePartnerStore((state) => state.shareTrip);
++  const recordCheckIn = usePartnerStore((state) => state.recordCheckIn);
++  const blockMatch = usePartnerStore((state) => state.blockMatch);
++  const reportMatch = usePartnerStore((state) => state.reportMatch);
++  const hydrationError = usePartnerStoreHydration((state) => state.hydrationError);
++  const [draft, setDraft] = useState('');
++  const [sendError, setSendError] = useState('');
++  const [sendWarning, setSendWarning] = useState('');
++  const [trustedOpen, setTrustedOpen] = useState(false);
++  const trustedTriggerRef = useRef<HTMLButtonElement>(null);
++
++  useEffect(() => { void hydratePartnerStore(); }, []);
++
++  if (!match) return <LockedChat title="聊天暂不可用" message="找不到这条本地演示匹配，或它从未完成双方同意。" />;
++  if (match.status !== 'matched') {
++    return <LockedChat title={match.status === 'blocked' || match.status === 'reported' ? '此聊天已锁定' : '聊天暂不可用'} message={match.status === 'pending_mutual' ? '只有双方明确同意后才会开放聊天。' : '拉黑或举报会立即结束匹配，聊天不可恢复。'} />;
++  }
++  const candidate = demoPartnerCandidates.find(({ id }) => id === match.candidateId);
++  if (!candidate) return <LockedChat title="聊天暂不可用" message="搭子公开资料已不可用，请返回匹配页。" />;
++
++  const submit = (event: React.FormEvent) => {
++    event.preventDefault();
++    try {
++      const result = sendMessage(demoViewerProfile, matchId, draft);
++      if (!result.sent) {
++        setSendError('检测到电话、邮箱或微信等联系方式。需先完成单独的双方联系方式同意。');
++        setSendWarning('');
++        return;
++      }
++      setDraft('');
++      setSendError('');
++      setSendWarning(result.warning ?? '');
++    } catch (error) {
++      setSendError(error instanceof Error && error.message === 'PARTNER_EMPTY_MESSAGE' ? '请输入消息内容' : '消息暂时无法发送');
++    }
++  };
++
++  return (
++    <main className={styles.page}>
++      <header className={styles.chatHeader}>
++        <div><p>MUTUAL MATCH · SANDBOX</p><h1>与 {candidate.displayName} 的会话</h1><span><ShieldCheck aria-hidden size={16} />双方已同意 · 本地演示聊天，无实时服务或后台连接</span></div>
++        <Link href="/partners">返回搭子匹配</Link>
++      </header>
++      {hydrationError && <p className={styles.warningBar}>本地聊天记录校验失败，已使用安全的内存状态。</p>}
++      <div className={styles.chatLayout}>
++        <section aria-labelledby="messages-title" className={styles.conversation}>
++          <div className={styles.conversationHeading}><div><p>PRIVATE DEMO ROOM</p><h2 id="messages-title">对话记录</h2></div><span>仅当前浏览器</span></div>
++          <ol aria-live="polite" className={styles.messageList}>
++            <li className={styles.candidateMessage}><small>{candidate.displayName} · 沙箱示例</small><p>你好，我们可以先从路线节奏和住宿边界聊起。</p></li>
++            {match.messages.map((message) => <li className={styles.viewerMessage} key={message.id}><small>我 · 本地演示</small><p>{message.body}</p></li>)}
++          </ol>
++          <form className={styles.composer} onSubmit={submit}>
++            <label htmlFor="chat-message">消息</label>
++            <textarea id="chat-message" maxLength={1000} onChange={(event) => setDraft(event.target.value)} placeholder="先聊路线与边界；联系方式需双方单独同意" rows={3} value={draft} />
++            <button type="submit">发送</button>
++          </form>
++          {sendError && <p className={styles.inlineError} role="alert">{sendError}</p>}
++          {sendWarning && <p className={styles.inlineWarning} role="status">{sendWarning}</p>}
++        </section>
++
++        <aside className={styles.safetyRail}>
++          <section><p>CONTACT CONSENT</p><h2>联系方式双向同意</h2><span>普通消息无需同意；电话、邮箱、微信或其他账号需两边分别确认。</span>
++            <div className={styles.consentActions}>
++              <button aria-pressed={match.viewerContactConsent} onClick={() => setContactConsent(demoViewerProfile, matchId, 'viewer', true)} type="button">{match.viewerContactConsent ? '我已同意' : '我同意交换联系方式'}</button>
++              {match.viewerContactConsent && !match.candidateContactConsent && <span>等待对方单独同意</span>}
++              <button aria-pressed={match.candidateContactConsent} onClick={() => setContactConsent(demoViewerProfile, matchId, 'candidate', true)} type="button">{match.candidateContactConsent ? '对方已模拟同意' : '模拟对方同意交换联系方式（沙箱）'}</button>
++            </div>
++          </section>
++          <section><p>SAFETY TOOLS</p><h2>出发前的安全约定</h2><div className={styles.safetyActions}>
++            <button onClick={() => setTrustedOpen(true)} ref={trustedTriggerRef} type="button"><UsersThree aria-hidden size={18} />可信联系人确认</button>
++            {match.trustedContactAcknowledged && <span><CheckCircle aria-hidden size={15} />可信联系人已确认</span>}
++            <button onClick={() => shareTrip(demoViewerProfile, matchId)} type="button"><LinkSimple aria-hidden size={18} />共享演示行程</button>
++            {match.tripShared && <span><CheckCircle aria-hidden size={15} />演示行程已共享</span>}
++            <button onClick={() => recordCheckIn(demoViewerProfile, matchId, 'checked_in')} type="button"><ShieldCheck aria-hidden size={18} />平安签到</button>
++            <button onClick={() => recordCheckIn(demoViewerProfile, matchId, 'missed')} type="button"><WarningCircle aria-hidden size={18} />模拟错过签到</button>
++            {match.checkInStatus === 'checked_in' && <span><CheckCircle aria-hidden size={15} />本次平安签到已记录</span>}
++            {match.checkInStatus === 'missed' && <span className={styles.missedNotice} role="alert"><WarningCircle aria-hidden size={16} />已错过平安签到。请优先通过站内消息确认，并联系你已告知的可信联系人；本演示不会自动报警。</span>}
++          </div></section>
++          <section className={styles.dangerZone}><p>END MATCH</p><h2>结束这段匹配</h2><span>举报或拉黑会立即移除并锁定会话。</span><div><button onClick={() => reportMatch(demoViewerProfile, matchId)} type="button"><Flag aria-hidden size={17} />举报并结束匹配</button><button onClick={() => blockMatch(demoViewerProfile, matchId)} type="button"><UserMinus aria-hidden size={17} />拉黑并结束匹配</button></div></section>
++        </aside>
++      </div>
++      <SafetyConsent open={trustedOpen} returnFocusRef={trustedTriggerRef} onClose={() => setTrustedOpen(false)} onConfirm={() => acknowledgeTrustedContact(demoViewerProfile, matchId)} />
++    </main>
++  );
++}
++
++function LockedChat({ title, message }: { title: string; message: string }) {
++  return <main className={styles.lockedPage}><section><p>LOCAL CHAT GUARD</p><h1>{title}</h1><span>{message}</span><Link href="/partners">返回搭子匹配</Link></section></main>;
++}
+diff --git a/src/features/chat/chat.module.css b/src/features/chat/chat.module.css
+new file mode 100644
+index 0000000..a9fad90
+--- /dev/null
++++ b/src/features/chat/chat.module.css
+@@ -0,0 +1,54 @@
++.page { width: min(100% - 48px, var(--content-max)); margin: 0 auto; padding: 118px 0 80px; }
++.chatHeader { display: flex; align-items: end; justify-content: space-between; gap: 30px; padding: 32px 36px; color: #f5efe4; background: #1f2b25; }
++.chatHeader p, .conversationHeading p, .safetyRail section > p, .safetyDialog > p, .lockedPage p { margin: 0 0 8px; color: #c9b889; font-size: 9px; font-weight: 800; letter-spacing: .17em; }
++.chatHeader h1 { margin: 0 0 10px; font-family: var(--font-display); font-size: 38px; font-weight: 500; }
++.chatHeader span { display: flex; align-items: center; gap: 6px; color: rgb(245 239 228 / 62%); font-size: 12px; }
++.chatHeader a { padding-bottom: 4px; border-bottom: 1px solid #c9b889; font-size: 12px; text-decoration: none; }
++.warningBar { margin: 12px 0; padding: 12px; color: #7d312c; background: #f0d9d2; }
++.chatLayout { display: grid; grid-template-columns: minmax(0, 1fr) 370px; gap: 18px; margin-top: 18px; }
++.conversation { display: grid; min-height: 680px; grid-template-rows: auto 1fr auto auto; padding: 30px; background: #fffdf8; border: 1px solid #d8d0c4; }
++.conversationHeading { display: flex; align-items: end; justify-content: space-between; padding-bottom: 22px; border-bottom: 1px solid #ddd5c9; }
++.conversationHeading h2, .safetyRail h2, .safetyDialog h2 { margin: 0; font-family: var(--font-display); font-size: 24px; font-weight: 600; }
++.conversationHeading > span { color: #7b746b; font-size: 11px; }
++.messageList { display: grid; align-content: start; gap: 12px; margin: 0; padding: 28px 0; list-style: none; }
++.messageList li { max-width: 78%; padding: 13px 15px; background: #ece5d9; border-radius: 2px 14px 14px 14px; }
++.messageList .viewerMessage { justify-self: end; color: white; background: #304138; border-radius: 14px 2px 14px 14px; }
++.messageList small { color: #82796d; font-size: 9px; }
++.viewerMessage small { color: rgb(255 255 255 / 56%); }
++.messageList p { margin: 6px 0 0; font-size: 13px; line-height: 1.65; }
++.composer { display: grid; grid-template-columns: 1fr auto; gap: 9px; padding-top: 18px; border-top: 1px solid #ddd5c9; }
++.composer label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
++.composer textarea { width: 100%; resize: vertical; padding: 12px; background: #f5f0e8; border: 1px solid #cfc5b6; border-radius: 5px; }
++.composer button, .consentActions button, .safetyActions button, .dangerZone button, .confirmButton { min-height: 42px; padding: 9px 14px; border: 1px solid #bdb4a6; border-radius: 5px; cursor: pointer; }
++.composer button, .confirmButton { color: white; background: #26382e; border-color: #26382e; }
++.inlineError, .inlineWarning { margin: 10px 0 0; font-size: 12px; }
++.inlineError { color: #9a3b34; } .inlineWarning { color: #3f624b; }
++.safetyRail { display: grid; align-content: start; gap: 14px; }
++.safetyRail section { padding: 26px; background: #e8e1d5; border: 1px solid #d3c9bb; }
++.safetyRail section > span { display: block; margin-top: 10px; color: #746d63; font-size: 12px; line-height: 1.6; }
++.consentActions, .safetyActions { display: grid; gap: 8px; margin-top: 18px; }
++.consentActions button, .safetyActions button { display: flex; align-items: center; justify-content: center; gap: 7px; background: #f9f5ee; }
++.consentActions button[aria-pressed="true"] { color: #f8f4eb; background: #385044; border-color: #385044; }
++.consentActions span, .safetyActions span { display: flex; align-items: center; gap: 5px; color: #41614c; font-size: 11px; }
++.safetyActions .missedNotice { align-items: flex-start; padding: 11px; color: #873b35; background: #f2dcd6; line-height: 1.55; }
++.safetyRail .dangerZone { background: #2b2724; border-color: #2b2724; color: #f5efe5; }
++.dangerZone > div { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 18px; }
++.dangerZone button { display: flex; align-items: center; justify-content: center; gap: 6px; color: #f5efe5; background: transparent; border-color: rgb(255 255 255 / 28%); font-size: 11px; }
++.lockedPage { display: grid; min-height: 76vh; place-items: center; padding: 110px 20px 50px; }
++.lockedPage section { width: min(100%, 620px); padding: 50px; text-align: center; background: #e8e1d5; border: 1px solid #d3c9bb; }
++.lockedPage h1 { margin: 0 0 12px; font-family: var(--font-display); font-size: 36px; }
++.lockedPage span { color: #716960; line-height: 1.7; }
++.lockedPage a { display: block; width: fit-content; margin: 24px auto 0; padding-bottom: 4px; border-bottom: 1px solid; text-decoration: none; }
++.dialogBackdrop { position: fixed; z-index: 70; inset: 0; display: grid; place-items: center; padding: 20px; background: rgb(12 15 13 / 70%); }
++.safetyDialog { position: relative; width: min(100%, 500px); padding: 36px; background: #f7f2e9; box-shadow: 0 30px 80px rgb(0 0 0 / 32%); }
++.consentCheck { display: flex; align-items: flex-start; gap: 9px; margin: 86px 0 18px; font-size: 12px; line-height: 1.6; }
++.consentCheck input { margin-top: 3px; }
++.dialogClose { position: absolute; top: 14px; right: 14px; display: grid; width: 36px; height: 36px; place-items: center; background: transparent; border: 0; cursor: pointer; }
++.safetyDialog > p { position: absolute; top: 36px; left: 36px; }
++.safetyDialog h2 { position: absolute; top: 54px; left: 36px; }
++.safetyDialog > span { display: block; color: #746d63; font-size: 12px; line-height: 1.65; }
++.confirmButton { width: 100%; margin-top: 18px; }
++.confirmButton:disabled { cursor: not-allowed; opacity: .45; }
++.page :is(button, a, textarea):focus-visible, .safetyDialog :is(button, input):focus-visible { outline: 3px solid #b77c28; outline-offset: 3px; }
++@media (max-width: 920px) { .chatLayout { grid-template-columns: 1fr; } .safetyRail { grid-template-columns: repeat(2, 1fr); } .dangerZone { grid-column: span 2; } }
++@media (max-width: 620px) { .page { width: min(100% - 24px, var(--content-max)); padding-top: 100px; } .chatHeader { align-items: flex-start; flex-direction: column; padding: 26px 22px; } .chatHeader h1 { font-size: 30px; } .conversation { min-height: 600px; padding: 22px 16px; } .safetyRail { grid-template-columns: 1fr; } .dangerZone { grid-column: auto; } .composer { grid-template-columns: 1fr; } .messageList li { max-width: 90%; } .dangerZone > div { grid-template-columns: 1fr; } .lockedPage section { padding: 38px 22px; } }
+diff --git a/src/features/partners/intent-form.tsx b/src/features/partners/intent-form.tsx
+new file mode 100644
+index 0000000..f6b049a
+--- /dev/null
++++ b/src/features/partners/intent-form.tsx
+@@ -0,0 +1,96 @@
++'use client';
++
++import { useState } from 'react';
++import { validatePartnerIntent, type PartnerIntent } from '@/data/partners';
++import styles from './partners.module.css';
++
++export function IntentForm({ initialIntent, onPublish }: {
++  initialIntent: PartnerIntent;
++  onPublish: (intent: PartnerIntent) => void;
++}) {
++  const [intent, setIntent] = useState(initialIntent);
++  const [errors, setErrors] = useState<Record<string, string>>({});
++
++  const update = <Key extends keyof PartnerIntent>(key: Key, value: PartnerIntent[Key]) => {
++    setIntent((current) => ({ ...current, [key]: value }));
++    setErrors((current) => {
++      const next = { ...current };
++      delete next[key];
++      return next;
++    });
++  };
++
++  const submit = (event: React.FormEvent) => {
++    event.preventDefault();
++    const result = validatePartnerIntent(intent);
++    if (!result.success) {
++      setErrors(result.fieldErrors);
++      return;
++    }
++    setErrors({});
++    onPublish(result.data);
++  };
++
++  return (
++    <form className={styles.intentForm} noValidate onSubmit={submit}>
++      <div className={styles.formHeading}>
++        <div><p>YOUR INTENT / 01</p><h2>先把旅行边界说清楚</h2></div>
++        <span>所有字段均必填 · 只保存在当前浏览器</span>
++      </div>
++      <div className={styles.formGrid}>
++        <Field error={errors.destination} label="目的地">
++          <input aria-invalid={Boolean(errors.destination)} onChange={(event) => update('destination', event.target.value)} value={intent.destination} />
++        </Field>
++        <Field error={errors.startDate} label="出发日期">
++          <input aria-invalid={Boolean(errors.startDate)} onChange={(event) => update('startDate', event.target.value)} type="date" value={intent.startDate} />
++        </Field>
++        <Field error={errors.endDate} label="返程日期">
++          <input aria-invalid={Boolean(errors.endDate)} onChange={(event) => update('endDate', event.target.value)} type="date" value={intent.endDate} />
++        </Field>
++        <Field error={errors.budget} label="旅行预算">
++          <input aria-invalid={Boolean(errors.budget)} min="1" onChange={(event) => update('budget', Number(event.target.value))} type="number" value={intent.budget} />
++        </Field>
++        <Field error={errors.pace} label="旅行节奏">
++          <select onChange={(event) => update('pace', event.target.value)} value={intent.pace}>
++            <option value="">请选择</option><option value="舒缓">舒缓</option><option value="适中">适中</option><option value="紧凑">紧凑</option>
++          </select>
++        </Field>
++        <Field error={errors.interests} label="兴趣（用逗号分隔）">
++          <input aria-invalid={Boolean(errors.interests)} onChange={(event) => update('interests', event.target.value.split(/[,，]/).map((value) => value.trim()).filter(Boolean))} value={intent.interests.join('，')} />
++        </Field>
++        <Field className={styles.wideField} error={errors.route} label="期待路线">
++          <input aria-invalid={Boolean(errors.route)} onChange={(event) => update('route', event.target.value)} value={intent.route} />
++        </Field>
++        <Field className={styles.wideField} error={errors.lodgingBoundary} label="住宿边界">
++          <input aria-invalid={Boolean(errors.lodgingBoundary)} onChange={(event) => update('lodgingBoundary', event.target.value)} value={intent.lodgingBoundary} />
++        </Field>
++        <Field error={errors.schedule} label="日常作息">
++          <input aria-invalid={Boolean(errors.schedule)} onChange={(event) => update('schedule', event.target.value)} value={intent.schedule} />
++        </Field>
++        <Field error={errors.socialPreference} label="社交偏好">
++          <input aria-invalid={Boolean(errors.socialPreference)} onChange={(event) => update('socialPreference', event.target.value)} value={intent.socialPreference} />
++        </Field>
++        <Field error={errors.capacity} label="同行容量">
++          <input aria-invalid={Boolean(errors.capacity)} max="12" min="1" onChange={(event) => update('capacity', Number(event.target.value))} type="number" value={intent.capacity} />
++        </Field>
++        <label className={styles.certificationField}>
++          <input checked={intent.certificationRequired} onChange={(event) => update('certificationRequired', event.target.checked)} type="checkbox" />
++          <span><strong>要求身份状态已验证</strong><small>仅使用验证状态，不收集证件材料</small></span>
++        </label>
++      </div>
++      {Object.keys(errors).length > 0 && (
++        <p className={styles.formError} role="alert">{Object.values(errors).join('；')}</p>
++      )}
++      <button className={styles.primaryButton} type="submit">发布匹配意愿</button>
++    </form>
++  );
++}
++
++function Field({ label, error, className, children }: {
++  label: string;
++  error?: string;
++  className?: string;
++  children: React.ReactNode;
++}) {
++  return <label className={className}><span>{label}</span>{children}{error && <small>{error}</small>}</label>;
++}
+diff --git a/src/features/partners/match-list.tsx b/src/features/partners/match-list.tsx
+new file mode 100644
+index 0000000..fbcfadb
+--- /dev/null
++++ b/src/features/partners/match-list.tsx
+@@ -0,0 +1,80 @@
++'use client';
++
++import { ArrowRight, CalendarBlank, CheckCircle, MapPin, ShieldCheck, UsersThree } from '@phosphor-icons/react';
++import Link from 'next/link';
++import { useEffect, useMemo, useState } from 'react';
++import { defaultPartnerIntent, demoPartnerCandidates, demoViewerProfile, filterPartnerCandidates, scorePartnerCandidate, type PartnerIntent } from '@/data/partners';
++import { hydratePartnerStore, usePartnerStore, usePartnerStoreHydration } from '@/stores/partner-store';
++import { IntentForm } from './intent-form';
++import styles from './partners.module.css';
++
++export function PartnerMatchExperience() {
++  const [published, setPublished] = useState(false);
++  const [actionError, setActionError] = useState('');
++  const intent = usePartnerStore((state) => state.intents[demoViewerProfile.id]);
++  const matches = usePartnerStore((state) => state.matches);
++  const blockedCandidateIds = usePartnerStore((state) => state.blockedCandidateIds);
++  const publishIntent = usePartnerStore((state) => state.publishIntent);
++  const requestMatch = usePartnerStore((state) => state.requestMatch);
++  const simulateMutualApproval = usePartnerStore((state) => state.simulateMutualApproval);
++  const hydrationError = usePartnerStoreHydration((state) => state.hydrationError);
++
++  useEffect(() => { void hydratePartnerStore(); }, []);
++  const candidates = useMemo(() => intent ? filterPartnerCandidates(intent, demoPartnerCandidates, {
++    viewerId: demoViewerProfile.id, blockedCandidateIds,
++  }) : demoPartnerCandidates, [blockedCandidateIds, intent]);
++  const matchByCandidate = useMemo(() => Object.fromEntries(
++    Object.values(matches).map((match) => [match.candidateId, match]),
++  ), [matches]);
++
++  const handlePublish = (nextIntent: PartnerIntent) => {
++    try {
++      publishIntent(demoViewerProfile, nextIntent);
++      setPublished(true);
++      setActionError('');
++    } catch (error) {
++      setActionError(error instanceof Error ? error.message : '匹配意愿暂时无法发布');
++    }
++  };
++
++  return (
++    <main className={styles.page}>
++      <header className={styles.hero}>
++        <div className={styles.eyebrow}><span>TRUSTED COMPANIONS</span><span>浏览器本地沙箱</span></div>
++        <div className={styles.heroGrid}>
++          <div><h1>先谈边界，<br />再一起出发。</h1><p>公开浏览演示搭子卡片。发布、认识、聊天和安全操作均需成年、身份状态已验证且风险状态清晰。</p></div>
++          <aside aria-label="演示身份状态"><ShieldCheck aria-hidden size={30} weight="thin" /><p>DEMO IDENTITY STATUS</p><strong>已完成身份状态验证 · 风险状态清晰</strong><span>此处仅展示验证状态，不收集证件号、照片或人脸。</span></aside>
++        </div>
++      </header>
++      {hydrationError && <p className={styles.notice} role="status">本地匹配记录校验失败，已继续使用安全的内存状态；原数据未被覆盖。</p>}
++      <IntentForm initialIntent={intent ?? defaultPartnerIntent} onPublish={handlePublish} />
++      {published && <p className={styles.publishedNotice}><CheckCircle aria-hidden size={18} />已发布到本地演示匹配</p>}
++      {actionError && <p className={styles.formError} role="alert">{actionError}</p>}
++      <section aria-labelledby="candidate-title" className={styles.candidateSection}>
++        <div className={styles.sectionHeading}><div><p>PUBLIC PROFILES / 02</p><h2 id="candidate-title">合拍，也要能说清为什么</h2></div><span>{intent ? `${candidates.length} 位通过硬条件` : '公开卡片可先浏览，发布后计算匹配'}</span></div>
++        <div className={styles.cardGrid}>
++          {candidates.map((candidate, index) => {
++            const scored = intent ? scorePartnerCandidate(intent, candidate) : undefined;
++            const match = matchByCandidate[candidate.id];
++            return (
++              <article className={styles.partnerCard} data-testid={`partner-card-${candidate.id}`} key={candidate.id}>
++                <div className={styles.cardTopline}><span>PROFILE {String(index + 1).padStart(2, '0')}</span><span className={styles.verifiedPill}><ShieldCheck aria-hidden size={14} />状态已验证</span></div>
++                <div className={styles.profileHeading}><span aria-hidden className={styles.monogram}>{candidate.displayName.slice(0, 1)}</span><div><h3>{candidate.displayName}</h3><p>{candidate.age} 岁 · {candidate.pace}旅行</p></div>{scored && <strong aria-label={`匹配分 ${scored.score}`}><b>{scored.score}</b><small>MATCH</small></strong>}</div>
++                <p className={styles.introduction}>{candidate.introduction}</p>
++                <div className={styles.profileMeta}><span><MapPin aria-hidden size={16} />{candidate.destination}</span><span><CalendarBlank aria-hidden size={16} />{candidate.startDate} — {candidate.endDate}</span><span><UsersThree aria-hidden size={16} />最多 {candidate.capacity} 人</span></div>
++                {scored ? <ol className={styles.reasonList}>{scored.reasons.map((reason, reasonIndex) => <li key={reason}><span>0{reasonIndex + 1}</span>{reason}</li>)}</ol> : <p className={styles.scorePrompt}>发布完整意愿后，将展示固定权重分数与三条主要理由。</p>}
++                <div className={styles.cardAction}>
++                  {!intent && <span>需先发布完整匹配意愿</span>}
++                  {intent && !match && <button onClick={() => requestMatch(demoViewerProfile, candidate.id)} type="button">愿意认识{candidate.displayName}</button>}
++                  {match?.status === 'pending_mutual' && <><span>等待对方同意</span><button className={styles.sandboxButton} onClick={() => simulateMutualApproval(demoViewerProfile, match.id)} type="button">模拟对方同意（沙箱）</button></>}
++                  {match?.status === 'matched' && <><span>双方已同意</span><Link href={`/chat/${match.id}`}>进入聊天 <ArrowRight aria-hidden size={16} /></Link></>}
++                </div>
++              </article>
++            );
++          })}
++        </div>
++        {intent && candidates.length === 0 && <div className={styles.emptyState}><h3>暂无通过全部硬条件的搭子</h3><p>可调整日期、容量或认证要求；被拉黑与风险受限关系不会重新出现。</p></div>}
++      </section>
++    </main>
++  );
++}
+diff --git a/src/features/partners/partners.module.css b/src/features/partners/partners.module.css
+new file mode 100644
+index 0000000..4fb80aa
+--- /dev/null
++++ b/src/features/partners/partners.module.css
+@@ -0,0 +1,64 @@
++.page { width: min(100% - 48px, var(--content-max)); margin: 0 auto; padding: 122px 0 90px; }
++.hero { padding: 34px 42px 46px; color: #f4efe5; background: #1d2722; border-radius: 2px 28px 2px 2px; }
++.eyebrow, .sectionHeading, .cardTopline, .profileHeading, .profileMeta, .cardAction, .publishedNotice { display: flex; align-items: center; }
++.eyebrow { justify-content: space-between; padding-bottom: 26px; border-bottom: 1px solid rgb(255 255 255 / 17%); color: #cdbd98; font-size: 10px; font-weight: 700; letter-spacing: .17em; }
++.heroGrid { display: grid; grid-template-columns: 1.35fr .65fr; gap: 60px; align-items: end; padding-top: 45px; }
++.hero h1 { margin: 0; font-family: var(--font-display); font-size: clamp(46px, 6vw, 78px); font-weight: 500; letter-spacing: -.05em; line-height: 1.08; }
++.heroGrid > div > p { max-width: 620px; margin: 26px 0 0; color: rgb(244 239 229 / 68%); font-size: 14px; line-height: 1.9; }
++.hero aside { display: grid; gap: 10px; padding: 26px; color: #292f2a; background: #d8c99e; }
++.hero aside p { margin: 14px 0 0; font-size: 9px; font-weight: 800; letter-spacing: .16em; }
++.hero aside strong { font-family: var(--font-display); font-size: 19px; font-weight: 600; }
++.hero aside span { color: #59564d; font-size: 12px; line-height: 1.65; }
++.notice, .publishedNotice { margin: 16px 0 0; padding: 12px 16px; background: #e8dfcb; font-size: 12px; }
++.publishedNotice { width: fit-content; gap: 8px; color: #3c5f49; }
++
++.intentForm { margin-top: 22px; padding: 38px 42px; background: #e8e1d5; border: 1px solid #d1c7b8; }
++.formHeading { display: flex; align-items: end; justify-content: space-between; gap: 24px; margin-bottom: 28px; }
++.formHeading p, .sectionHeading p { margin: 0 0 8px; color: #8a7651; font-size: 10px; font-weight: 800; letter-spacing: .16em; }
++.formHeading h2, .sectionHeading h2 { margin: 0; font-family: var(--font-display); font-size: 28px; font-weight: 600; }
++.formHeading > span, .sectionHeading > span { color: #777067; font-size: 12px; }
++.formGrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 15px; }
++.formGrid label { display: grid; min-width: 0; gap: 7px; color: #5d574f; font-size: 12px; }
++.formGrid label > span:first-child { font-weight: 700; }
++.formGrid input, .formGrid select { width: 100%; min-height: 43px; padding: 9px 11px; color: #25241f; background: #f8f4ec; border: 1px solid #c8bfb1; border-radius: 5px; }
++.formGrid input[aria-invalid="true"] { border-color: #9d3f38; }
++.formGrid label small, .formError { color: #983c35; font-size: 11px; }
++.wideField { grid-column: span 2; }
++.certificationField { display: flex !important; align-items: center; grid-column: span 2; gap: 10px !important; padding: 9px 12px; background: rgb(255 255 255 / 40%); border: 1px solid #c8bfb1; }
++.certificationField input { width: 17px; min-height: 17px; }
++.certificationField span { display: grid; gap: 3px; }
++.certificationField small { color: #777067 !important; font-weight: 400; }
++.primaryButton, .cardAction button, .cardAction a { display: inline-flex; min-height: 43px; align-items: center; justify-content: center; margin-top: 22px; padding: 10px 18px; color: white; background: #26362e; border: 0; border-radius: 5px; cursor: pointer; font-size: 13px; font-weight: 700; text-decoration: none; }
++.formError { margin: 14px 0 0; line-height: 1.6; }
++
++.candidateSection { padding-top: 70px; }
++.sectionHeading { align-items: end; justify-content: space-between; gap: 30px; margin-bottom: 26px; }
++.cardGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
++.partnerCard { min-width: 0; padding: 30px; background: #fffdf8; border: 1px solid #d6cec1; border-radius: 2px 22px 2px 2px; }
++.cardTopline { justify-content: space-between; color: #8c7956; font-size: 9px; font-weight: 800; letter-spacing: .15em; }
++.verifiedPill { display: inline-flex; align-items: center; gap: 5px; padding: 6px 8px; color: #425e4a; background: #e3eadf; border-radius: 999px; letter-spacing: normal; }
++.profileHeading { gap: 14px; margin-top: 25px; }
++.monogram { display: grid; width: 58px; height: 58px; flex: none; place-items: center; color: #f7f2e8; background: #3b4a41; border-radius: 50%; font-family: var(--font-display); font-size: 24px; }
++.profileHeading h3 { margin: 0 0 5px; font-family: var(--font-display); font-size: 28px; font-weight: 600; }
++.profileHeading p { margin: 0; color: #746d63; font-size: 12px; }
++.profileHeading > strong { display: grid; margin-left: auto; text-align: right; }
++.profileHeading b { color: #7e6941; font-family: var(--font-display); font-size: 42px; font-weight: 500; line-height: .95; }
++.profileHeading small { margin-top: 5px; color: #998b72; font-size: 8px; letter-spacing: .14em; }
++.introduction { min-height: 48px; margin: 22px 0; color: #686158; font-size: 13px; line-height: 1.75; }
++.profileMeta { flex-wrap: wrap; gap: 8px 15px; color: #5f5951; font-size: 11px; }
++.profileMeta span { display: inline-flex; align-items: center; gap: 5px; }
++.reasonList { margin: 24px 0 0; padding: 0; list-style: none; border-top: 1px solid #ddd5ca; }
++.reasonList li { display: flex; gap: 13px; padding: 12px 0; border-bottom: 1px solid #e5ded4; font-size: 12px; }
++.reasonList li span { color: #99815a; font-size: 10px; font-weight: 800; }
++.scorePrompt { margin: 24px 0 0; padding: 20px; color: #777067; background: #f1ece3; font-size: 12px; line-height: 1.6; }
++.cardAction { min-height: 66px; justify-content: space-between; gap: 12px; margin-top: 15px; }
++.cardAction > span { color: #6f685e; font-size: 12px; }
++.cardAction button, .cardAction a { margin: 0; }
++.cardAction .sandboxButton { color: #262820; background: #d6c597; }
++.emptyState { padding: 46px; text-align: center; background: #e8e1d5; }
++.emptyState h3 { margin: 0 0 10px; font-family: var(--font-display); font-size: 24px; }
++.emptyState p { margin: 0; color: #777067; }
++.page :is(button, a, input, select):focus-visible { outline: 3px solid #b77c28; outline-offset: 3px; }
++
++@media (max-width: 920px) { .heroGrid { grid-template-columns: 1fr; } .formGrid { grid-template-columns: repeat(2, 1fr); } .cardGrid { grid-template-columns: 1fr; } }
++@media (max-width: 600px) { .page { width: min(100% - 24px, var(--content-max)); padding-top: 102px; } .hero, .intentForm { padding: 28px 22px; } .eyebrow span:last-child { display: none; } .hero h1 { font-size: 44px; } .formHeading, .sectionHeading { align-items: flex-start; flex-direction: column; } .formGrid { grid-template-columns: 1fr; } .wideField, .certificationField { grid-column: span 1; } .partnerCard { padding: 24px 20px; } .profileHeading { flex-wrap: wrap; } .profileHeading > strong { margin-left: 0; } .cardAction { align-items: stretch; flex-direction: column; } }
+diff --git a/src/stores/partner-store.ts b/src/stores/partner-store.ts
+new file mode 100644
+index 0000000..011c3e0
+--- /dev/null
++++ b/src/stores/partner-store.ts
+@@ -0,0 +1,307 @@
++'use client';
++
++import { create } from 'zustand';
++import { createStore } from 'zustand/vanilla';
++import { persist } from 'zustand/middleware';
++import { z } from 'zod';
++import {
++  demoPartnerCandidates,
++  filterPartnerCandidates,
++  isPartnerEligible,
++  validatePartnerIntent,
++  type PartnerIntent,
++  type PartnerProfile,
++} from '@/data/partners';
++
++export type PartnerMatchStatus = 'pending_mutual' | 'matched' | 'blocked' | 'reported';
++export type CheckInStatus = 'none' | 'checked_in' | 'missed';
++
++export interface PartnerMessage {
++  id: string;
++  senderId: string;
++  body: string;
++  sentAt: string;
++  demoMode: true;
++}
++
++export interface PartnerMatch {
++  id: string;
++  viewerId: string;
++  candidateId: string;
++  status: PartnerMatchStatus;
++  viewerContactConsent: boolean;
++  candidateContactConsent: boolean;
++  messages: PartnerMessage[];
++  trustedContactAcknowledged: boolean;
++  tripShared: boolean;
++  checkInStatus: CheckInStatus;
++  demoMode: true;
++}
++
++export interface PartnerStoreState {
++  intents: Record<string, PartnerIntent>;
++  matches: Record<string, PartnerMatch>;
++  visibleMatchIds: string[];
++  blockedCandidateIds: string[];
++  publishIntent: (profile: PartnerProfile, intent: PartnerIntent) => void;
++  requestMatch: (profile: PartnerProfile, candidateId: string) => string;
++  simulateMutualApproval: (profile: PartnerProfile, matchId: string) => void;
++  sendMessage: (profile: PartnerProfile, matchId: string, body: string) =>
++    | { sent: false; code: 'CONTACT_CONSENT_REQUIRED' }
++    | { sent: true; warning?: string };
++  setContactConsent: (profile: PartnerProfile, matchId: string, side: 'viewer' | 'candidate', consent: boolean) => void;
++  acknowledgeTrustedContact: (profile: PartnerProfile, matchId: string) => void;
++  shareTrip: (profile: PartnerProfile, matchId: string) => void;
++  recordCheckIn: (profile: PartnerProfile, matchId: string, status: Exclude<CheckInStatus, 'none'>) => void;
++  blockMatch: (profile: PartnerProfile, matchId: string) => void;
++  reportMatch: (profile: PartnerProfile, matchId: string) => void;
++}
++
++interface CreatePartnerStoreOptions { onHydrationError?: (error: unknown) => void }
++interface PartnerStoreHydrationState { hydrated: boolean; hydrationError: boolean }
++
++const allowedTransitions: Readonly<Record<PartnerMatchStatus, readonly PartnerMatchStatus[]>> = {
++  pending_mutual: ['matched', 'blocked', 'reported'],
++  matched: ['blocked', 'reported'],
++  blocked: [],
++  reported: [],
++};
++
++const isoDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
++  const date = new Date(`${value}T00:00:00.000Z`);
++  return !Number.isNaN(date.valueOf()) && date.toISOString().slice(0, 10) === value;
++});
++const intentSchema = z.object({
++  destination: z.string().trim().min(1).max(80),
++  startDate: isoDateSchema,
++  endDate: isoDateSchema,
++  budget: z.number().finite().positive(),
++  pace: z.string().trim().min(1).max(80),
++  interests: z.array(z.string().trim().min(1).max(80)).min(1).max(20),
++  route: z.string().trim().min(1).max(240),
++  lodgingBoundary: z.string().trim().min(1).max(240),
++  schedule: z.string().trim().min(1).max(240),
++  socialPreference: z.string().trim().min(1).max(240),
++  capacity: z.number().int().min(1).max(12),
++  certificationRequired: z.boolean(),
++}).strict().refine((intent) => intent.endDate >= intent.startDate);
++const messageSchema = z.object({
++  id: z.string().min(1).max(180),
++  senderId: z.string().min(1).max(120),
++  body: z.string().min(1).max(1000),
++  sentAt: z.string().datetime(),
++  demoMode: z.literal(true),
++}).strict();
++const matchSchema = z.object({
++  id: z.string().min(1).max(180),
++  viewerId: z.string().min(1).max(120),
++  candidateId: z.string().min(1).max(120),
++  status: z.enum(['pending_mutual', 'matched', 'blocked', 'reported']),
++  viewerContactConsent: z.boolean(),
++  candidateContactConsent: z.boolean(),
++  messages: z.array(messageSchema).max(500),
++  trustedContactAcknowledged: z.boolean(),
++  tripShared: z.boolean(),
++  checkInStatus: z.enum(['none', 'checked_in', 'missed']),
++  demoMode: z.literal(true),
++}).strict();
++const persistedPartnerStateSchema = z.object({
++  intents: z.record(z.string(), intentSchema),
++  matches: z.record(z.string(), matchSchema),
++  visibleMatchIds: z.array(z.string()),
++  blockedCandidateIds: z.array(z.string()),
++}).strict().superRefine((state, context) => {
++  for (const [matchId, match] of Object.entries(state.matches)) {
++    if (match.id !== matchId) context.addIssue({ code: 'custom', path: ['matches', matchId], message: 'key mismatch' });
++  }
++  if (new Set(state.visibleMatchIds).size !== state.visibleMatchIds.length) {
++    context.addIssue({ code: 'custom', path: ['visibleMatchIds'], message: 'duplicate id' });
++  }
++  for (const matchId of state.visibleMatchIds) {
++    const match = state.matches[matchId];
++    if (!match || match.status === 'blocked' || match.status === 'reported') {
++      context.addIssue({ code: 'custom', path: ['visibleMatchIds'], message: 'invalid visible match' });
++    }
++  }
++});
++type PersistedPartnerState = z.infer<typeof persistedPartnerStateSchema>;
++
++export function transitionPartnerMatch(status: PartnerMatchStatus, next: PartnerMatchStatus) {
++  if (!allowedTransitions[status].includes(next)) throw new Error(`PARTNER_INVALID_TRANSITION:${status}:${next}`);
++  return next;
++}
++
++export function containsContactDetails(body: string) {
++  return /(?:\b1[3-9]\d{9}\b)|(?:[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,})|(?:(?:微信|wechat|weixin|vx|v信|wx)\s*[:：号]?\s*[a-z0-9_-]{4,})/i.test(body);
++}
++
++function requireEligibility(profile: PartnerProfile) {
++  const result = isPartnerEligible(profile);
++  if (!result.allowed) throw new Error(result.code);
++}
++
++function requireMatch(state: PartnerStoreState, profile: PartnerProfile, matchId: string) {
++  requireEligibility(profile);
++  const match = state.matches[matchId];
++  if (!match || match.viewerId !== profile.id) throw new Error('PARTNER_MATCH_NOT_FOUND');
++  return match;
++}
++
++function requireActiveMatch(state: PartnerStoreState, profile: PartnerProfile, matchId: string) {
++  const match = requireMatch(state, profile, matchId);
++  if (match.status === 'blocked' || match.status === 'reported') throw new Error('PARTNER_MATCH_LOCKED');
++  if (match.status !== 'matched') throw new Error('PARTNER_MATCH_NOT_READY');
++  return match;
++}
++
++function collisionSafeId(prefix: string, existing: Record<string, unknown>) {
++  let id = '';
++  do id = `${prefix}-${crypto.randomUUID()}`;
++  while (existing[id]);
++  return id;
++}
++
++function stateCreator(
++  set: (recipe: (state: PartnerStoreState) => Partial<PartnerStoreState>) => void,
++  get: () => PartnerStoreState,
++): PartnerStoreState {
++  return {
++    intents: {}, matches: {}, visibleMatchIds: [], blockedCandidateIds: [],
++    publishIntent: (profile, intent) => {
++      requireEligibility(profile);
++      const parsed = validatePartnerIntent(intent);
++      if (!parsed.success) throw new Error('PARTNER_INVALID_INTENT');
++      set((state) => ({ intents: { ...state.intents, [profile.id]: parsed.data } }));
++    },
++    requestMatch: (profile, candidateId) => {
++      requireEligibility(profile);
++      const state = get();
++      const intent = state.intents[profile.id];
++      if (!intent) throw new Error('PARTNER_INTENT_REQUIRED');
++      const candidates = filterPartnerCandidates(intent, demoPartnerCandidates, {
++        viewerId: profile.id, blockedCandidateIds: state.blockedCandidateIds,
++      });
++      if (!candidates.some((candidate) => candidate.id === candidateId)) throw new Error('PARTNER_HARD_FILTERED');
++      const existing = Object.values(state.matches).find((match) =>
++        match.viewerId === profile.id && match.candidateId === candidateId &&
++        (match.status === 'pending_mutual' || match.status === 'matched'));
++      if (existing) return existing.id;
++      const id = collisionSafeId('match', state.matches);
++      const match: PartnerMatch = {
++        id, viewerId: profile.id, candidateId, status: 'pending_mutual',
++        viewerContactConsent: false, candidateContactConsent: false, messages: [],
++        trustedContactAcknowledged: false, tripShared: false, checkInStatus: 'none', demoMode: true,
++      };
++      set((current) => ({
++        matches: { ...current.matches, [id]: match },
++        visibleMatchIds: [...current.visibleMatchIds, id],
++      }));
++      return id;
++    },
++    simulateMutualApproval: (profile, matchId) => set((state) => {
++      const match = requireMatch(state, profile, matchId);
++      return { matches: { ...state.matches, [matchId]: { ...match, status: transitionPartnerMatch(match.status, 'matched') } } };
++    }),
++    sendMessage: (profile, matchId, body) => {
++      const match = requireActiveMatch(get(), profile, matchId);
++      const normalized = body.trim();
++      if (!normalized) throw new Error('PARTNER_EMPTY_MESSAGE');
++      const hasContact = containsContactDetails(normalized);
++      if (hasContact && !(match.viewerContactConsent && match.candidateContactConsent)) {
++        return { sent: false, code: 'CONTACT_CONSENT_REQUIRED' };
++      }
++      set((state) => {
++        const current = requireActiveMatch(state, profile, matchId);
++        const message: PartnerMessage = {
++          id: collisionSafeId('message', Object.fromEntries(current.messages.map(({ id }) => [id, true]))),
++          senderId: profile.id, body: normalized, sentAt: new Date().toISOString(), demoMode: true,
++        };
++        return { matches: { ...state.matches, [matchId]: { ...current, messages: [...current.messages, message] } } };
++      });
++      return hasContact
++        ? { sent: true, warning: '联系方式已在双方同意后发送，仍请谨慎核验并优先使用站内沟通。' }
++        : { sent: true };
++    },
++    setContactConsent: (profile, matchId, side, consent) => set((state) => {
++      const match = requireActiveMatch(state, profile, matchId);
++      return { matches: { ...state.matches, [matchId]: {
++        ...match, [side === 'viewer' ? 'viewerContactConsent' : 'candidateContactConsent']: consent,
++      } } };
++    }),
++    acknowledgeTrustedContact: (profile, matchId) => set((state) => {
++      const match = requireActiveMatch(state, profile, matchId);
++      return { matches: { ...state.matches, [matchId]: { ...match, trustedContactAcknowledged: true } } };
++    }),
++    shareTrip: (profile, matchId) => set((state) => {
++      const match = requireActiveMatch(state, profile, matchId);
++      return { matches: { ...state.matches, [matchId]: { ...match, tripShared: true } } };
++    }),
++    recordCheckIn: (profile, matchId, checkInStatus) => set((state) => {
++      const match = requireActiveMatch(state, profile, matchId);
++      return { matches: { ...state.matches, [matchId]: { ...match, checkInStatus } } };
++    }),
++    blockMatch: (profile, matchId) => set((state) => lockMatch(state, profile, matchId, 'blocked')),
++    reportMatch: (profile, matchId) => set((state) => lockMatch(state, profile, matchId, 'reported')),
++  };
++}
++
++function lockMatch(state: PartnerStoreState, profile: PartnerProfile, matchId: string, next: 'blocked' | 'reported') {
++  const match = requireMatch(state, profile, matchId);
++  const status = transitionPartnerMatch(match.status, next);
++  return {
++    matches: { ...state.matches, [matchId]: { ...match, status } },
++    visibleMatchIds: state.visibleMatchIds.filter((id) => id !== matchId),
++    blockedCandidateIds: next === 'blocked'
++      ? [...new Set([...state.blockedCandidateIds, match.candidateId])]
++      : state.blockedCandidateIds,
++  };
++}
++
++function parsePersistedState(state: unknown): PersistedPartnerState {
++  const parsed = persistedPartnerStateSchema.safeParse(state);
++  if (parsed.success) return parsed.data;
++  const error = new Error('PARTNER_INVALID_PERSISTED_STATE') as Error & { cause?: unknown };
++  error.cause = parsed.error;
++  throw error;
++}
++
++function persistenceOptions(options: CreatePartnerStoreOptions = {}) {
++  return {
++    name: 'xingyu-partner-demo-v1', version: 1, skipHydration: true,
++    partialize: (state: PartnerStoreState): PersistedPartnerState => ({
++      intents: state.intents, matches: state.matches,
++      visibleMatchIds: state.visibleMatchIds, blockedCandidateIds: state.blockedCandidateIds,
++    }),
++    merge: (persistedState: unknown, current: PartnerStoreState): PartnerStoreState => ({
++      ...current, ...parsePersistedState(persistedState),
++    }),
++    onRehydrateStorage: () => (_state: PartnerStoreState | undefined, error: unknown) => {
++      if (error) options.onHydrationError?.(error);
++    },
++  };
++}
++
++export function createPartnerStore(options: CreatePartnerStoreOptions = {}) {
++  return createStore<PartnerStoreState>()(
++    persist<PartnerStoreState, [], [], PersistedPartnerState>(stateCreator, persistenceOptions(options)),
++  );
++}
++
++export const usePartnerStoreHydration = create<PartnerStoreHydrationState>(() => ({ hydrated: false, hydrationError: false }));
++export const usePartnerStore = create<PartnerStoreState>()(
++  persist<PartnerStoreState, [], [], PersistedPartnerState>(stateCreator, persistenceOptions({
++    onHydrationError: () => usePartnerStoreHydration.setState({ hydrationError: true }),
++  })),
++);
++
++export async function hydratePartnerStore() {
++  if (typeof window === 'undefined' || usePartnerStoreHydration.getState().hydrated) return;
++  try {
++    usePartnerStoreHydration.setState({ hydrated: false, hydrationError: false });
++    await usePartnerStore.persist.rehydrate();
++  } catch {
++    usePartnerStoreHydration.setState({ hydrationError: true });
++  } finally {
++    usePartnerStoreHydration.setState({ hydrated: true });
++  }
++}
+diff --git a/tests/component/partner-flow.test.tsx b/tests/component/partner-flow.test.tsx
+new file mode 100644
+index 0000000..180718f
+--- /dev/null
++++ b/tests/component/partner-flow.test.tsx
+@@ -0,0 +1,117 @@
++import { render, screen, within } from '@testing-library/react';
++import userEvent from '@testing-library/user-event';
++import { beforeEach, describe, expect, it } from 'vitest';
++import { defaultPartnerIntent, demoPartnerCandidates, demoViewerProfile } from '@/data/partners';
++import { ChatRoom } from '@/features/chat/chat-room';
++import { PartnerMatchExperience } from '@/features/partners/match-list';
++import { usePartnerStore, usePartnerStoreHydration } from '@/stores/partner-store';
++
++beforeEach(() => {
++  window.localStorage.clear();
++  usePartnerStore.setState({ intents: {}, matches: {}, visibleMatchIds: [], blockedCandidateIds: [] });
++  usePartnerStoreHydration.setState({ hydrated: false, hydrationError: false });
++});
++
++describe('partner matching flow', () => {
++  it('keeps public cards browseable and validates every required intent before publishing', async () => {
++    const user = userEvent.setup();
++    render(<PartnerMatchExperience />);
++
++    expect(screen.getByRole('heading', { name: demoPartnerCandidates[0].displayName })).toBeInTheDocument();
++    expect(screen.getByText('已完成身份状态验证 · 风险状态清晰')).toBeInTheDocument();
++    expect(screen.getByText('此处仅展示验证状态，不收集证件号、照片或人脸。')).toBeInTheDocument();
++
++    const destination = screen.getByLabelText('目的地');
++    await user.clear(destination);
++    await user.click(screen.getByRole('button', { name: '发布匹配意愿' }));
++
++    expect(screen.getByRole('alert')).toHaveTextContent('请输入目的地');
++    expect(screen.queryByText('已发布到本地演示匹配')).not.toBeInTheDocument();
++  });
++
++  it('shows exactly three reasons and withholds chat until sandbox mutual approval', async () => {
++    const user = userEvent.setup();
++    render(<PartnerMatchExperience />);
++
++    await user.click(screen.getByRole('button', { name: '发布匹配意愿' }));
++    expect(await screen.findByText('已发布到本地演示匹配')).toBeInTheDocument();
++    const card = screen.getByTestId(`partner-card-${demoPartnerCandidates[0].id}`);
++    expect(within(card).getByText('92')).toBeInTheDocument();
++    expect(within(card).getAllByRole('listitem')).toHaveLength(3);
++    expect(within(card).getByText('旅行日期高度重合')).toBeInTheDocument();
++
++    await user.click(within(card).getByRole('button', { name: '愿意认识木雨' }));
++    expect(within(card).getByText('等待对方同意')).toBeInTheDocument();
++    expect(within(card).queryByRole('link', { name: '进入聊天' })).not.toBeInTheDocument();
++
++    await user.click(within(card).getByRole('button', { name: '模拟对方同意（沙箱）' }));
++    expect(within(card).getByText('双方已同意')).toBeInTheDocument();
++    expect(within(card).getByRole('link', { name: '进入聊天' })).toHaveAttribute('href', expect.stringMatching(/^\/chat\/match-/));
++  });
++});
++
++describe('matched chat safety flow', () => {
++  it('blocks contact details until bilateral consent and warns after permitted send', async () => {
++    const user = userEvent.setup();
++    const matchId = createMatchedDemo();
++    render(<ChatRoom matchId={matchId} />);
++
++    await user.type(screen.getByLabelText('消息'), '加微信 travel_2026');
++    await user.click(screen.getByRole('button', { name: '发送' }));
++    expect(screen.getByRole('alert')).toHaveTextContent('需先完成单独的双方联系方式同意');
++    expect(within(screen.getByRole('list')).queryByText('加微信 travel_2026')).not.toBeInTheDocument();
++
++    await user.click(screen.getByRole('button', { name: '我同意交换联系方式' }));
++    expect(screen.getByText('等待对方单独同意')).toBeInTheDocument();
++    await user.click(screen.getByRole('button', { name: '模拟对方同意交换联系方式（沙箱）' }));
++    await user.clear(screen.getByLabelText('消息'));
++    await user.type(screen.getByLabelText('消息'), '邮箱 me@example.com');
++    await user.click(screen.getByRole('button', { name: '发送' }));
++
++    expect(screen.getByText('邮箱 me@example.com')).toBeInTheDocument();
++    expect(screen.getByRole('status')).toHaveTextContent('仍请谨慎核验并优先使用站内沟通');
++  });
++
++  it('acknowledges safety controls, surfaces missed check-in, and locks immediately on block', async () => {
++    const user = userEvent.setup();
++    const matchId = createMatchedDemo();
++    render(<ChatRoom matchId={matchId} />);
++
++    const trustedTrigger = screen.getByRole('button', { name: '可信联系人确认' });
++    await user.click(trustedTrigger);
++    const dialog = screen.getByRole('dialog', { name: '可信联系人确认' });
++    expect(within(dialog).getByRole('checkbox')).toHaveFocus();
++    await user.keyboard('{Escape}');
++    expect(screen.queryByRole('dialog', { name: '可信联系人确认' })).not.toBeInTheDocument();
++    expect(trustedTrigger).toHaveFocus();
++
++    await user.click(trustedTrigger);
++    await user.click(within(screen.getByRole('dialog', { name: '可信联系人确认' })).getByRole('checkbox'));
++    await user.click(within(screen.getByRole('dialog', { name: '可信联系人确认' })).getByRole('button', { name: '确认已告知' }));
++    expect(screen.getByText('可信联系人已确认')).toBeInTheDocument();
++
++    await user.click(screen.getByRole('button', { name: '共享演示行程' }));
++    expect(screen.getByText('演示行程已共享')).toBeInTheDocument();
++    await user.click(screen.getByRole('button', { name: '模拟错过签到' }));
++    expect(screen.getByRole('alert')).toHaveTextContent('已错过平安签到');
++
++    await user.click(screen.getByRole('button', { name: '拉黑并结束匹配' }));
++    expect(screen.getByRole('heading', { name: '此聊天已锁定' })).toBeInTheDocument();
++    expect(screen.getByRole('link', { name: '返回搭子匹配' })).toHaveAttribute('href', '/partners');
++    expect(screen.queryByLabelText('消息')).not.toBeInTheDocument();
++  });
++
++  it('guards unknown and unmatched chat ids with a locked recovery state', () => {
++    render(<ChatRoom matchId="unknown-match" />);
++
++    expect(screen.getByRole('heading', { name: '聊天暂不可用' })).toBeInTheDocument();
++    expect(screen.getByRole('link', { name: '返回搭子匹配' })).toHaveAttribute('href', '/partners');
++  });
++});
++
++function createMatchedDemo() {
++  usePartnerStore.getState().publishIntent(demoViewerProfile, defaultPartnerIntent);
++  const matchId = usePartnerStore.getState().requestMatch(demoViewerProfile, demoPartnerCandidates[0].id);
++  usePartnerStore.getState().simulateMutualApproval(demoViewerProfile, matchId);
++  return matchId;
++}
+diff --git a/tests/unit/partner-eligibility.test.ts b/tests/unit/partner-eligibility.test.ts
+new file mode 100644
+index 0000000..68f7457
+--- /dev/null
++++ b/tests/unit/partner-eligibility.test.ts
+@@ -0,0 +1,190 @@
++import { beforeEach, describe, expect, it } from 'vitest';
++import {
++  defaultPartnerIntent,
++  demoPartnerCandidates,
++  filterPartnerCandidates,
++  isPartnerEligible,
++  scorePartnerCandidate,
++  validatePartnerIntent,
++  type PartnerCandidate,
++} from '@/data/partners';
++import { createPartnerStore } from '@/stores/partner-store';
++
++const eligibleProfile = {
++  id: 'viewer-demo',
++  age: 28,
++  identityVerified: true,
++  riskStatus: 'clear' as const,
++};
++
++beforeEach(() => window.localStorage.clear());
++
++describe('partner eligibility', () => {
++  it.each([
++    [{ age: 17, identityVerified: true, riskStatus: 'clear' as const }, 'AGE_RESTRICTED'],
++    [{ age: 24, identityVerified: false, riskStatus: 'clear' as const }, 'IDENTITY_REQUIRED'],
++    [{ age: 24, identityVerified: true, riskStatus: 'review' as const }, 'RISK_RESTRICTED'],
++  ])('blocks ineligible partner actions with a deterministic code', (profile, code) => {
++    expect(isPartnerEligible({ id: 'viewer', ...profile })).toEqual({ allowed: false, code });
++  });
++
++  it('allows a clear, identity-verified adult without collecting identity artifacts', () => {
++    expect(isPartnerEligible(eligibleProfile)).toEqual({ allowed: true });
++    expect(eligibleProfile).not.toHaveProperty('idNumber');
++    expect(eligibleProfile).not.toHaveProperty('identityPhoto');
++    expect(eligibleProfile).not.toHaveProperty('face');
++  });
++});
++
++describe('partner intent and hard filters', () => {
++  it('requires every intent field and a valid date, budget, interest, and capacity', () => {
++    expect(validatePartnerIntent({
++      ...defaultPartnerIntent,
++      destination: '',
++      endDate: '2026-09-01',
++      budget: 0,
++      interests: [],
++      capacity: 0,
++    })).toEqual({
++      success: false,
++      fieldErrors: {
++        budget: '请输入大于 0 的预算',
++        capacity: '同行容量至少为 1 人',
++        destination: '请输入目的地',
++        endDate: '返程日期不能早于出发日期',
++        interests: '请至少选择一项兴趣',
++      },
++    });
++  });
++
++  it('filters destination, date, capacity, certification, blocked relations, and candidate risk', () => {
++    const seed = demoPartnerCandidates[0];
++    const candidates: PartnerCandidate[] = [
++      seed,
++      { ...seed, id: 'wrong-destination', destination: '大理' },
++      { ...seed, id: 'wrong-date', startDate: '2026-10-02', endDate: '2026-10-05' },
++      { ...seed, id: 'full', capacity: 1 },
++      { ...seed, id: 'uncertified', certified: false },
++      { ...seed, id: 'blocked-us', blockedUserIds: [eligibleProfile.id] },
++      { ...seed, id: 'we-blocked', blockedUserIds: [] },
++      { ...seed, id: 'risk', riskStatus: 'review' },
++    ];
++
++    expect(filterPartnerCandidates(defaultPartnerIntent, candidates, {
++      viewerId: eligibleProfile.id,
++      blockedCandidateIds: ['we-blocked'],
++    }).map((candidate) => candidate.id)).toEqual([seed.id]);
++  });
++
++  it('keeps the approved candidate at 92 with exactly three understandable shared-model reasons', () => {
++    const result = scorePartnerCandidate(defaultPartnerIntent, demoPartnerCandidates[0]);
++
++    expect(result.score).toBe(92);
++    expect(result.reasons).toEqual([
++      '旅行日期高度重合',
++      '预算范围很接近',
++      '旅行节奏很合拍',
++    ]);
++  });
++});
++
++describe('partner match and chat state', () => {
++  it('gates publish and match, then allows only pending_mutual to advance to matched', () => {
++    const store = createPartnerStore();
++    const candidateId = demoPartnerCandidates[0].id;
++
++    expect(() => store.getState().publishIntent(
++      { ...eligibleProfile, identityVerified: false },
++      defaultPartnerIntent,
++    )).toThrow('IDENTITY_REQUIRED');
++
++    store.getState().publishIntent(eligibleProfile, defaultPartnerIntent);
++    const matchId = store.getState().requestMatch(eligibleProfile, candidateId);
++    expect(store.getState().matches[matchId].status).toBe('pending_mutual');
++    expect(() => store.getState().sendMessage(eligibleProfile, matchId, '你好')).toThrow(
++      'PARTNER_MATCH_NOT_READY',
++    );
++
++    store.getState().simulateMutualApproval(eligibleProfile, matchId);
++    expect(store.getState().matches[matchId].status).toBe('matched');
++    expect(() => store.getState().simulateMutualApproval(eligibleProfile, matchId)).toThrow(
++      'PARTNER_INVALID_TRANSITION:matched:matched',
++    );
++  });
++
++  it('blocks contact details until each side consents, then sends with a warning', () => {
++    const store = matchedStore();
++    const matchId = Object.keys(store.getState().matches)[0];
++
++    expect(store.getState().sendMessage(eligibleProfile, matchId, '加微信 travel_2026')).toEqual({
++      sent: false,
++      code: 'CONTACT_CONSENT_REQUIRED',
++    });
++    store.getState().setContactConsent(eligibleProfile, matchId, 'viewer', true);
++    expect(store.getState().sendMessage(eligibleProfile, matchId, '邮箱 me@example.com')).toEqual({
++      sent: false,
++      code: 'CONTACT_CONSENT_REQUIRED',
++    });
++    store.getState().setContactConsent(eligibleProfile, matchId, 'candidate', true);
++
++    expect(store.getState().sendMessage(eligibleProfile, matchId, '电话 13800138000')).toEqual({
++      sent: true,
++      warning: '联系方式已在双方同意后发送，仍请谨慎核验并优先使用站内沟通。',
++    });
++    expect(store.getState().matches[matchId].messages.at(-1)?.body).toBe('电话 13800138000');
++  });
++
++  it('locks matches immediately after block or report and records check-in safety state', () => {
++    const blockedStore = matchedStore();
++    const blockedId = Object.keys(blockedStore.getState().matches)[0];
++    blockedStore.getState().acknowledgeTrustedContact(eligibleProfile, blockedId);
++    blockedStore.getState().shareTrip(eligibleProfile, blockedId);
++    blockedStore.getState().recordCheckIn(eligibleProfile, blockedId, 'checked_in');
++    expect(blockedStore.getState().matches[blockedId]).toMatchObject({
++      trustedContactAcknowledged: true,
++      tripShared: true,
++      checkInStatus: 'checked_in',
++    });
++    blockedStore.getState().blockMatch(eligibleProfile, blockedId);
++    expect(blockedStore.getState().matches[blockedId].status).toBe('blocked');
++    expect(blockedStore.getState().visibleMatchIds).not.toContain(blockedId);
++    expect(() => blockedStore.getState().recordCheckIn(eligibleProfile, blockedId, 'missed')).toThrow(
++      'PARTNER_MATCH_LOCKED',
++    );
++
++    const reportedStore = matchedStore();
++    const reportedId = Object.keys(reportedStore.getState().matches)[0];
++    reportedStore.getState().reportMatch(eligibleProfile, reportedId);
++    expect(reportedStore.getState().matches[reportedId].status).toBe('reported');
++    expect(reportedStore.getState().visibleMatchIds).not.toContain(reportedId);
++  });
++
++  it('rejects malformed persisted matches without overwriting the unsafe bytes', async () => {
++    const malformedBytes = JSON.stringify({
++      state: {
++        intents: {},
++        matches: { bad: { id: 'bad', status: 'matched', messages: 'not-an-array' } },
++        visibleMatchIds: ['bad'],
++        blockedCandidateIds: [],
++      },
++      version: 1,
++    });
++    window.localStorage.setItem('xingyu-partner-demo-v1', malformedBytes);
++    let hydrationError = false;
++    const store = createPartnerStore({ onHydrationError: () => { hydrationError = true; } });
++
++    await store.persist.rehydrate();
++
++    expect(hydrationError).toBe(true);
++    expect(store.getState().matches).toEqual({});
++    expect(window.localStorage.getItem('xingyu-partner-demo-v1')).toBe(malformedBytes);
++  });
++});
++
++function matchedStore() {
++  const store = createPartnerStore();
++  store.getState().publishIntent(eligibleProfile, defaultPartnerIntent);
++  const matchId = store.getState().requestMatch(eligibleProfile, demoPartnerCandidates[0].id);
++  store.getState().simulateMutualApproval(eligibleProfile, matchId);
++  return store;
++}

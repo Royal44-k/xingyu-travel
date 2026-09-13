@@ -1,0 +1,582 @@
+# COMMITS
+f6881f9 fix: make comparison offer identity collision-safe
+
+# STAT
+ .../2026-08-16-xingyu-public-mvp/task-5-report.md  | 50 +++++++++++++++++++++-
+ src/adapters/mock/mock-inventory.ts                | 22 ++++++++--
+ src/data/offers.ts                                 | 16 +++++--
+ src/domain/comparison/offer-identity.ts            |  7 +++
+ src/features/comparison/comparison-client.tsx      | 36 ++++++++--------
+ tests/component/comparison-client.test.tsx         | 29 +++++++++++++
+ tests/unit/normalize-offer.test.ts                 | 50 +++++++++++++++++++++-
+ tests/unit/offer-identity.test.ts                  |  8 ++++
+ 8 files changed, 190 insertions(+), 28 deletions(-)
+
+# DIFF
+diff --git a/.superpowers/sdd/2026-08-16-xingyu-public-mvp/task-5-report.md b/.superpowers/sdd/2026-08-16-xingyu-public-mvp/task-5-report.md
+index f31c44e..681fd0d 100644
+--- a/.superpowers/sdd/2026-08-16-xingyu-public-mvp/task-5-report.md
++++ b/.superpowers/sdd/2026-08-16-xingyu-public-mvp/task-5-report.md
+@@ -129,21 +129,21 @@ The failures directly reproduced the review findings:
+ - filter and outbound dialogs left focus on their background triggers.
+ 
+ A corrected focused ticket test was rerun separately to remove an irrelevant origin mismatch. It failed specifically because the resulting stream contained `offer` and `complete` but no `degraded` frame.
+ 
+ ### Fixes
+ 
+ - Moved POST validation into the shared `comparisonSearchSchema`: locations are trimmed and bounded, traveler count is 1–9, dates must be real ISO calendar dates, and an end date cannot precede its start date.
+ - Reused that exact schema when decoding self-contained search IDs. Non-search IDs retain the not-found contract; malformed, oversized, or schema-invalid search tokens return structured `INVALID_COMPARISON_SEARCH_ID` responses with status 400.
+ - Added fixed `sandboxSupplierRuns` success/failure records and a `MockSupplierRunProvider`. SSE degradation now follows recorded provider outcomes for any product kind. `quoteEventsForSearch` retains earlier offers and emits `complete` from `finally`, including after a runner exception.
+ - Added explicit provider-verification and included-benefit data to sandbox offers. The filter drawer now applies refundability, included benefit (flight baggage or the non-flight benefit list), and verified-provider state to real rows.
+-- Changed every client identity consumer—upsert, React key, favorite, selection, three-item limit, and selected-offer lookup—to the same `${provider}:${id}` compound key.
++- Changed every client identity consumer—upsert, React key, favorite, selection, three-item limit, and selected-offer lookup—to one provider/ID identity. Round 2 below replaces that round's delimiter encoding with the collision-safe shared helper.
+ - Handled `complete` explicitly, separating active loading from a stable zero-result message.
+ - Implemented a named modal comparison table for 1–3 selected offers with provider, comparable total, baggage/benefits, refund/change conditions, verification, and a close control.
+ - Added one scoped `useDialogFocus` helper for initial focus, Escape, Tab/Shift+Tab containment, and trigger-focus restoration. The filter drawer, outbound sandbox confirmation, and comparison modal use it.
+ - Moved query parsing into `searchFromParams`, accepting `string | string[] | undefined` and deterministically taking the first repeated value without calling string methods on arrays.
+ 
+ ### GREEN
+ 
+ Focused review regressions:
+ 
+ ```text
+@@ -170,10 +170,58 @@ Compiled successfully
+ Routes /compare, /api/v1/comparison/searches, and /api/v1/comparison/searches/[id]/events emitted as dynamic routes
+ ```
+ 
+ Review fix commit: `fix: complete comparison workflows and validation`.
+ 
+ ### Remaining Concerns
+ 
+ - Supplier successes and failures are deterministic fixtures, not live partner health checks. The provider-run abstraction exposes the boundary for later adapters without claiming live availability.
+ - Search IDs are validated self-contained transport tokens, not encrypted credentials; they intentionally encode only bounded comparison inputs and no personal/payment data.
+ - Visual browser screenshots and viewport interaction runs remain deferred; this round verifies behavior through DOM interaction tests, static checks, and the production build.
++
++## Review Round 2
++
++### RED
++
++Added the delimiter-collision and provider-aware supplier-join regressions before production changes, then ran:
++
++```text
++node node_modules/vitest/vitest.mjs run tests/unit/offer-identity.test.ts tests/unit/normalize-offer.test.ts tests/component/comparison-client.test.tsx --reporter=verbose
++Test Files 3 failed (3)
++Tests 2 failed | 29 passed (31)
++```
++
++The direct identity suite failed because the shared domain helper did not exist. The client test proved `provider='a', id='b:c'` and `provider='a:b', id='c'` collapsed to one row under the delimiter key. The supplier-run test expected the offer belonging to `目标:供应商`, but the adapter's non-injectable ID-only fixture lookup returned no injected result.
++
++### Fix
++
++- Added the single domain-level `offerIdentity` helper, which serializes `[provider, id]` as an unambiguous JSON tuple.
++- Removed the client-local key builder. Incremental upsert, React keys, favorites, selected comparison state, three-item limiting, and selected-offer table lookup now all call the shared helper directly.
++- Changed successful supplier fixtures from local `offerIds` to structured `{ provider, id }` references.
++- Made the sandbox supplier-run adapter accept explicit fixture/offer dependencies and join each reference to an offer by the shared identity helper, so equal local IDs from different providers cannot cross-wire.
++
++### GREEN
++
++```text
++node node_modules/vitest/vitest.mjs run tests/unit/offer-identity.test.ts tests/unit/normalize-offer.test.ts tests/component/comparison-client.test.tsx
++Test Files 3 passed (3)
++Tests 32 passed (32)
++
++node node_modules/vitest/vitest.mjs run
++Test Files 11 passed (11)
++Tests 78 passed (78)
++
++pnpm typecheck
++tsc --noEmit
++
++pnpm lint
++eslint .
++
++pnpm build
++Compiled successfully
++```
++
++Review fix commit: `fix: make comparison offer identity collision-safe`.
++
++### Remaining Concerns
++
++- No new functional concern was introduced. Offer identity remains an internal serialized key and is not exposed as a public API identifier.
+diff --git a/src/adapters/mock/mock-inventory.ts b/src/adapters/mock/mock-inventory.ts
+index 8e16614..d7c01ad 100644
+--- a/src/adapters/mock/mock-inventory.ts
++++ b/src/adapters/mock/mock-inventory.ts
+@@ -1,19 +1,24 @@
+ import type { InventoryProvider } from '../contracts';
+ import { normalizeOffer } from '@/domain/comparison/normalize-offer';
++import { offerIdentity } from '@/domain/comparison/offer-identity';
+ import type {
+   NormalizedOffer,
+   SupplierRunProvider,
+   SupplierRunResult,
+ } from '@/domain/comparison/types';
+ import type { ComparisonSearchInput } from '@/domain/shared/api';
+-import { sandboxOffers, sandboxSupplierRuns } from '@/data/offers';
++import {
++  sandboxOffers,
++  sandboxSupplierRuns,
++  type SandboxSupplierRunFixture,
++} from '@/data/offers';
+ 
+ export class MockInventoryProvider implements InventoryProvider {
+   async *search(input: ComparisonSearchInput): AsyncIterable<NormalizedOffer> {
+     const destination = input.destination.trim().toLowerCase();
+     const offers = sandboxOffers
+       .filter((offer) => offer.destination?.toLowerCase() === destination)
+       .filter((offer) => input.kind === undefined || offer.kind === input.kind)
+       .filter((offer) => input.origin === undefined || offer.origin === input.origin)
+       .map(normalizeOffer)
+       .sort(
+@@ -21,34 +26,43 @@ export class MockInventoryProvider implements InventoryProvider {
+           left.totalPrice - right.totalPrice || (left.id < right.id ? -1 : left.id > right.id ? 1 : 0),
+       );
+ 
+     for (const offer of offers) {
+       yield offer;
+     }
+   }
+ }
+ 
+ export class MockSupplierRunProvider implements SupplierRunProvider {
++  constructor(
++    private readonly runs: readonly SandboxSupplierRunFixture[] = sandboxSupplierRuns,
++    private readonly offers: readonly import('@/domain/comparison/types').RawOffer[] = sandboxOffers,
++  ) {}
++
+   async *run(input: ComparisonSearchInput): AsyncIterable<SupplierRunResult> {
+     const destination = input.destination.trim().toLowerCase();
+-    const runs = sandboxSupplierRuns
++    const runs = this.runs
+       .filter((run) => run.destination.toLowerCase() === destination)
+       .filter((run) => input.kind === undefined || run.kind === input.kind);
+ 
+     for (const run of runs) {
+       if (run.status === 'failure') {
+         yield run;
+         continue;
+       }
+ 
+-      const offers = run.offerIds
+-        .map((offerId) => sandboxOffers.find((offer) => offer.id === offerId))
++      const offers = run.offerRefs
++        .map((offerRef) =>
++          this.offers.find(
++            (offer) => offerIdentity(offer) === offerIdentity(offerRef),
++          ),
++        )
+         .filter((offer) => offer !== undefined)
+         .filter(
+           (offer) =>
+             input.origin === undefined ||
+             offer.origin === undefined ||
+             offer.origin === input.origin,
+         )
+         .map(normalizeOffer);
+       yield { status: 'success', provider: run.provider, offers };
+     }
+diff --git a/src/data/offers.ts b/src/data/offers.ts
+index a018894..2c0157d 100644
+--- a/src/data/offers.ts
++++ b/src/data/offers.ts
+@@ -1,11 +1,12 @@
+ import type { RawOffer } from '@/domain/comparison/types';
++import type { OfferIdentityInput } from '@/domain/comparison/offer-identity';
+ 
+ export const SANDBOX_OBSERVED_AT = '2026-08-16T09:00:00+08:00';
+ 
+ export const sandboxOffers: readonly RawOffer[] = [
+   {
+     id: 'DEMO-FLIGHT-DAL-01',
+     provider: '星屿沙箱演示航班',
+     kind: 'flight',
+     title: '上海至大理演示航班 A',
+     origin: '上海',
+@@ -70,57 +71,64 @@ export const sandboxOffers: readonly RawOffer[] = [
+     demoMode: true,
+   },
+ ] as const;
+ 
+ export type SandboxSupplierRunFixture =
+   | {
+       status: 'success';
+       provider: string;
+       kind: 'flight' | 'hotel' | 'ticket';
+       destination: string;
+-      offerIds: readonly string[];
++      offerRefs: readonly OfferIdentityInput[];
+     }
+   | {
+       status: 'failure';
+       provider: string;
+       kind: 'flight' | 'hotel' | 'ticket';
+       destination: string;
+       message: string;
+     };
+ 
+ export const sandboxSupplierRuns: readonly SandboxSupplierRunFixture[] = [
+   {
+     status: 'success',
+     provider: '星屿沙箱演示航班',
+     kind: 'flight',
+     destination: '大理',
+-    offerIds: ['DEMO-FLIGHT-DAL-01', 'DEMO-FLIGHT-DAL-02'],
++    offerRefs: [
++      { provider: '星屿沙箱演示航班', id: 'DEMO-FLIGHT-DAL-01' },
++      { provider: '星屿沙箱演示航班', id: 'DEMO-FLIGHT-DAL-02' },
++    ],
+   },
+   {
+     status: 'failure',
+     provider: '云际航旅沙箱',
+     kind: 'flight',
+     destination: '大理',
+     message: '云际航旅沙箱暂未响应',
+   },
+   {
+     status: 'success',
+     provider: '星屿沙箱演示住宿',
+     kind: 'hotel',
+     destination: '大理',
+-    offerIds: ['DEMO-HOTEL-DAL-01'],
++    offerRefs: [
++      { provider: '星屿沙箱演示住宿', id: 'DEMO-HOTEL-DAL-01' },
++    ],
+   },
+   {
+     status: 'success',
+     provider: '星屿沙箱演示门票',
+     kind: 'ticket',
+     destination: '大理',
+-    offerIds: ['DEMO-TICKET-DAL-01'],
++    offerRefs: [
++      { provider: '星屿沙箱演示门票', id: 'DEMO-TICKET-DAL-01' },
++    ],
+   },
+   {
+     status: 'failure',
+     provider: '大理景区直连',
+     kind: 'ticket',
+     destination: '大理',
+     message: '大理景区直连暂未响应',
+   },
+ ] as const;
+diff --git a/src/domain/comparison/offer-identity.ts b/src/domain/comparison/offer-identity.ts
+new file mode 100644
+index 0000000..603300a
+--- /dev/null
++++ b/src/domain/comparison/offer-identity.ts
+@@ -0,0 +1,7 @@
++import type { RawOffer } from './types';
++
++export type OfferIdentityInput = Pick<RawOffer, 'provider' | 'id'>;
++
++export function offerIdentity(offer: OfferIdentityInput): string {
++  return JSON.stringify([offer.provider, offer.id]);
++}
+diff --git a/src/features/comparison/comparison-client.tsx b/src/features/comparison/comparison-client.tsx
+index 2643d5c..995f119 100644
+--- a/src/features/comparison/comparison-client.tsx
++++ b/src/features/comparison/comparison-client.tsx
+@@ -17,54 +17,51 @@ import {
+   useMemo,
+   useRef,
+   useState,
+   type KeyboardEvent,
+ } from 'react';
+ import type {
+   ComparisonProductKind,
+   NormalizedOffer,
+   QuoteEvent,
+ } from '@/domain/comparison/types';
++import { offerIdentity } from '@/domain/comparison/offer-identity';
+ import type { ComparisonSearchInput } from '@/domain/shared/api';
+ import { OfferRow } from './offer-row';
+ import { useDialogFocus } from './use-dialog-focus';
+ import styles from './comparison.module.css';
+ 
+ type ComparisonClientProps = {
+   initialSearch: ComparisonSearchInput;
+   stream?: AsyncIterable<QuoteEvent>;
+   now?: string;
+ };
+ 
+ type SortOrder = 'price-asc' | 'price-desc' | 'updated';
+ 
+ const productTabs = [
+   { id: 'flight', label: '机票', icon: AirplaneTilt },
+   { id: 'hotel', label: '酒店', icon: Buildings },
+   { id: 'ticket', label: '门票', icon: Ticket },
+ ] as const;
+ 
+-function offerKey(offer: NormalizedOffer): string {
+-  return `${offer.provider}:${offer.id}`;
+-}
+-
+ function hasIncludedBenefit(offer: NormalizedOffer): boolean {
+   if (offer.kind === 'flight') return offer.baggageIncluded;
+   return (offer.includedBenefits?.length ?? 0) > 0;
+ }
+ 
+ function upsertOffer(
+   current: NormalizedOffer[],
+   incoming: NormalizedOffer,
+ ): NormalizedOffer[] {
+-  const key = offerKey(incoming);
+-  const index = current.findIndex((offer) => offerKey(offer) === key);
++  const key = offerIdentity(incoming);
++  const index = current.findIndex((offer) => offerIdentity(offer) === key);
+   if (index === -1) return [...current, incoming];
+   return current.map((offer, offerIndex) => (offerIndex === index ? incoming : offer));
+ }
+ 
+ function connectToQuoteStream(
+   search: ComparisonSearchInput,
+   onEvent: (event: QuoteEvent) => void,
+   onFailure: () => void,
+ ): () => void {
+   let source: EventSource | undefined;
+@@ -181,21 +178,22 @@ export function ComparisonClient({
+     return [...filtered].sort((left, right) => {
+       if (sortOrder === 'price-desc') return right.totalPrice - left.totalPrice;
+       if (sortOrder === 'updated') {
+         return Date.parse(right.updatedAt) - Date.parse(left.updatedAt);
+       }
+       return left.totalPrice - right.totalPrice;
+     });
+   }, [benefitOnly, offers, refundableOnly, sortOrder, verifiedOnly]);
+ 
+   const selectedOffers = useMemo(
+-    () => offers.filter((offer) => selectedOfferKeys.includes(offerKey(offer))),
++    () =>
++      offers.filter((offer) => selectedOfferKeys.includes(offerIdentity(offer))),
+     [offers, selectedOfferKeys],
+   );
+ 
+   function selectKind(kind: ComparisonProductKind) {
+     setOffers([]);
+     setStreamComplete(false);
+     setDegradedMessage(undefined);
+     setSearch((current) => ({ ...current, kind }));
+     setSelectedOfferKeys([]);
+   }
+@@ -342,33 +340,35 @@ export function ComparisonClient({
+         <div
+           aria-labelledby={`compare-tab-${search.kind}`}
+           className={styles.results}
+           id="comparison-results"
+           role="tabpanel"
+         >
+           {visibleOffers.map((offer) => (
+             <OfferRow
+               comparisonDisabled={
+                 selectedOfferKeys.length >= 3 &&
+-                !selectedOfferKeys.includes(offerKey(offer))
++                !selectedOfferKeys.includes(offerIdentity(offer))
+               }
+-              favorite={favoriteOfferKeys.includes(offerKey(offer))}
+-              key={offerKey(offer)}
++              favorite={favoriteOfferKeys.includes(offerIdentity(offer))}
++              key={offerIdentity(offer)}
+               now={now}
+               offer={offer}
+-              onFavorite={() => toggleInList(offerKey(offer), setFavoriteOfferKeys)}
++              onFavorite={() =>
++                toggleInList(offerIdentity(offer), setFavoriteOfferKeys)
++              }
+               onOutbound={(trigger) => {
+                 outboundTriggerRef.current = trigger;
+                 setOutboundOffer(offer);
+               }}
+-              onSelect={() => toggleComparison(offerKey(offer))}
+-              selected={selectedOfferKeys.includes(offerKey(offer))}
++              onSelect={() => toggleComparison(offerIdentity(offer))}
++              selected={selectedOfferKeys.includes(offerIdentity(offer))}
+             />
+           ))}
+           {offers.length === 0 && !streamComplete ? (
+             <div className={styles.loading} aria-live="polite">
+               正在接收沙箱报价…
+             </div>
+           ) : null}
+           {offers.length === 0 && streamComplete ? (
+             <div className={styles.loading}>暂无可用的沙箱报价</div>
+           ) : null}
+@@ -420,25 +420,25 @@ export function ComparisonClient({
+ 
+       {comparisonOpen ? (
+         <div className={styles.dialogBackdrop}>
+           <section aria-label="报价同屏对比" aria-modal="true" className={styles.comparisonDialog} ref={compareDialogRef} role="dialog" tabIndex={-1}>
+             <div className={styles.drawerHeader}>
+               <div><p>COMPARE</p><h2>报价同屏对比</h2></div>
+               <button aria-label="关闭同屏对比" className={styles.iconButton} onClick={() => setComparisonOpen(false)} type="button"><X aria-hidden size={21} /></button>
+             </div>
+             <div className={styles.comparisonTableWrap}>
+               <table aria-label="已选报价差异" className={styles.comparisonTable}>
+-                <thead><tr><th scope="col">对比项</th>{selectedOffers.map((offer) => <th key={offerKey(offer)} scope="col">{offer.provider}</th>)}</tr></thead>
++                <thead><tr><th scope="col">对比项</th>{selectedOffers.map((offer) => <th key={offerIdentity(offer)} scope="col">{offer.provider}</th>)}</tr></thead>
+                 <tbody>
+-                  <tr><th scope="row">含税总价</th>{selectedOffers.map((offer) => <td key={offerKey(offer)}>¥{new Intl.NumberFormat('zh-CN').format(offer.totalPrice)}</td>)}</tr>
+-                  <tr><th scope="row">行李与权益</th>{selectedOffers.map((offer) => <td key={offerKey(offer)}>{offer.baggageIncluded ? '含托运行李' : offer.includedBenefits?.join('、') || '未含额外权益'}</td>)}</tr>
+-                  <tr><th scope="row">退改条件</th>{selectedOffers.map((offer) => <td key={offerKey(offer)}>{offer.refundable ? '支持退改' : '限制退改'}</td>)}</tr>
+-                  <tr><th scope="row">供应商</th>{selectedOffers.map((offer) => <td key={offerKey(offer)}>{offer.providerVerified === false ? '待核验' : '已验证'}</td>)}</tr>
++                  <tr><th scope="row">含税总价</th>{selectedOffers.map((offer) => <td key={offerIdentity(offer)}>¥{new Intl.NumberFormat('zh-CN').format(offer.totalPrice)}</td>)}</tr>
++                  <tr><th scope="row">行李与权益</th>{selectedOffers.map((offer) => <td key={offerIdentity(offer)}>{offer.baggageIncluded ? '含托运行李' : offer.includedBenefits?.join('、') || '未含额外权益'}</td>)}</tr>
++                  <tr><th scope="row">退改条件</th>{selectedOffers.map((offer) => <td key={offerIdentity(offer)}>{offer.refundable ? '支持退改' : '限制退改'}</td>)}</tr>
++                  <tr><th scope="row">供应商</th>{selectedOffers.map((offer) => <td key={offerIdentity(offer)}>{offer.providerVerified === false ? '待核验' : '已验证'}</td>)}</tr>
+                 </tbody>
+               </table>
+             </div>
+           </section>
+         </div>
+       ) : null}
+     </main>
+   );
+ }
+diff --git a/tests/component/comparison-client.test.tsx b/tests/component/comparison-client.test.tsx
+index 0302472..860b415 100644
+--- a/tests/component/comparison-client.test.tsx
++++ b/tests/component/comparison-client.test.tsx
+@@ -267,20 +267,49 @@ describe('ComparisonClient incremental results', () => {
+     const secondFavorite = screen.getByRole('button', { name: '收藏 山海出行 报价' });
+     await user.click(firstFavorite);
+     expect(firstFavorite).toHaveAttribute('aria-pressed', 'true');
+     expect(secondFavorite).toHaveAttribute('aria-pressed', 'false');
+ 
+     await user.click(screen.getByRole('checkbox', { name: '加入同屏对比：云程旅行' }));
+     await user.click(screen.getByRole('checkbox', { name: '加入同屏对比：山海出行' }));
+     expect(screen.getByText('已选择 2/3 项')).toBeInTheDocument();
+   });
+ 
++  it('keeps delimiter-bearing provider and id pairs independent across all client state', async () => {
++    const user = userEvent.setup();
++    const collisionOffers = [
++      { ...offers[0], provider: 'a', id: 'b:c', title: '分隔符报价一' },
++      { ...offers[1], provider: 'a:b', id: 'c', title: '分隔符报价二' },
++    ];
++    render(
++      <ComparisonClient
++        initialSearch={initialSearch}
++        now="2026-08-16T12:30:00+08:00"
++        stream={streamEvents(collisionOffers.map((payload) => ({ type: 'offer', payload })))}
++      />,
++    );
++
++    expect(await screen.findByText('分隔符报价一')).toBeInTheDocument();
++    expect(screen.getByText('分隔符报价二')).toBeInTheDocument();
++    expect(screen.getAllByTestId('offer-row')).toHaveLength(2);
++
++    const firstFavorite = screen.getByRole('button', { name: '收藏 a 报价' });
++    const secondFavorite = screen.getByRole('button', { name: '收藏 a:b 报价' });
++    await user.click(firstFavorite);
++    expect(firstFavorite).toHaveAttribute('aria-pressed', 'true');
++    expect(secondFavorite).toHaveAttribute('aria-pressed', 'false');
++
++    await user.click(screen.getByRole('checkbox', { name: '加入同屏对比：a' }));
++    await user.click(screen.getByRole('checkbox', { name: '加入同屏对比：a:b' }));
++    expect(screen.getByText('已选择 2/3 项')).toBeInTheDocument();
++  });
++
+   it('opens a real accessible comparison table for selected offers and closes it', async () => {
+     const user = userEvent.setup();
+     render(
+       <ComparisonClient
+         initialSearch={initialSearch}
+         now="2026-08-16T12:30:00+08:00"
+         stream={streamEvents(offers.slice(0, 2).map((payload) => ({ type: 'offer', payload })))}
+       />,
+     );
+     await screen.findByText('云程旅行');
+diff --git a/tests/unit/normalize-offer.test.ts b/tests/unit/normalize-offer.test.ts
+index 1aae6f2..9374068 100644
+--- a/tests/unit/normalize-offer.test.ts
++++ b/tests/unit/normalize-offer.test.ts
+@@ -1,12 +1,15 @@
+ import { describe, expect, it } from 'vitest';
+-import { MockInventoryProvider } from '@/adapters/mock/mock-inventory';
++import {
++  MockInventoryProvider,
++  MockSupplierRunProvider,
++} from '@/adapters/mock/mock-inventory';
+ import { normalizeOffer } from '@/domain/comparison/normalize-offer';
+ import { offerKinds } from '@/domain/comparison/types';
+ import { sandboxOffers } from '@/data/offers';
+ 
+ const validRawOffer = {
+   id: 'VALID-OFFER-01',
+   provider: '星屿沙箱',
+   kind: 'flight',
+   basePrice: 100,
+   taxes: 10,
+@@ -136,11 +139,56 @@ describe('MockInventoryProvider', () => {
+     }
+ 
+     expect(offers.map((offer) => offer.id)).toEqual(['DEMO-TICKET-DAL-01']);
+     expect(offers[0]).toMatchObject({
+       kind: 'ticket',
+       totalPrice: 88,
+       updatedAt: '2026-08-16T09:00:00+08:00',
+       demoMode: true,
+     });
+   });
++
++  it('joins a supplier run to the matching provider when local offer ids collide', async () => {
++    const sharedOfferFields = {
++      id: 'shared-local-id',
++      kind: 'hotel',
++      destination: '碰撞目的地',
++      basePrice: 500,
++      taxes: 0,
++      mandatoryFees: 0,
++      baggageIncluded: false,
++      refundable: true,
++      updatedAt: '2026-08-16T09:00:00+08:00',
++      demoMode: true,
++    } as const;
++    const provider = new MockSupplierRunProvider(
++      [
++        {
++          status: 'success',
++          provider: '目标:供应商',
++          kind: 'hotel',
++          destination: '碰撞目的地',
++          offerRefs: [{ provider: '目标:供应商', id: 'shared-local-id' }],
++        },
++      ],
++      [
++        { ...sharedOfferFields, provider: '其他供应商', title: '错误报价' },
++        { ...sharedOfferFields, provider: '目标:供应商', title: '正确报价' },
++      ],
++    );
++    const results = [];
++
++    for await (const result of provider.run({
++      destination: '碰撞目的地',
++      kind: 'hotel',
++    })) {
++      results.push(result);
++    }
++
++    expect(results).toHaveLength(1);
++    expect(results[0]).toMatchObject({
++      status: 'success',
++      provider: '目标:供应商',
++      offers: [{ provider: '目标:供应商', title: '正确报价' }],
++    });
++  });
+ });
+diff --git a/tests/unit/offer-identity.test.ts b/tests/unit/offer-identity.test.ts
+new file mode 100644
+index 0000000..66a5e6f
+--- /dev/null
++++ b/tests/unit/offer-identity.test.ts
+@@ -0,0 +1,8 @@
++import { expect, it } from 'vitest';
++import { offerIdentity } from '@/domain/comparison/offer-identity';
++
++it('keeps delimiter-bearing provider and offer id pairs collision-free', () => {
++  expect(offerIdentity({ provider: 'a', id: 'b:c' })).not.toBe(
++    offerIdentity({ provider: 'a:b', id: 'c' }),
++  );
++});

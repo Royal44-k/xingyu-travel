@@ -1,0 +1,2242 @@
+{
+  "schemaVersion": 1,
+  "archivedOn": "2026-09-13",
+  "baselineCommit": "9bdfa5ca6bc885778567ae58e7a4be3687b70951",
+  "scope": "Identified Xingyu project assets on this workspace and referenced Codex output directories; credentials and unrelated projects excluded.",
+  "sources": [
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-16-xingyu-public-mvp/task-10-report.md",
+      "sourceCategory": "tracked",
+      "path": "archive/development/2026-08-16-xingyu-public-mvp/task-10-report.md",
+      "bytes": 7790,
+      "sha256": "c4ef3b167034a4390d144de1bc194306eb72d7f432372e89035c0ee9d7bd8d9f",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-16-xingyu-public-mvp/task-11-report.md",
+      "sourceCategory": "tracked",
+      "path": "archive/development/2026-08-16-xingyu-public-mvp/task-11-report.md",
+      "bytes": 10491,
+      "sha256": "4aca1d9e203afb0a4abfc8edbc53ca1c908aa07c228b41256a6c7930119da6ae",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-16-xingyu-public-mvp/task-5-report.md",
+      "sourceCategory": "tracked",
+      "path": "archive/development/2026-08-16-xingyu-public-mvp/task-5-report.md",
+      "bytes": 12265,
+      "sha256": "9dabccbb91bba8582edc973a64fbfcb5682eb9899bec7667166dd7505244e293",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-16-xingyu-public-mvp/task-7-report.md",
+      "sourceCategory": "tracked",
+      "path": "archive/development/2026-08-16-xingyu-public-mvp/task-7-report.md",
+      "bytes": 8971,
+      "sha256": "77f9f53b7f0e449d4e9c2a249604e90375dbd92ddbf313c5c304cd21eab17919",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/task-10-report.md",
+      "sourceCategory": "tracked",
+      "path": "archive/development/2026-08-19-xingyu-local-closed-loop-content-motion/task-10-report.md",
+      "bytes": 8962,
+      "sha256": "2053d640469a0aad41ba766e97e94460afa3bdd2a71756405d2af76f3ea9ff0d",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/task-8-report.md",
+      "sourceCategory": "tracked",
+      "path": "archive/development/2026-08-19-xingyu-local-closed-loop-content-motion/task-8-report.md",
+      "bytes": 13196,
+      "sha256": "9d38faa0d4896f8ca7332e30b1c9dcee2b9b0b86b51aeb9a4c980600e712ecd5",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/task-9-report.md",
+      "sourceCategory": "tracked",
+      "path": "archive/development/2026-08-19-xingyu-local-closed-loop-content-motion/task-9-report.md",
+      "bytes": 5115,
+      "sha256": "0a900b215c37ace65f7e52333b74362ae19b8e63ccb80027d9c00186d391a2f9",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-16-xingyu-public-mvp/progress.md",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-16-xingyu-public-mvp/progress.md",
+      "bytes": 2294,
+      "sha256": "17ee12dc506e52b21b5f2fdefaef02dff2d16a38467e7f23673da1bd4a063e4e",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-16-xingyu-public-mvp/task-1-brief.md",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-16-xingyu-public-mvp/task-1-brief.md",
+      "bytes": 5463,
+      "sha256": "f214573230a97bbb595f6a1afff13a6ca5c96c857471616e3b30e50cf0ffba79",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-16-xingyu-public-mvp/task-1-report.md",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-16-xingyu-public-mvp/task-1-report.md",
+      "bytes": 3761,
+      "sha256": "a9ed44688a74e9f2eb7475bad23fde96e24dc5d2f88191dc88a4bca6cf580559",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-16-xingyu-public-mvp/task-10-brief.md",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-16-xingyu-public-mvp/task-10-brief.md",
+      "bytes": 2747,
+      "sha256": "35552a7af99feb0ac6327c53297e68138d01fc7857facd4ff2f97c41d777fa72",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-16-xingyu-public-mvp/task-11-brief.md",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-16-xingyu-public-mvp/task-11-brief.md",
+      "bytes": 2800,
+      "sha256": "99c47afa79a16f14b77ac54eefbca498813a6289c46029af5d9db9098325eba6",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-16-xingyu-public-mvp/task-12-brief.md",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-16-xingyu-public-mvp/task-12-brief.md",
+      "bytes": 1844,
+      "sha256": "c71a5e2d376614388155245aa2434415c3273a28966ee3f814b034c21edc494d",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-16-xingyu-public-mvp/task-2-brief.md",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-16-xingyu-public-mvp/task-2-brief.md",
+      "bytes": 4308,
+      "sha256": "e5b0595129a16184dd8c9ccc39c95f66c60d58a0344d834499d0a8593d434612",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-16-xingyu-public-mvp/task-2-report.md",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-16-xingyu-public-mvp/task-2-report.md",
+      "bytes": 11025,
+      "sha256": "f9dca4278ec3d21c10e91c3ecac7bb1e67b3f2be18ba4c0a8a193cb0900cec71",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-16-xingyu-public-mvp/task-3-brief.md",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-16-xingyu-public-mvp/task-3-brief.md",
+      "bytes": 2824,
+      "sha256": "147aa7e207c6396e83625936d57c67719cdec5a4a1f18f1796ec452b6238725c",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-16-xingyu-public-mvp/task-3-report.md",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-16-xingyu-public-mvp/task-3-report.md",
+      "bytes": 2858,
+      "sha256": "366733902871e4f0ac24fd1396e59403ab880556dd4945743e3e59e301bee60c",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-16-xingyu-public-mvp/task-4-brief.md",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-16-xingyu-public-mvp/task-4-brief.md",
+      "bytes": 3341,
+      "sha256": "e9f68bd4eb89df3146f80c0e147a35c2020fac03d49e610d00a9167897b4f967",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-16-xingyu-public-mvp/task-4-report.md",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-16-xingyu-public-mvp/task-4-report.md",
+      "bytes": 6111,
+      "sha256": "eabf2eb887ea869cdab8d1c971c785777c68e2f755cb2fd2bdc3a84b803c764e",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-16-xingyu-public-mvp/task-5-brief.md",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-16-xingyu-public-mvp/task-5-brief.md",
+      "bytes": 3214,
+      "sha256": "d7368f09bfc31ea7fd15ac9a0e7369125116dfc94a3313b1e8a7fb8d708a72e7",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-16-xingyu-public-mvp/task-6-brief.md",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-16-xingyu-public-mvp/task-6-brief.md",
+      "bytes": 2553,
+      "sha256": "73f6c2ba64b15e15f6bc4cabcf76f71210c2f6f8f3b4f21e34ac9b0367acca56",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-16-xingyu-public-mvp/task-6-report.md",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-16-xingyu-public-mvp/task-6-report.md",
+      "bytes": 6271,
+      "sha256": "c2e9e1b62abeeb97931cc05eb63af4f7c5db8c212cb4ab21fd2e189cd08f7042",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-16-xingyu-public-mvp/task-7-brief.md",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-16-xingyu-public-mvp/task-7-brief.md",
+      "bytes": 2396,
+      "sha256": "6351aefb0d38f646e93b32c4f325552a285a995c44f7ed9d02bda0d3dc46ebfc",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-16-xingyu-public-mvp/task-8-brief.md",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-16-xingyu-public-mvp/task-8-brief.md",
+      "bytes": 2380,
+      "sha256": "539c94ba7b02e49fcd48f0eb04019023f5d39a25850b13ead54ae26f8b2df87a",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-16-xingyu-public-mvp/task-8-report.md",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-16-xingyu-public-mvp/task-8-report.md",
+      "bytes": 6396,
+      "sha256": "6836ea2e1b7137b016f672399ed1dd3aef2da4540213aa6f57be3a983b1048bd",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-16-xingyu-public-mvp/task-8-vitest.json",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-16-xingyu-public-mvp/task-8-vitest.json",
+      "bytes": 45497,
+      "sha256": "ae24467c0dde473043c09777f483e83ac92bb0dc4e3f7013253c54513441ee26",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-16-xingyu-public-mvp/task-9-brief.md",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-16-xingyu-public-mvp/task-9-brief.md",
+      "bytes": 2799,
+      "sha256": "90e4ed4c0355444e64b1b6024968b4ec84c1d739450417290f23e5fda11b96d7",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-16-xingyu-public-mvp/task-9-report.md",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-16-xingyu-public-mvp/task-9-report.md",
+      "bytes": 9375,
+      "sha256": "f581ffd0e56776d2b1627ab8c3429b1637c24cdd733be2e88c370b229f7710a4",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/progress.md",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-19-xingyu-local-closed-loop-content-motion/progress.md",
+      "bytes": 13587,
+      "sha256": "3cddb3c8cdedae6177721e16e64be87cd3f84780f9e255b4564423dab8d77f17",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/review-0b3fd9d..acb2fe2.diff",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-19-xingyu-local-closed-loop-content-motion/review-0b3fd9d..acb2fe2.diff",
+      "bytes": 41432,
+      "sha256": "cbc5f81a92d5b08ac76b7168221aa5df42c058be63807ee5663bcb327d762bcd",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/review-1730df7..7486e30.diff",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-19-xingyu-local-closed-loop-content-motion/review-1730df7..7486e30.diff",
+      "bytes": 9113,
+      "sha256": "2fdcc8f7f6875c2e6007b83e9bb92578d4f33994c5e93a739397190218727487",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/review-17d2d75..87bffa2.diff",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-19-xingyu-local-closed-loop-content-motion/review-17d2d75..87bffa2.diff",
+      "bytes": 97903,
+      "sha256": "4dfe3f2f33c3707d47c49793c3987cdbb4329a20d6046e818f6a315990d9daba",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/review-1e88020..2d7691e.diff",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-19-xingyu-local-closed-loop-content-motion/review-1e88020..2d7691e.diff",
+      "bytes": 104296,
+      "sha256": "f66136a00db5cba1e5d9bb4b90911f49cf88e7403d443bf3358541fb35e133be",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/review-268787b..9a8b855.diff",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-19-xingyu-local-closed-loop-content-motion/review-268787b..9a8b855.diff",
+      "bytes": 2766,
+      "sha256": "22a8864baac0c04f5f268b0c2cd3dd023f6fdd7365c045f9df9b7638e619e181",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/review-2d7691e..69b013d.diff",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-19-xingyu-local-closed-loop-content-motion/review-2d7691e..69b013d.diff",
+      "bytes": 113070,
+      "sha256": "3bc57216391a04e6947ed99f4825cdaf92fc0475d69dcabc66a157b92c5049bb",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/review-2fea008..2d7691e.diff",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-19-xingyu-local-closed-loop-content-motion/review-2fea008..2d7691e.diff",
+      "bytes": 722543,
+      "sha256": "090b69c66a5a107c6a2e54761c75ee650ea999c7282f3fd34e50ef8ea79eb26a",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/review-2fea008..96a162b.diff",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-19-xingyu-local-closed-loop-content-motion/review-2fea008..96a162b.diff",
+      "bytes": 34068,
+      "sha256": "7d58676d622e710684d95fc43b747eb456803540916449a56bc6125eb7d7d740",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/review-3761f37..6c69936.diff",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-19-xingyu-local-closed-loop-content-motion/review-3761f37..6c69936.diff",
+      "bytes": 16684,
+      "sha256": "8352c124ae89ad0995a1d2826e424e97745a516e41d6467ff7eeeb681adfb111",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/review-4a94c32..0b3fd9d.diff",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-19-xingyu-local-closed-loop-content-motion/review-4a94c32..0b3fd9d.diff",
+      "bytes": 40189,
+      "sha256": "0fad4079f5d9a67dce8370fb5e7d1313c47864dcc0a2f6bfeb8705484c15445e",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/review-4b7a911..a225a04.diff",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-19-xingyu-local-closed-loop-content-motion/review-4b7a911..a225a04.diff",
+      "bytes": 47331,
+      "sha256": "bbbd138a7fc6a3782fe04289941f09771432d3db41d058e8b707db0f3119c3e9",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/review-5d8ec98..268787b.diff",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-19-xingyu-local-closed-loop-content-motion/review-5d8ec98..268787b.diff",
+      "bytes": 5036,
+      "sha256": "76e42bc3264235fcdee3283ad3b852011aa5188f00c75c81e45348cd5372cd0a",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/review-69b013d..4b7a911.diff",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-19-xingyu-local-closed-loop-content-motion/review-69b013d..4b7a911.diff",
+      "bytes": 98864,
+      "sha256": "b89899decb9efb5dc01fc84d7e111af23a01378133189eb4afbb8c33bb741b16",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/review-6c69936..ab4b31e.diff",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-19-xingyu-local-closed-loop-content-motion/review-6c69936..ab4b31e.diff",
+      "bytes": 28368,
+      "sha256": "c26f2917a0719186e7b5bb52a8d5b6b1b961f2e6f0d41b49613f9bb3213788b8",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/review-7486e30..fb953e5.diff",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-19-xingyu-local-closed-loop-content-motion/review-7486e30..fb953e5.diff",
+      "bytes": 54273,
+      "sha256": "a2cb7cce73c9f455bfd7bf1c536695a0475af2e17e728dbecd69b433baa14121",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/review-7b95447..c9ccd47.diff",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-19-xingyu-local-closed-loop-content-motion/review-7b95447..c9ccd47.diff",
+      "bytes": 56859,
+      "sha256": "284a6254a9b45841a96af39bafe4829106f938d74ebb636d7e9797f87c1e56a2",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/review-812a9cd..c413cfe.diff",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-19-xingyu-local-closed-loop-content-motion/review-812a9cd..c413cfe.diff",
+      "bytes": 14564,
+      "sha256": "d548d75a86b350a88a3ed3e12f3d2146204827b1159bcdedf8d65e5703e0d12e",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/review-87bffa2..5d8ec98.diff",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-19-xingyu-local-closed-loop-content-motion/review-87bffa2..5d8ec98.diff",
+      "bytes": 38417,
+      "sha256": "a9103b8f3f07413d5e96ab66ef9d97f5b4bca5b6197688f56c0c3bc02a61f003",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/review-8ccc747..9581aab.diff",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-19-xingyu-local-closed-loop-content-motion/review-8ccc747..9581aab.diff",
+      "bytes": 31449,
+      "sha256": "601f40b15e8eaf58cbe2ccd487917a8c25a410a754a64ada40e1486f4bedfffb",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/review-9581aab..7b95447.diff",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-19-xingyu-local-closed-loop-content-motion/review-9581aab..7b95447.diff",
+      "bytes": 3869,
+      "sha256": "b4534838af77b80227766459973d307c3022700f8e4039903eaf90909bbe0369",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/review-96a162b..e74cbd3.diff",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-19-xingyu-local-closed-loop-content-motion/review-96a162b..e74cbd3.diff",
+      "bytes": 5219,
+      "sha256": "91c096350d791860c6be04a695677f66c1826e90e67fa221e2dc02d15cb43ba5",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/review-9a8b855..8ccc747.diff",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-19-xingyu-local-closed-loop-content-motion/review-9a8b855..8ccc747.diff",
+      "bytes": 43625,
+      "sha256": "9ce8900abb39e8dff632c25637fd1151b1960ca4197148dd45f785c02262627c",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/review-9db40a7..4a94c32.diff",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-19-xingyu-local-closed-loop-content-motion/review-9db40a7..4a94c32.diff",
+      "bytes": 13274,
+      "sha256": "a48dfd64d13bdd900e1255b32f337134b52cbffbc937d23af085dc42fe986a15",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/review-ab4b31e..1e88020.diff",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-19-xingyu-local-closed-loop-content-motion/review-ab4b31e..1e88020.diff",
+      "bytes": 10388,
+      "sha256": "2e7156975f262b4f2977259895762a905f60d64cfb966235d14f55b3b460b290",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/review-acb2fe2..3761f37.diff",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-19-xingyu-local-closed-loop-content-motion/review-acb2fe2..3761f37.diff",
+      "bytes": 37762,
+      "sha256": "45046abab8aeb7aa99a5e2e7b694af6d18892b17482714f47645777ad743c0f3",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/review-c413cfe..f92df1a.diff",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-19-xingyu-local-closed-loop-content-motion/review-c413cfe..f92df1a.diff",
+      "bytes": 37031,
+      "sha256": "10e92e9ee7dd9626441e18e94481d094ac928b4130948896d8f27477a3d3bf32",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/review-c614b5f..1730df7.diff",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-19-xingyu-local-closed-loop-content-motion/review-c614b5f..1730df7.diff",
+      "bytes": 104824,
+      "sha256": "68e2d154ec32ad0e4ac5068cf39ac97096119e8354f5a6f99b6ed39d2919bac8",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/review-c9ccd47..9db40a7.diff",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-19-xingyu-local-closed-loop-content-motion/review-c9ccd47..9db40a7.diff",
+      "bytes": 44810,
+      "sha256": "d2074bbabead9581a2c7299612c0d05945d9e3b2a57030cb4c0bae138d75d278",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/review-e74cbd3..812a9cd.diff",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-19-xingyu-local-closed-loop-content-motion/review-e74cbd3..812a9cd.diff",
+      "bytes": 21033,
+      "sha256": "67e8e5e9b6dc95fa8c899689a9ccc81c328368ab7cc5b40a4e8c55cec2078a6b",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/review-f92df1a..c614b5f.diff",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-19-xingyu-local-closed-loop-content-motion/review-f92df1a..c614b5f.diff",
+      "bytes": 5548,
+      "sha256": "9580268cd79f4789dea8c33da22014e54f86fdf3cd355758a93e37a1c759a00b",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/review-fb953e5..17d2d75.diff",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-19-xingyu-local-closed-loop-content-motion/review-fb953e5..17d2d75.diff",
+      "bytes": 61140,
+      "sha256": "2e97840ab78f547f058bf160beee3bd51183d1736578d1c0af19c8733bd10a08",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/task-1-brief.md",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-19-xingyu-local-closed-loop-content-motion/task-1-brief.md",
+      "bytes": 4523,
+      "sha256": "081298ea4b9abd6b3b18ea7c22ea2fdff45f05bb6c6df10a2e145cdc908f8b9e",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/task-1-report.md",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-19-xingyu-local-closed-loop-content-motion/task-1-report.md",
+      "bytes": 6600,
+      "sha256": "f9e350bc4b23fc56c33af4fb9c0523407216e0c20213193cb53de7a3e563e390",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/task-10-brief.md",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-19-xingyu-local-closed-loop-content-motion/task-10-brief.md",
+      "bytes": 5132,
+      "sha256": "28ba580e06b737c4aef9a99fdc56f01097a62cf9364945ab329211a7bd808cce",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/task-11-brief.md",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-19-xingyu-local-closed-loop-content-motion/task-11-brief.md",
+      "bytes": 4673,
+      "sha256": "5fed4d9d7aabaab5e82d7b29555e6f3db05daf868800293c373c2238b262696e",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/task-2-brief.md",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-19-xingyu-local-closed-loop-content-motion/task-2-brief.md",
+      "bytes": 2438,
+      "sha256": "4905d15c2d5bcfa9dc174f5471f798e0c57825751f5a17321e6a8247b615ea97",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/task-2-report.md",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-19-xingyu-local-closed-loop-content-motion/task-2-report.md",
+      "bytes": 6659,
+      "sha256": "5eea075d43f4b5175d93ce4d912fb405e141517f923298d1e1ee94e34e369309",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/task-3-brief.md",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-19-xingyu-local-closed-loop-content-motion/task-3-brief.md",
+      "bytes": 2726,
+      "sha256": "9fc319e2efbfc185cacb76773da900d19e5ca99ee4066c8e5ed4b17991a728c7",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/task-3-report.md",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-19-xingyu-local-closed-loop-content-motion/task-3-report.md",
+      "bytes": 8599,
+      "sha256": "f4e4ec76d28e306bb61a98c528060afedfaf9936a12ca8566fb1001593ec3339",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/task-4-brief.md",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-19-xingyu-local-closed-loop-content-motion/task-4-brief.md",
+      "bytes": 3629,
+      "sha256": "5343954ad8deb962167699279a3d768492eea591e9aeeb0fa30cb7dfe4b9cce1",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/task-4-report.md",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-19-xingyu-local-closed-loop-content-motion/task-4-report.md",
+      "bytes": 10523,
+      "sha256": "572ffc7db4bacec4ea4c40160301607b194b8fa1b936265d191d76102cfb1ef0",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/task-5-brief.md",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-19-xingyu-local-closed-loop-content-motion/task-5-brief.md",
+      "bytes": 2437,
+      "sha256": "bcbc8018746d72a2c06167f4afeec123e75927f1d3e08a276d22d83bcc827baa",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/task-5-report.md",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-19-xingyu-local-closed-loop-content-motion/task-5-report.md",
+      "bytes": 8294,
+      "sha256": "eca2552c3de4af442d8179fae6fc0029f1be6277de7dd8766f2b9e90df7b95cf",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/task-6-brief.md",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-19-xingyu-local-closed-loop-content-motion/task-6-brief.md",
+      "bytes": 5380,
+      "sha256": "ca5eda00054358634e3f9380659acdd2542508c28400c790c7bee0107697992a",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/task-6-report.md",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-19-xingyu-local-closed-loop-content-motion/task-6-report.md",
+      "bytes": 8175,
+      "sha256": "637a844d45b72e0e18ebd9bd9f9e21f9dbf6ee3473cd6e47b4f723d78c53630b",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/task-7-brief.md",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-19-xingyu-local-closed-loop-content-motion/task-7-brief.md",
+      "bytes": 2882,
+      "sha256": "843ab12299bd6034a8ec228c661da7300e109a6cfccfbc0993ae18bdd917c213",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/task-7-report.md",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-19-xingyu-local-closed-loop-content-motion/task-7-report.md",
+      "bytes": 6726,
+      "sha256": "03927ee5eaa4f1bdd9e15507edd485e59a63c7ebf57c705ff7281a888ede2448",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/task-8-brief.md",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-19-xingyu-local-closed-loop-content-motion/task-8-brief.md",
+      "bytes": 2832,
+      "sha256": "4cfd170a21c24d7cfaf0e42ffae64ff3506d6ca60c3ec1fcae07cbd1b811d06b",
+      "status": "archived-original"
+    },
+    {
+      "source": "project-worktree/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/task-9-brief.md",
+      "sourceCategory": "development-record",
+      "path": "archive/development/2026-08-19-xingyu-local-closed-loop-content-motion/task-9-brief.md",
+      "bytes": 2177,
+      "sha256": "dfd527cf48a139d7cfa495fe56c387f9142b2db50c1f4f44cfad17b69465a75d",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/xingyu-travel/docs/design/reference-marriott-cn.png",
+      "sourceCategory": "initial-checkout",
+      "path": "docs/design/reference-marriott-cn.png",
+      "bytes": 58067,
+      "sha256": "92aa0f61a62696acce1db50fa1792368dbb94730aa338249a9b42533ce73cd87",
+      "status": "byte-identical-existing-asset"
+    },
+    {
+      "source": "workspace/xingyu-travel/docs/design/reference-ritzcarlton.png",
+      "sourceCategory": "initial-checkout",
+      "path": "docs/design/reference-ritzcarlton.png",
+      "bytes": 78804,
+      "sha256": "f0950135c21c1fc0c5852661445fe489f55a417076ae6d5a86b3908974657096",
+      "status": "byte-identical-existing-asset"
+    },
+    {
+      "source": "workspace/xingyu-travel/docs/design/selected-homepage-option-1.png",
+      "sourceCategory": "initial-checkout",
+      "path": "docs/design/selected-homepage-option-1.png",
+      "bytes": 1626076,
+      "sha256": "c82919aae0307d1b7d3e204ea555c4420952f375ed5a2e86f1f4c74ea03b3433",
+      "status": "byte-identical-existing-asset",
+      "dimensions": {
+        "width": 1487,
+        "height": 1058
+      }
+    },
+    {
+      "source": "workspace/xingyu-travel/docs/superpowers/plans/2026-08-16-xingyu-public-mvp.md",
+      "sourceCategory": "initial-checkout",
+      "path": "archive/initial-checkout/docs/superpowers/plans/2026-08-16-xingyu-public-mvp.md",
+      "bytes": 46481,
+      "sha256": "f07195bdf04a6034688c3f44a4a086b8ef78149b511ac076f25331bd85343796",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/xingyu-travel/docs/superpowers/specs/2026-08-16-xingyu-web-design.md",
+      "sourceCategory": "initial-checkout",
+      "path": "archive/initial-checkout/docs/superpowers/specs/2026-08-16-xingyu-web-design.md",
+      "bytes": 12582,
+      "sha256": "c6f418b5bffe9a94a142a630c44cb0369636dfdb0186119dd2280231e83cc43a",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/review-058c03d..a452a17.diff",
+      "sourceCategory": "external-review",
+      "path": "archive/reviews/review-058c03d..a452a17.diff",
+      "bytes": 40323,
+      "sha256": "ca58ff03164a47416d747eb1216c371446798c299df486cf60c9db5e0b53b1d6",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/review-088927c..fd4401e.diff",
+      "sourceCategory": "external-review",
+      "path": "archive/reviews/review-088927c..fd4401e.diff",
+      "bytes": 6894,
+      "sha256": "06e181d1b84f9a98977f038f4b677cf6219275d62eb497b2396517c1fb038cf2",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/review-202c161..7387126.diff",
+      "sourceCategory": "external-review",
+      "path": "archive/reviews/review-202c161..7387126.diff",
+      "bytes": 19583,
+      "sha256": "2b32f4ffbc0fab3d6773885b6a4b8c5dc648006321bcd08af6090f6bcbd57241",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/review-2067992..3442a56.diff",
+      "sourceCategory": "external-review",
+      "path": "archive/reviews/review-2067992..3442a56.diff",
+      "bytes": 20868,
+      "sha256": "c33f9a7b462c8dee9be4081e04337276d431011ebf377a00d59688078fa8491f",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/review-3442a56..7b1e61d.diff",
+      "sourceCategory": "external-review",
+      "path": "archive/reviews/review-3442a56..7b1e61d.diff",
+      "bytes": 9820,
+      "sha256": "8cfedd8890f8a1971eb2147bb5ae30a882681bc4835a13989f4021135cbb1706",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/review-4598c27..088927c.diff",
+      "sourceCategory": "external-review",
+      "path": "archive/reviews/review-4598c27..088927c.diff",
+      "bytes": 38251,
+      "sha256": "378f1c7f5657d02c94e956b74a1012dd52e73f65046977c3632b3018479614b4",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/review-4993cd2..f6881f9.diff",
+      "sourceCategory": "external-review",
+      "path": "archive/reviews/review-4993cd2..f6881f9.diff",
+      "bytes": 26258,
+      "sha256": "04828f89f5df2029be6602bf009195c5221aec8245076a1126cb412013956a70",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/review-5033cf6..67bf060.diff",
+      "sourceCategory": "external-review",
+      "path": "archive/reviews/review-5033cf6..67bf060.diff",
+      "bytes": 67574,
+      "sha256": "eaa7c4de849b30310eb4dd77d321773d72fd1f988ed18969f31c5bec501c7a00",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/review-64cbb90..5033cf6.diff",
+      "sourceCategory": "external-review",
+      "path": "archive/reviews/review-64cbb90..5033cf6.diff",
+      "bytes": 6216,
+      "sha256": "1bc959e45217eb77458cb657e1694bb983f1d713de83cd5ddafae96bd61fd0b6",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/review-67bf060..e0a5bb4.diff",
+      "sourceCategory": "external-review",
+      "path": "archive/reviews/review-67bf060..e0a5bb4.diff",
+      "bytes": 32208,
+      "sha256": "983c90b53a12b1a83b79f3f4621e8ac268060ad12ae5e2aa2a85aba13254c2b2",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/review-6a73707..202c161.diff",
+      "sourceCategory": "external-review",
+      "path": "archive/reviews/review-6a73707..202c161.diff",
+      "bytes": 23413,
+      "sha256": "01751b520a0c0a6a7526d9a086813885efa98cf867db62adfa5a75d03262a775",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/review-7387126..64cbb90.diff",
+      "sourceCategory": "external-review",
+      "path": "archive/reviews/review-7387126..64cbb90.diff",
+      "bytes": 17359,
+      "sha256": "1ff464f8c61269cc4750e52814feb6f2a49a3e8a58b337ca0309c9b98a3a8b20",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/review-776ac02..4993cd2.diff",
+      "sourceCategory": "external-review",
+      "path": "archive/reviews/review-776ac02..4993cd2.diff",
+      "bytes": 72617,
+      "sha256": "09fd1b4540011e55f26da46f5e6dfcde7b771ad585fab61050c96f3329c87675",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/review-7b1e61d..eb044c3.diff",
+      "sourceCategory": "external-review",
+      "path": "archive/reviews/review-7b1e61d..eb044c3.diff",
+      "bytes": 2927,
+      "sha256": "4bdbf2e8fa0e6a09a52df0bcf8e33d319232797f04eafa966c08122de702476a",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/review-c65bbb7..2067992.diff",
+      "sourceCategory": "external-review",
+      "path": "archive/reviews/review-c65bbb7..2067992.diff",
+      "bytes": 190978,
+      "sha256": "90c147930a52eccb0b120b0cbb4cb792de5e6a82359db12503b52475db582eea",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/review-e0a5bb4..058c03d.diff",
+      "sourceCategory": "external-review",
+      "path": "archive/reviews/review-e0a5bb4..058c03d.diff",
+      "bytes": 76343,
+      "sha256": "ce56fe397489062cec772ac187d918bb93a823feadf1c40957dbc14acad36480",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/review-eb044c3..4598c27.diff",
+      "sourceCategory": "external-review",
+      "path": "archive/reviews/review-eb044c3..4598c27.diff",
+      "bytes": 5330,
+      "sha256": "4c1cdf757319ed48164d9926a7176a82a11e0e9bde25bffac478bf433b13404b",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/review-f6881f9..6a73707.diff",
+      "sourceCategory": "external-review",
+      "path": "archive/reviews/review-f6881f9..6a73707.diff",
+      "bytes": 34807,
+      "sha256": "76b6552cc4d01ceda7e9852056723b60c3664a0ea05c886a35ad1c71504c3359",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/review-fd4401e..776ac02.diff",
+      "sourceCategory": "external-review",
+      "path": "archive/reviews/review-fd4401e..776ac02.diff",
+      "bytes": 63903,
+      "sha256": "c69cdc5e49a4087f33f82fdba986c381f5a182d471d329ddc147b2ca189758cc",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/review-task10-faa2ef8.md",
+      "sourceCategory": "external-review",
+      "path": "archive/reviews/review-task10-faa2ef8.md",
+      "bytes": 59287,
+      "sha256": "547e8184b27da73c3c5aeb300e2877c7f2b85e23edbe66b62dab4066d6271e70",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/review-task10-fix1-994a05a.md",
+      "sourceCategory": "external-review",
+      "path": "archive/reviews/review-task10-fix1-994a05a.md",
+      "bytes": 25700,
+      "sha256": "17fad4a35671186059f320eeb760752f4279970a7bed070496717bfbb38a189f",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/review-task11-b7023ff.md",
+      "sourceCategory": "external-review",
+      "path": "archive/reviews/review-task11-b7023ff.md",
+      "bytes": 78969,
+      "sha256": "4301863dd551b1497d095f8b6bc168be1864368e1211e45baccd3f5da4d04b4b",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/review-task11-fix1-59a6f62.md",
+      "sourceCategory": "external-review",
+      "path": "archive/reviews/review-task11-fix1-59a6f62.md",
+      "bytes": 45461,
+      "sha256": "50ab8797b6f3aca870f86328b5ce923423b552d06feb8dd6a5cc6af19ecd00ae",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/review-task11-fix2-ccde7f4.md",
+      "sourceCategory": "external-review",
+      "path": "archive/reviews/review-task11-fix2-ccde7f4.md",
+      "bytes": 8954,
+      "sha256": "59dc82841ae849d0a635f6bce9a63927ee46ff2b36b1b55c69f00d166243bd72",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/review-task9-f3ef8bd.md",
+      "sourceCategory": "external-review",
+      "path": "archive/reviews/review-task9-f3ef8bd.md",
+      "bytes": 48511,
+      "sha256": "236719b227f2b92e0770c7ae65f2a05187ff6b4c6995769ff4d37b6195c22eec",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/review-task9-fix1-3b9d157.md",
+      "sourceCategory": "external-review",
+      "path": "archive/reviews/review-task9-fix1-3b9d157.md",
+      "bytes": 39918,
+      "sha256": "f13fae1fb5d84cbaa26f0b4eb5b08145c5f1a9694d3ffbce031b56ed881cdc02",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/review-task9-fix2-ef38505.md",
+      "sourceCategory": "external-review",
+      "path": "archive/reviews/review-task9-fix2-ef38505.md",
+      "bytes": 16070,
+      "sha256": "b802f1252a438b9f3d76f4dede5e4fae4fbe16f2981f395efcbcfbd337de7057",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/task11-accessibility-spec.stderr.log",
+      "sourceCategory": "early-test-log",
+      "path": "archive/test-logs/initial-mvp/task11-accessibility-spec.stderr.log",
+      "bytes": 164,
+      "sha256": "fe6976201e32a75bb1600931fa43b53915da5430fde35e08cb84f9a5f1821f60",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/task11-accessibility-spec.stdout.log",
+      "sourceCategory": "early-test-log",
+      "path": "archive/test-logs/initial-mvp/task11-accessibility-spec.stdout.log",
+      "bytes": 1428,
+      "sha256": "80ab7b41febb10b2e130781e4328c669c7bf7f65aac5e248dfbfd1f62692c0a7",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/task11-axe-assistant.stderr.log",
+      "sourceCategory": "early-test-log",
+      "path": "archive/test-logs/initial-mvp/task11-axe-assistant.stderr.log",
+      "bytes": 164,
+      "sha256": "a2fc473ce6897360961d620f45b12bfdb64fcd70d80929f9ef55ecb5543359fa",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/task11-axe-assistant.stdout.log",
+      "sourceCategory": "early-test-log",
+      "path": "archive/test-logs/initial-mvp/task11-axe-assistant.stdout.log",
+      "bytes": 177,
+      "sha256": "accb43ea0fc7e8d76760f89ceab29a80e848f01d293fd6ff22da58790c43559d",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/task11-axe-compare.stderr.log",
+      "sourceCategory": "early-test-log",
+      "path": "archive/test-logs/initial-mvp/task11-axe-compare.stderr.log",
+      "bytes": 164,
+      "sha256": "6c19bc59676647dfcfc6a1c326ea62eb00eaf971490d10b06e1ef7c4ce704642",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/task11-axe-compare.stdout.log",
+      "sourceCategory": "early-test-log",
+      "path": "archive/test-logs/initial-mvp/task11-axe-compare.stdout.log",
+      "bytes": 260,
+      "sha256": "7dacbda88202d023f15442ba7d1d86e18422d28e28de57d84fbb8bf938411565",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/task11-axe-guardian.stderr.log",
+      "sourceCategory": "early-test-log",
+      "path": "archive/test-logs/initial-mvp/task11-axe-guardian.stderr.log",
+      "bytes": 163,
+      "sha256": "4e8cd07dff5194a0d08eb406deebf1789e73518f445662e512f8074b70806c6a",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/task11-axe-guardian.stdout.log",
+      "sourceCategory": "early-test-log",
+      "path": "archive/test-logs/initial-mvp/task11-axe-guardian.stdout.log",
+      "bytes": 189,
+      "sha256": "5bb6a3181acdd2b7f31c2bec94491bbd91570bad840fb59dd4da91d3b155bbe1",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/task11-axe-home.stderr.log",
+      "sourceCategory": "early-test-log",
+      "path": "archive/test-logs/initial-mvp/task11-axe-home.stderr.log",
+      "bytes": 164,
+      "sha256": "ac82e54113dd8afd7631ad7dfd88a55a2607862fc257d87e8dbf5bcecd02a5b3",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/task11-axe-home.stdout.log",
+      "sourceCategory": "early-test-log",
+      "path": "archive/test-logs/initial-mvp/task11-axe-home.stdout.log",
+      "bytes": 168,
+      "sha256": "290894f139c232e70b0e8189334db4858af37a6b53ffd877bec309c92df13531",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/task11-axe-partners.stderr.log",
+      "sourceCategory": "early-test-log",
+      "path": "archive/test-logs/initial-mvp/task11-axe-partners.stderr.log",
+      "bytes": 164,
+      "sha256": "435251319e402f3c4c087c5c535dfe74ad582f105c7d05a82c0f41818d91ce22",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/task11-axe-partners.stdout.log",
+      "sourceCategory": "early-test-log",
+      "path": "archive/test-logs/initial-mvp/task11-axe-partners.stdout.log",
+      "bytes": 176,
+      "sha256": "23ef06c75ad05628c2d69afe3c15713e874f1792c2f9fe453101d7ad642645f2",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/task11-axe-square.stderr.log",
+      "sourceCategory": "early-test-log",
+      "path": "archive/test-logs/initial-mvp/task11-axe-square.stderr.log",
+      "bytes": 164,
+      "sha256": "72adcdc52e098a0521acf6ed7f917d2dd341909f73b2685fcc4f5f1ca6431e41",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/task11-axe-square.stdout.log",
+      "sourceCategory": "early-test-log",
+      "path": "archive/test-logs/initial-mvp/task11-axe-square.stdout.log",
+      "bytes": 174,
+      "sha256": "c34cc4cea3a13d18b11885f687f4defdbdbb60a278da7d10b98407f629dad5a6",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/task11-core-spec.stderr.log",
+      "sourceCategory": "early-test-log",
+      "path": "archive/test-logs/initial-mvp/task11-core-spec.stderr.log",
+      "bytes": 164,
+      "sha256": "3a78944c60aacc7be2aca8df5f52c0086fc108a3604bb0db192942e0ecb09d59",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/task11-core-spec.stdout.log",
+      "sourceCategory": "early-test-log",
+      "path": "archive/test-logs/initial-mvp/task11-core-spec.stdout.log",
+      "bytes": 177,
+      "sha256": "785bf06cf25b936817c115de7c033894209b55814e6e43837ba107e86136b9dd",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/task11-external-confirmation.stderr.log",
+      "sourceCategory": "early-test-log",
+      "path": "archive/test-logs/initial-mvp/task11-external-confirmation.stderr.log",
+      "bytes": 164,
+      "sha256": "d27cdb8825662baa968208a02de57700a8b8d1fef4a1e9f4f477bb2450d881da",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/task11-external-confirmation.stdout.log",
+      "sourceCategory": "early-test-log",
+      "path": "archive/test-logs/initial-mvp/task11-external-confirmation.stdout.log",
+      "bytes": 175,
+      "sha256": "69f46a8535e9cee9518e7f1e7e86ca3e2119a2ed7d12e9ce0dcef7896ea6e96a",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/task11-i1-red.err",
+      "sourceCategory": "early-test-log",
+      "path": "archive/test-logs/initial-mvp/task11-i1-red.err",
+      "bytes": 164,
+      "sha256": "93aa91a32546deba385aa11d1bfb6c8fa1b2e36e410a9aece2f3428e948335fa",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/task11-i1-red.out",
+      "sourceCategory": "early-test-log",
+      "path": "archive/test-logs/initial-mvp/task11-i1-red.out",
+      "bytes": 2135,
+      "sha256": "9ad8903f62b61c6643a6d7ea86e726bdb11dd2bae80e3a18e5858fbe5ef9451a",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/task11-pnpm-e2e.stderr.log",
+      "sourceCategory": "early-test-log",
+      "path": "archive/test-logs/initial-mvp/task11-pnpm-e2e.stderr.log",
+      "bytes": 509,
+      "sha256": "1cb08890382383db8a76961ab990547d4a76daa2fb9ab123da2d62396c17f23d",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/task11-pnpm-e2e.stdout.log",
+      "sourceCategory": "early-test-log",
+      "path": "archive/test-logs/initial-mvp/task11-pnpm-e2e.stdout.log",
+      "bytes": 2614,
+      "sha256": "97f505dd3870e6be665bb1b08da2ae97a1dedf6962a4f8531928aa70c192f644",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/task11-reduced-motion.stderr.log",
+      "sourceCategory": "early-test-log",
+      "path": "archive/test-logs/initial-mvp/task11-reduced-motion.stderr.log",
+      "bytes": 164,
+      "sha256": "1725c4c6d71bb53cc861e266d39bee96c11d50fe36593a076a8e182640a3a6ee",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/task11-reduced-motion.stdout.log",
+      "sourceCategory": "early-test-log",
+      "path": "archive/test-logs/initial-mvp/task11-reduced-motion.stdout.log",
+      "bytes": 184,
+      "sha256": "0f2f6e15e0c9b4de00bcd1b901763f6afa65fa790b192936765d6e3d8a0ada0c",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/task11-responsive-assistant.stderr.log",
+      "sourceCategory": "early-test-log",
+      "path": "archive/test-logs/initial-mvp/task11-responsive-assistant.stderr.log",
+      "bytes": 163,
+      "sha256": "bf9e38dad7f42dffd2597690416fcb10bece665c75edfe0fac39d9dc5fe2f23e",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/task11-responsive-assistant.stdout.log",
+      "sourceCategory": "early-test-log",
+      "path": "archive/test-logs/initial-mvp/task11-responsive-assistant.stdout.log",
+      "bytes": 185,
+      "sha256": "3de21ac4bfb0bfe6fac6b8380912aa07c64aebf5bf297e007a6f84f51deb499c",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/task11-responsive-compare.stderr.log",
+      "sourceCategory": "early-test-log",
+      "path": "archive/test-logs/initial-mvp/task11-responsive-compare.stderr.log",
+      "bytes": 162,
+      "sha256": "216ae90290f0563ef18ae4ed50419e992cdfdb4d8abcdce64f25b3114a266c0c",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/task11-responsive-compare.stdout.log",
+      "sourceCategory": "early-test-log",
+      "path": "archive/test-logs/initial-mvp/task11-responsive-compare.stdout.log",
+      "bytes": 268,
+      "sha256": "b71d943b7af711144fe66eb8df6ed92105ee060a27fef7f23839885061f1d759",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/task11-responsive-guardian.stderr.log",
+      "sourceCategory": "early-test-log",
+      "path": "archive/test-logs/initial-mvp/task11-responsive-guardian.stderr.log",
+      "bytes": 164,
+      "sha256": "86c7d84d12687cc027d68bd229429c1715aa9559aff004f231e10db69fbd1766",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/task11-responsive-guardian.stdout.log",
+      "sourceCategory": "early-test-log",
+      "path": "archive/test-logs/initial-mvp/task11-responsive-guardian.stdout.log",
+      "bytes": 197,
+      "sha256": "86ea4013b28621b3615735d6f40da14c5d30dfce1e9011fc09738d2e50f7ddf6",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/task11-responsive-list.stderr.log",
+      "sourceCategory": "early-test-log",
+      "path": "archive/test-logs/initial-mvp/task11-responsive-list.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/task11-responsive-list.stdout.log",
+      "sourceCategory": "early-test-log",
+      "path": "archive/test-logs/initial-mvp/task11-responsive-list.stdout.log",
+      "bytes": 938,
+      "sha256": "b090901c32b18e2d4b31f3c8f53be7a24c7c0006da65486f3952615318ac3c93",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/task11-responsive-partners.stderr.log",
+      "sourceCategory": "early-test-log",
+      "path": "archive/test-logs/initial-mvp/task11-responsive-partners.stderr.log",
+      "bytes": 164,
+      "sha256": "8b7df8fc2d0d74d600ee297d7ebda90025bb9d78b250721b92eea054763c77f0",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/task11-responsive-partners.stdout.log",
+      "sourceCategory": "early-test-log",
+      "path": "archive/test-logs/initial-mvp/task11-responsive-partners.stdout.log",
+      "bytes": 184,
+      "sha256": "47eb1abeac45cadb089241276d8a6cb93cea9cdfb805a1d4332f8c7544815b4d",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/task11-responsive-spec.stderr.log",
+      "sourceCategory": "early-test-log",
+      "path": "archive/test-logs/initial-mvp/task11-responsive-spec.stderr.log",
+      "bytes": 163,
+      "sha256": "0c5418d45ad76394758bd36395293824ed4e601e3a7cbed6d3aee89df01e77ac",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/task11-responsive-spec.stdout.log",
+      "sourceCategory": "early-test-log",
+      "path": "archive/test-logs/initial-mvp/task11-responsive-spec.stdout.log",
+      "bytes": 1109,
+      "sha256": "e11e4bf6cacb5760b7261ad8362c69f66e5713075c526f0083494bf42d89695b",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/task11-responsive-square.stderr.log",
+      "sourceCategory": "early-test-log",
+      "path": "archive/test-logs/initial-mvp/task11-responsive-square.stderr.log",
+      "bytes": 164,
+      "sha256": "c6ac393a6e1296a396bbe9517cb7469ecb0d2ade0a37837c45a839d3a9af82d0",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/task11-responsive-square.stdout.log",
+      "sourceCategory": "early-test-log",
+      "path": "archive/test-logs/initial-mvp/task11-responsive-square.stdout.log",
+      "bytes": 182,
+      "sha256": "f70d13603e74617e43031d68a8a569c62291bae27cecb938b41fc290f72ec389",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/task11-tdd-critical-green.err",
+      "sourceCategory": "early-test-log",
+      "path": "archive/test-logs/initial-mvp/task11-tdd-critical-green.err",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/task11-tdd-critical-green.out",
+      "sourceCategory": "early-test-log",
+      "path": "archive/test-logs/initial-mvp/task11-tdd-critical-green.out",
+      "bytes": 411,
+      "sha256": "4d75ea9ca042e10650aa604412bbda68bbfc3285861b9a5429aa99147cd4d2a6",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/task11-tdd-critical-red.err",
+      "sourceCategory": "early-test-log",
+      "path": "archive/test-logs/initial-mvp/task11-tdd-critical-red.err",
+      "bytes": 1918,
+      "sha256": "c532e8d01c7d70862455176042d14fad21c06fa14a48927e1350320b50d028d8",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/task11-tdd-critical-red.out",
+      "sourceCategory": "early-test-log",
+      "path": "archive/test-logs/initial-mvp/task11-tdd-critical-red.out",
+      "bytes": 236,
+      "sha256": "a0c8056a61d1ff8b7918887f69e452639672817f835f30c93282249e7dc3a87e",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/task11-trips.stderr.log",
+      "sourceCategory": "early-test-log",
+      "path": "archive/test-logs/initial-mvp/task11-trips.stderr.log",
+      "bytes": 164,
+      "sha256": "3ae3285927a6a9caa8b897f2d55c284be181fd07c0c24380184eb4a71e11052d",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/task11-trips.stdout.log",
+      "sourceCategory": "early-test-log",
+      "path": "archive/test-logs/initial-mvp/task11-trips.stdout.log",
+      "bytes": 194,
+      "sha256": "3b3e5a2f8337fbe413712a1c6a302796af7c45a7ab0d14493ab7274c96afa09d",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/task11-verify-final.stderr.log",
+      "sourceCategory": "early-test-log",
+      "path": "archive/test-logs/initial-mvp/task11-verify-final.stderr.log",
+      "bytes": 109,
+      "sha256": "f8d4aadf7409a4b2195385662257bed5991441c930ca97692f7287b99e88e0f4",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/task11-verify-final.stdout.log",
+      "sourceCategory": "early-test-log",
+      "path": "archive/test-logs/initial-mvp/task11-verify-final.stdout.log",
+      "bytes": 1324,
+      "sha256": "4eb07b13eef721614894fec502c524467e3ca0a533a5ee63cb2683d342c094a9",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/task11-verify.stderr.log",
+      "sourceCategory": "early-test-log",
+      "path": "archive/test-logs/initial-mvp/task11-verify.stderr.log",
+      "bytes": 15643,
+      "sha256": "cbf34dddbf9c591d628241c6e5eae421a93766cf72fee4e9e104946dd9a11227",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/task11-verify.stdout.log",
+      "sourceCategory": "early-test-log",
+      "path": "archive/test-logs/initial-mvp/task11-verify.stdout.log",
+      "bytes": 838,
+      "sha256": "d0a382aafb363a59706a0639ad60eb28fec912b53db6861fe1f7670e5e7a7f8a",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/task11-vitest-full.stderr.log",
+      "sourceCategory": "early-test-log",
+      "path": "archive/test-logs/initial-mvp/task11-vitest-full.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/task11-vitest-full.stdout.log",
+      "sourceCategory": "early-test-log",
+      "path": "archive/test-logs/initial-mvp/task11-vitest-full.stdout.log",
+      "bytes": 687,
+      "sha256": "be3d69b1f9c3c71ed9947d18954db900bf4af4be2e758640bb99efadd9daa72d",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/task11-vitest-targeted.stderr.log",
+      "sourceCategory": "early-test-log",
+      "path": "archive/test-logs/initial-mvp/task11-vitest-targeted.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/task11-vitest-targeted.stdout.log",
+      "sourceCategory": "early-test-log",
+      "path": "archive/test-logs/initial-mvp/task11-vitest-targeted.stdout.log",
+      "bytes": 613,
+      "sha256": "9f84db5ffa73141560b8e1ded5c76cb069cd64042b811ace04e2c1285be226e4",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/.task11-round2-logs/full-e2e.err",
+      "sourceCategory": "early-test-log-round2",
+      "path": "archive/test-logs/initial-mvp-round2/full-e2e.err",
+      "bytes": 509,
+      "sha256": "10677ffca723f0102e8262071e9138b3e08dbc6e46c3e92c6eafb8809843aac0",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/.task11-round2-logs/full-e2e.exit",
+      "sourceCategory": "early-test-log-round2",
+      "path": "archive/test-logs/initial-mvp-round2/full-e2e.exit",
+      "bytes": 4,
+      "sha256": "9aca8dfce962538fb8131d73f84cada05e4dc79f5a0d3612c511b1150f3e33e2",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/.task11-round2-logs/full-e2e.out",
+      "sourceCategory": "early-test-log-round2",
+      "path": "archive/test-logs/initial-mvp-round2/full-e2e.out",
+      "bytes": 2622,
+      "sha256": "eeda582e8f05bbe1e5185a9a0252191c0cff650d0aafc3f649a1b157f7f82286",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/.task11-round2-logs/responsive-full.err",
+      "sourceCategory": "early-test-log-round2",
+      "path": "archive/test-logs/initial-mvp-round2/responsive-full.err",
+      "bytes": 164,
+      "sha256": "693181c91b5379e3065236aff577bb4a5e4e1dc9fa000bad32814d2bd40a835e",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/.task11-round2-logs/responsive-full.exit",
+      "sourceCategory": "early-test-log-round2",
+      "path": "archive/test-logs/initial-mvp-round2/responsive-full.exit",
+      "bytes": 4,
+      "sha256": "9aca8dfce962538fb8131d73f84cada05e4dc79f5a0d3612c511b1150f3e33e2",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/.task11-round2-logs/responsive-full.out",
+      "sourceCategory": "early-test-log-round2",
+      "path": "archive/test-logs/initial-mvp-round2/responsive-full.out",
+      "bytes": 1112,
+      "sha256": "631fbbdb22e15dd691fbf8fe331fa11ad6cd5b56b634fe602b3b10e0f0ab8a8e",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/.task11-round2-logs/three-specs.err",
+      "sourceCategory": "early-test-log-round2",
+      "path": "archive/test-logs/initial-mvp-round2/three-specs.err",
+      "bytes": 163,
+      "sha256": "1f4eaf652bd0dea7f04e9457130b3033275fe1ea4f9f9f38e88919760171f462",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/.task11-round2-logs/three-specs.exit",
+      "sourceCategory": "early-test-log-round2",
+      "path": "archive/test-logs/initial-mvp-round2/three-specs.exit",
+      "bytes": 4,
+      "sha256": "9aca8dfce962538fb8131d73f84cada05e4dc79f5a0d3612c511b1150f3e33e2",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/.task11-round2-logs/three-specs.out",
+      "sourceCategory": "early-test-log-round2",
+      "path": "archive/test-logs/initial-mvp-round2/three-specs.out",
+      "bytes": 2620,
+      "sha256": "2e1d358341fb4a26b5c71e016658aa0d68deef268275f24be35e01c69022a6c8",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/.task11-round2-logs/verify-network.err",
+      "sourceCategory": "early-test-log-round2",
+      "path": "archive/test-logs/initial-mvp-round2/verify-network.err",
+      "bytes": 109,
+      "sha256": "f8d4aadf7409a4b2195385662257bed5991441c930ca97692f7287b99e88e0f4",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/.task11-round2-logs/verify-network.exit",
+      "sourceCategory": "early-test-log-round2",
+      "path": "archive/test-logs/initial-mvp-round2/verify-network.exit",
+      "bytes": 4,
+      "sha256": "9aca8dfce962538fb8131d73f84cada05e4dc79f5a0d3612c511b1150f3e33e2",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/.task11-round2-logs/verify-network.out",
+      "sourceCategory": "early-test-log-round2",
+      "path": "archive/test-logs/initial-mvp-round2/verify-network.out",
+      "bytes": 1325,
+      "sha256": "280fb53319306dde6607801293585c789c7ec6409744708b4ba58497b771ac4c",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/.task11-round2-logs/verify.err",
+      "sourceCategory": "early-test-log-round2",
+      "path": "archive/test-logs/initial-mvp-round2/verify.err",
+      "bytes": 1717,
+      "sha256": "d608ef3e6d6f5f9faf2e8ab62e49fba7555e4ffc63209eb3a9963ac9ac9d63a9",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/.task11-round2-logs/verify.exit",
+      "sourceCategory": "early-test-log-round2",
+      "path": "archive/test-logs/initial-mvp-round2/verify.exit",
+      "bytes": 4,
+      "sha256": "2f1c37754e38b4ac70a9559fbfbdbd28feda47f36be9cd9e3ad5bc844ee3feb6",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/.task11-round2-logs/verify.out",
+      "sourceCategory": "early-test-log-round2",
+      "path": "archive/test-logs/initial-mvp-round2/verify.out",
+      "bytes": 428,
+      "sha256": "e4b8be9dd0e8348dd67c458564afe07a1b81899a6423785979d509524ad9731f",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/.task11-round2-logs/vitest.err",
+      "sourceCategory": "early-test-log-round2",
+      "path": "archive/test-logs/initial-mvp-round2/vitest.err",
+      "bytes": 13,
+      "sha256": "cb7efe2ed065b3202856f854f1645179984b659249d4ea99dde8467ed4a4b173",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/.task11-round2-logs/vitest.exit",
+      "sourceCategory": "early-test-log-round2",
+      "path": "archive/test-logs/initial-mvp-round2/vitest.exit",
+      "bytes": 4,
+      "sha256": "9aca8dfce962538fb8131d73f84cada05e4dc79f5a0d3612c511b1150f3e33e2",
+      "status": "archived-original"
+    },
+    {
+      "source": "workspace/.task11-round2-logs/vitest.out",
+      "sourceCategory": "early-test-log-round2",
+      "path": "archive/test-logs/initial-mvp-round2/vitest.out",
+      "bytes": 258,
+      "sha256": "c51e2a37b8610162c5dffe34a503f127f290926e905680efb7a0d9a4cbc4e07c",
+      "status": "archived-original"
+    },
+    {
+      "source": "codex/attachments/e6614c87-ee0b-4497-a57f-41346434a59f/pasted-text.txt",
+      "sourceCategory": "original-requirements",
+      "path": "archive/requirements/original-platform-plan-v1.0.md",
+      "bytes": 10480,
+      "sha256": "751fba57a5a2d0fbbad66118dea3e549292e9808c3753d1282fd71dccad84e32",
+      "status": "archived-original"
+    },
+    {
+      "source": "codex/visualizations/2026/08/11/019fef87-9a22-77e3-8ab6-1807c44a3bda/task6-contact-sheets/dali.png",
+      "sourceCategory": "visual-contact-sheet",
+      "path": "archive/design-contact-sheets/dali.png",
+      "bytes": 3881362,
+      "sha256": "2ed37452d16613bb17c1fab670db2384eab275edfc3faef5f60cc194fae226d5",
+      "status": "archived-original",
+      "dimensions": {
+        "width": 1536,
+        "height": 1080
+      },
+      "note": "当时的人工检查板，可能包含后来被替换的候选；以 public/assets 为在用版本"
+    },
+    {
+      "source": "codex/visualizations/2026/08/11/019fef87-9a22-77e3-8ab6-1807c44a3bda/task6-contact-sheets/guilin.png",
+      "sourceCategory": "visual-contact-sheet",
+      "path": "archive/design-contact-sheets/guilin.png",
+      "bytes": 4062240,
+      "sha256": "4fcf047849522c5bbe944c41f62bd3b7fc527bbf906dbd2dc31bca334a5e580f",
+      "status": "archived-original",
+      "dimensions": {
+        "width": 1536,
+        "height": 1080
+      },
+      "note": "当时的人工检查板，可能包含后来被替换的候选；以 public/assets 为在用版本"
+    },
+    {
+      "source": "codex/visualizations/2026/08/11/019fef87-9a22-77e3-8ab6-1807c44a3bda/task6-contact-sheets/guizhou.png",
+      "sourceCategory": "visual-contact-sheet",
+      "path": "archive/design-contact-sheets/guizhou.png",
+      "bytes": 4274262,
+      "sha256": "31578aeda5345703b83c6123d40a7781a4635ebca097cc17eeee3a14c319310a",
+      "status": "archived-original",
+      "dimensions": {
+        "width": 1536,
+        "height": 1080
+      },
+      "note": "当时的人工检查板，可能包含后来被替换的候选；以 public/assets 为在用版本"
+    },
+    {
+      "source": "codex/visualizations/2026/08/11/019fef87-9a22-77e3-8ab6-1807c44a3bda/task6-contact-sheets/hangzhou.png",
+      "sourceCategory": "visual-contact-sheet",
+      "path": "archive/design-contact-sheets/hangzhou.png",
+      "bytes": 3903270,
+      "sha256": "f186c1b57653e0808b23e7100425b189168b4e2d563115221c177a85379d8c0c",
+      "status": "archived-original",
+      "dimensions": {
+        "width": 1536,
+        "height": 1080
+      },
+      "note": "当时的人工检查板，可能包含后来被替换的候选；以 public/assets 为在用版本"
+    },
+    {
+      "source": "codex/visualizations/2026/08/11/019fef87-9a22-77e3-8ab6-1807c44a3bda/task6-contact-sheets/nanjing.png",
+      "sourceCategory": "visual-contact-sheet",
+      "path": "archive/design-contact-sheets/nanjing.png",
+      "bytes": 3927609,
+      "sha256": "7ebb0cd566411dc067c2f035f1d2256aab4bf2a3986226a307cd8bc22db368de",
+      "status": "archived-original",
+      "dimensions": {
+        "width": 1536,
+        "height": 1080
+      },
+      "note": "当时的人工检查板，可能包含后来被替换的候选；以 public/assets 为在用版本"
+    },
+    {
+      "source": "codex/visualizations/2026/08/11/019fef87-9a22-77e3-8ab6-1807c44a3bda/task6-contact-sheets/sanya.png",
+      "sourceCategory": "visual-contact-sheet",
+      "path": "archive/design-contact-sheets/sanya.png",
+      "bytes": 4463507,
+      "sha256": "0f17b9462e815c3ac005f6cb0bc68a51217d8325e6e6d4560c490341a5967eb6",
+      "status": "archived-original",
+      "dimensions": {
+        "width": 1536,
+        "height": 1080
+      },
+      "note": "当时的人工检查板，可能包含后来被替换的候选；以 public/assets 为在用版本"
+    },
+    {
+      "source": "codex/visualizations/2026/08/11/019fef87-9a22-77e3-8ab6-1807c44a3bda/task6-contact-sheets/shanghai.png",
+      "sourceCategory": "visual-contact-sheet",
+      "path": "archive/design-contact-sheets/shanghai.png",
+      "bytes": 3772177,
+      "sha256": "242216db73bd9031bce060ea3663dc51f783e2e2e216fd20f1d7a6362be2e6e6",
+      "status": "archived-original",
+      "dimensions": {
+        "width": 1536,
+        "height": 1080
+      },
+      "note": "当时的人工检查板，可能包含后来被替换的候选；以 public/assets 为在用版本"
+    },
+    {
+      "source": "codex/visualizations/2026/08/11/019fef87-9a22-77e3-8ab6-1807c44a3bda/task6-contact-sheets/sichuan.png",
+      "sourceCategory": "visual-contact-sheet",
+      "path": "archive/design-contact-sheets/sichuan.png",
+      "bytes": 3940688,
+      "sha256": "012ad8451f3bf0944a752fc1acaf8a22038bbc150601a7365aef18f22b01f57d",
+      "status": "archived-original",
+      "dimensions": {
+        "width": 1536,
+        "height": 1080
+      },
+      "note": "当时的人工检查板，可能包含后来被替换的候选；以 public/assets 为在用版本"
+    },
+    {
+      "source": "codex/generated_images/019fef87-9a22-77e3-8ab6-1807c44a3bda/exec-45be342d-b6ef-45d9-b7f8-2f2eef29336b.png",
+      "sourceCategory": "imagegen-conversation",
+      "path": "archive/design-concepts/home-journey-concierge.png",
+      "bytes": 1558363,
+      "sha256": "310b93d5529b667aef21b93bf99b0f4cc68bf8d0ccef8d663d9a18cf3cd15411",
+      "status": "archived-original",
+      "dimensions": {
+        "width": 1487,
+        "height": 1058
+      },
+      "note": "首页候选：旅程总控台，未采用"
+    },
+    {
+      "source": "codex/generated_images/019fef87-9a22-77e3-8ab6-1807c44a3bda/exec-4c16f951-736b-4944-9030-e4fcad201b31.png",
+      "sourceCategory": "imagegen-conversation",
+      "path": "docs/design/generated-originals/xingyu-mark-imagegen.png",
+      "bytes": 944907,
+      "sha256": "776739cb6595f2a3dbcab94eede4b1d7ea918dc56fe5ce7d1896fda83a207f03",
+      "status": "byte-identical-existing-asset",
+      "dimensions": {
+        "width": 1254,
+        "height": 1254
+      }
+    },
+    {
+      "source": "codex/generated_images/019fef87-9a22-77e3-8ab6-1807c44a3bda/exec-7ab7e2db-8fb5-4a75-8165-678a4a0710c9.png",
+      "sourceCategory": "imagegen-conversation",
+      "path": "archive/design-concepts/logo-first-draft.png",
+      "bytes": 184648,
+      "sha256": "3d6975c96bf02d14c8e872aa14840ac2d4be613ac5e5d226ccad66f1c46a7e62",
+      "status": "archived-original",
+      "dimensions": {
+        "width": 1254,
+        "height": 1254
+      },
+      "note": "Logo 初稿：小尺寸细节过多，未用于生产"
+    },
+    {
+      "source": "codex/generated_images/019fef87-9a22-77e3-8ab6-1807c44a3bda/exec-814775fa-5d8b-4386-be35-ff9626ff093f.png",
+      "sourceCategory": "imagegen-conversation",
+      "path": "archive/design-concepts/home-shared-departure.png",
+      "bytes": 1687646,
+      "sha256": "499e6dfac5174dc5a81025c21db825ff5b30bffec7d8a1e7b85bf9807f53983b",
+      "status": "archived-original",
+      "dimensions": {
+        "width": 1487,
+        "height": 1058
+      },
+      "note": "首页候选：同行序章，未采用"
+    },
+    {
+      "source": "codex/generated_images/019fef87-9a22-77e3-8ab6-1807c44a3bda/exec-de12e1a4-64e4-488a-9d02-620bdfcab559.png",
+      "sourceCategory": "imagegen-conversation",
+      "path": "docs/design/selected-homepage-option-1.png",
+      "bytes": 1626076,
+      "sha256": "c82919aae0307d1b7d3e204ea555c4420952f375ed5a2e86f1f4c74ea03b3433",
+      "status": "byte-identical-existing-asset",
+      "dimensions": {
+        "width": 1487,
+        "height": 1058
+      }
+    },
+    {
+      "source": "codex/generated_images/019fef87-9a22-77e3-8ab6-1807c44a3bda/exec-fc9c889e-be0d-486e-a498-485e0d583209.png",
+      "sourceCategory": "imagegen-conversation",
+      "path": "docs/design/xingyu-content-hub-target.png",
+      "bytes": 1838229,
+      "sha256": "60b76dcf80a2ba1546fdb822654cfb33ec00797e709d91161b53f59521bbf804",
+      "status": "byte-identical-existing-asset",
+      "dimensions": {
+        "width": 1705,
+        "height": 923
+      }
+    },
+    {
+      "source": "codex/generated_images/01a01db4-a504-7232-95e8-d3187a66dcad/exec-a64474ac-73bc-4457-afaa-96afde3dbb27.png",
+      "sourceCategory": "imagegen-referenced",
+      "path": "public/assets/home-film/beijing-forbidden-city-dawn.png",
+      "bytes": 2479978,
+      "sha256": "61ff2127073a3320233c1431c4d4d85062ba0c18693014dcbbf69211174cdca3",
+      "status": "byte-identical-existing-asset",
+      "dimensions": {
+        "width": 1536,
+        "height": 1024
+      }
+    },
+    {
+      "source": "codex/generated_images/01a01db4-a504-7232-95e8-d3187a66dcad/exec-f5335e32-ac1f-4aff-845f-03b72b6608e8.png",
+      "sourceCategory": "imagegen-referenced",
+      "path": "public/assets/home-film/xian-city-wall-dusk.png",
+      "bytes": 2516439,
+      "sha256": "537e60285ab987a0b5968bfb8f9959416bf1fa4cf0f9ae63f329540b1a27df6d",
+      "status": "byte-identical-existing-asset",
+      "dimensions": {
+        "width": 1536,
+        "height": 1024
+      }
+    },
+    {
+      "source": "codex/generated_images/01a01db4-a504-7232-95e8-d3187a66dcad/exec-05141445-2203-4a31-a3e0-787d80995e55.png",
+      "sourceCategory": "imagegen-referenced",
+      "path": "public/assets/home-film/chongqing-river-city-blue-hour.png",
+      "bytes": 2664804,
+      "sha256": "a5f538f8bdeab2ce3a2b865d32e65e8197ac726be63f5848dcee6c879bb6ab97",
+      "status": "byte-identical-existing-asset",
+      "dimensions": {
+        "width": 1536,
+        "height": 1024
+      }
+    },
+    {
+      "source": "codex/generated_images/01a01db4-a504-7232-95e8-d3187a66dcad/exec-e9598c60-12c1-4956-ab50-125a8b67d4f7.png",
+      "sourceCategory": "imagegen-referenced",
+      "path": "public/assets/home-film/xiamen-gulangyu-morning.png",
+      "bytes": 2609192,
+      "sha256": "c9a83bde2b7d1043b59d80b71432dbedd85bb2d3d60fe801e7124787459d01ab",
+      "status": "byte-identical-existing-asset",
+      "dimensions": {
+        "width": 1536,
+        "height": 1024
+      }
+    },
+    {
+      "source": "codex/generated_images/01a019db-3763-70f0-a11c-92c3726472d8/exec-10a17045-8982-4c3c-92c3-46076560b775.png",
+      "sourceCategory": "imagegen-referenced",
+      "path": "public/assets/destinations/dali/01.png",
+      "bytes": 2487912,
+      "sha256": "400d8cd2eb5b8d37b8c5a9d36e326d9410f27c25f8d6de6d5f7b225903ce9e33",
+      "status": "byte-identical-existing-asset",
+      "dimensions": {
+        "width": 1536,
+        "height": 1024
+      }
+    },
+    {
+      "source": "codex/generated_images/01a019db-3763-70f0-a11c-92c3726472d8/exec-cdef4333-ad0d-469b-ab29-308722ad5165.png",
+      "sourceCategory": "imagegen-referenced",
+      "path": "public/assets/destinations/dali/02.png",
+      "bytes": 2783522,
+      "sha256": "6bfe305e20f5aeb68b4ec231a318f5cfe9dfbb9b036760083eb453041f287252",
+      "status": "byte-identical-existing-asset",
+      "dimensions": {
+        "width": 1536,
+        "height": 1024
+      }
+    },
+    {
+      "source": "codex/generated_images/01a019db-3763-70f0-a11c-92c3726472d8/exec-4077396d-c263-4157-a695-80cc200dd650.png",
+      "sourceCategory": "imagegen-referenced",
+      "path": "public/assets/destinations/dali/03.png",
+      "bytes": 2788422,
+      "sha256": "5b9f4dfc3334de351b47426458ee0c7fe9e3c6d7f666b84a20223a049ccd1abf",
+      "status": "byte-identical-existing-asset",
+      "dimensions": {
+        "width": 1536,
+        "height": 1024
+      }
+    },
+    {
+      "source": "codex/generated_images/01a019db-3763-70f0-a11c-92c3726472d8/exec-815c8c1f-28ee-4be8-b885-25ffd262c8a4.png",
+      "sourceCategory": "imagegen-referenced",
+      "path": "public/assets/destinations/dali/04.png",
+      "bytes": 2432131,
+      "sha256": "005982e26317e2991ab01f4305dc4b45c87fe29ea81ad1703f6d0418d5e90339",
+      "status": "byte-identical-existing-asset",
+      "dimensions": {
+        "width": 1536,
+        "height": 1024
+      }
+    },
+    {
+      "source": "codex/generated_images/01a019db-3763-70f0-a11c-92c3726472d8/exec-e37fb085-f51b-4083-9a72-f8657c5f93ba.png",
+      "sourceCategory": "imagegen-referenced",
+      "path": "public/assets/destinations/guilin/01.png",
+      "bytes": 2173777,
+      "sha256": "542058b9e32c86bf849e318363ba70efdbc8664d42e85d0129c8dce623b4b306",
+      "status": "byte-identical-existing-asset",
+      "dimensions": {
+        "width": 1536,
+        "height": 1024
+      }
+    },
+    {
+      "source": "codex/generated_images/01a019db-3763-70f0-a11c-92c3726472d8/exec-e7f150e6-5513-4e40-8bf9-4aa599649b39.png",
+      "sourceCategory": "imagegen-referenced",
+      "path": "public/assets/destinations/guilin/02.png",
+      "bytes": 2931317,
+      "sha256": "e95344e7fba2b3d10a4a37b55523d17b90cf7d71a97195190cda9de87afc60d1",
+      "status": "byte-identical-existing-asset",
+      "dimensions": {
+        "width": 1536,
+        "height": 1024
+      }
+    },
+    {
+      "source": "codex/generated_images/01a019db-3763-70f0-a11c-92c3726472d8/exec-cd8a88b9-64aa-4e90-a49f-92d8d4be3cee.png",
+      "sourceCategory": "imagegen-referenced",
+      "path": "public/assets/destinations/guilin/03.png",
+      "bytes": 3248743,
+      "sha256": "3af438b84065d1df6fc4a365ba783724d7dadafd45cb49a4b2976b04c4eeeac8",
+      "status": "byte-identical-existing-asset",
+      "dimensions": {
+        "width": 1536,
+        "height": 1024
+      }
+    },
+    {
+      "source": "codex/generated_images/01a019db-3763-70f0-a11c-92c3726472d8/exec-ef4e346a-a4ad-4fae-b65d-e229d9c341db.png",
+      "sourceCategory": "imagegen-referenced",
+      "path": "public/assets/destinations/guilin/04.png",
+      "bytes": 2609061,
+      "sha256": "d87eca9d6bc074ece0c05b8d1ea0a39312dc5d5af2c20594057a60d8316daf73",
+      "status": "byte-identical-existing-asset",
+      "dimensions": {
+        "width": 1536,
+        "height": 1024
+      }
+    },
+    {
+      "source": "codex/generated_images/01a019db-3763-70f0-a11c-92c3726472d8/exec-eab038e2-62d5-45d5-ba11-51c07f5325a7.png",
+      "sourceCategory": "imagegen-referenced",
+      "path": "public/assets/destinations/sichuan/01.png",
+      "bytes": 2959320,
+      "sha256": "8ed316abc708f30fc2c372bd032a431b00e9b4244153db960c56d28a0420927a",
+      "status": "byte-identical-existing-asset",
+      "dimensions": {
+        "width": 1536,
+        "height": 1024
+      }
+    },
+    {
+      "source": "codex/generated_images/01a019db-3763-70f0-a11c-92c3726472d8/exec-7f45a864-6da5-496d-90ac-2c11c9375694.png",
+      "sourceCategory": "imagegen-referenced",
+      "path": "public/assets/destinations/sichuan/02.png",
+      "bytes": 2579336,
+      "sha256": "d385881df1ade943dcd29c602b9ec21d399fbd973bbc47e1d305239d67b2e818",
+      "status": "byte-identical-existing-asset",
+      "dimensions": {
+        "width": 1536,
+        "height": 1024
+      }
+    },
+    {
+      "source": "codex/generated_images/01a019db-3763-70f0-a11c-92c3726472d8/exec-ff619ebe-4f22-46b8-90c3-140c79d9b698.png",
+      "sourceCategory": "imagegen-referenced",
+      "path": "public/assets/destinations/sichuan/03.png",
+      "bytes": 3391694,
+      "sha256": "5ceada51c5da2343fa0910261875654c508ccb8406ade6cd8e53982b87e627ad",
+      "status": "byte-identical-existing-asset",
+      "dimensions": {
+        "width": 1536,
+        "height": 1024
+      }
+    },
+    {
+      "source": "codex/generated_images/01a019db-3763-70f0-a11c-92c3726472d8/exec-9e6b8589-6dbf-4768-b391-7aae7f464f22.png",
+      "sourceCategory": "imagegen-referenced",
+      "path": "public/assets/destinations/sichuan/04.png",
+      "bytes": 3046750,
+      "sha256": "2cc7df3d00ef91f4f6dbbc390ed2308dff73937dc7aad6c7d47816954cc22642",
+      "status": "byte-identical-existing-asset",
+      "dimensions": {
+        "width": 1536,
+        "height": 1024
+      }
+    },
+    {
+      "source": "codex/generated_images/01a019db-3763-70f0-a11c-92c3726472d8/exec-341aa225-ac49-47c3-b2f4-0a03aa8e4792.png",
+      "sourceCategory": "imagegen-referenced",
+      "path": "public/assets/destinations/sanya/01.png",
+      "bytes": 2273385,
+      "sha256": "c57be9943b35612b5877a593fcd78c1b7132f0991976d4e70f8e691b58c9bb95",
+      "status": "byte-identical-existing-asset",
+      "dimensions": {
+        "width": 1536,
+        "height": 1024
+      }
+    },
+    {
+      "source": "codex/generated_images/01a019db-3763-70f0-a11c-92c3726472d8/exec-ead3ee0d-b24e-4754-aea9-7acf83af4f5e.png",
+      "sourceCategory": "imagegen-referenced",
+      "path": "public/assets/destinations/sanya/02.png",
+      "bytes": 3238730,
+      "sha256": "f4dae4bb424aa7bcc972c7a0168ee9530937e290759412cb7b0217d4b4f3bf1a",
+      "status": "byte-identical-existing-asset",
+      "dimensions": {
+        "width": 1536,
+        "height": 1024
+      }
+    },
+    {
+      "source": "codex/generated_images/01a019db-3763-70f0-a11c-92c3726472d8/exec-756c7c01-cac2-44f0-ade3-3e8ea5cc7122.png",
+      "sourceCategory": "imagegen-referenced",
+      "path": "public/assets/destinations/sanya/03.png",
+      "bytes": 2598942,
+      "sha256": "732175853d29923bf43511706baaf7a68d35e58fddc20606eea9bdd1aa9d46d1",
+      "status": "byte-identical-existing-asset",
+      "dimensions": {
+        "width": 1536,
+        "height": 1024
+      }
+    },
+    {
+      "source": "codex/generated_images/01a019db-3763-70f0-a11c-92c3726472d8/exec-cd6e12ab-2075-441e-bb78-ea4edc7a5feb.png",
+      "sourceCategory": "imagegen-referenced",
+      "path": "public/assets/destinations/sanya/04.png",
+      "bytes": 3762848,
+      "sha256": "98343758d106c6df386c9d6287ba3d2c759193e544a16dafdd64394b33692a74",
+      "status": "byte-identical-existing-asset",
+      "dimensions": {
+        "width": 1536,
+        "height": 1024
+      }
+    },
+    {
+      "source": "codex/generated_images/01a019db-3763-70f0-a11c-92c3726472d8/exec-79cc58ad-ff11-4f0d-a592-3966fadb6360.png",
+      "sourceCategory": "imagegen-referenced",
+      "path": "public/assets/destinations/hangzhou/01.png",
+      "bytes": 2658185,
+      "sha256": "8fbdb669ca7a3058bfe4a6ddc56110df1f36987124e5c5d973fdda7bb6db1563",
+      "status": "byte-identical-existing-asset",
+      "dimensions": {
+        "width": 1536,
+        "height": 1024
+      }
+    },
+    {
+      "source": "codex/generated_images/01a019db-3763-70f0-a11c-92c3726472d8/exec-f7b6aa34-131c-400f-a14d-4c0e27874bfd.png",
+      "sourceCategory": "imagegen-referenced",
+      "path": "public/assets/destinations/hangzhou/02.png",
+      "bytes": 3459494,
+      "sha256": "f509151c0ede2b8a43b444213492e4c720069da58561100601d7921ec32aa51c",
+      "status": "byte-identical-existing-asset",
+      "dimensions": {
+        "width": 1536,
+        "height": 1024
+      }
+    },
+    {
+      "source": "codex/generated_images/01a019db-3763-70f0-a11c-92c3726472d8/exec-acef7fb0-54b6-42af-ab1c-6034a8a3a8fb.png",
+      "sourceCategory": "imagegen-referenced",
+      "path": "public/assets/destinations/hangzhou/03.png",
+      "bytes": 3245205,
+      "sha256": "fa9dd599e108e511d0ae32ae2198daa77b9e251a94ae5b22f5cc24b499ff19f0",
+      "status": "byte-identical-existing-asset",
+      "dimensions": {
+        "width": 1536,
+        "height": 1024
+      }
+    },
+    {
+      "source": "codex/generated_images/01a019db-3763-70f0-a11c-92c3726472d8/exec-db478708-8c1e-4de9-9804-faf339015639.png",
+      "sourceCategory": "imagegen-referenced",
+      "path": "public/assets/destinations/hangzhou/04.png",
+      "bytes": 2245999,
+      "sha256": "a4105a98be00ea210bb26088a7769c5bd8d5d8bd52d82d2a0a43bc1084e39efe",
+      "status": "byte-identical-existing-asset",
+      "dimensions": {
+        "width": 1536,
+        "height": 1024
+      }
+    },
+    {
+      "source": "codex/generated_images/01a019db-3763-70f0-a11c-92c3726472d8/exec-d99057cb-db80-45fe-ac46-e4f994d22c22.png",
+      "sourceCategory": "imagegen-referenced",
+      "path": "public/assets/destinations/nanjing/01.png",
+      "bytes": 3016680,
+      "sha256": "81d3fd3d68b65d38d2c0dbb3e3802d4bdbe7b5a85fdfecd5fda55774f947f923",
+      "status": "byte-identical-existing-asset",
+      "dimensions": {
+        "width": 1536,
+        "height": 1024
+      }
+    },
+    {
+      "source": "codex/generated_images/01a019db-3763-70f0-a11c-92c3726472d8/exec-d2dd5d53-1ca3-4141-92fa-f7e68897e05b.png",
+      "sourceCategory": "imagegen-referenced",
+      "path": "public/assets/destinations/nanjing/02.png",
+      "bytes": 3458625,
+      "sha256": "aa5073b3e9a7147d4385b04da3bd251ffa5db7aa8d32e79c7f9406d1bfd9139a",
+      "status": "byte-identical-existing-asset",
+      "dimensions": {
+        "width": 1536,
+        "height": 1024
+      }
+    },
+    {
+      "source": "codex/generated_images/01a019db-3763-70f0-a11c-92c3726472d8/exec-465c68da-432a-41f9-9876-7d6d78720f42.png",
+      "sourceCategory": "imagegen-referenced",
+      "path": "public/assets/destinations/nanjing/03.png",
+      "bytes": 2411180,
+      "sha256": "fac6648da4018421a8c7c568474c989aa768240eec71df8fd0d0a54bd92b3a1b",
+      "status": "byte-identical-existing-asset",
+      "dimensions": {
+        "width": 1536,
+        "height": 1024
+      }
+    },
+    {
+      "source": "codex/generated_images/01a019db-3763-70f0-a11c-92c3726472d8/exec-57e955a9-ecdf-4cc0-bfa8-cc232d75fb5a.png",
+      "sourceCategory": "imagegen-referenced",
+      "path": "public/assets/destinations/nanjing/04.png",
+      "bytes": 2917949,
+      "sha256": "f1108fc2da5d91bc6755c7e5be0abe889a27d37b37021bc3b5f97100410c35f5",
+      "status": "byte-identical-existing-asset",
+      "dimensions": {
+        "width": 1536,
+        "height": 1024
+      }
+    },
+    {
+      "source": "codex/generated_images/01a019db-3763-70f0-a11c-92c3726472d8/exec-1eecba26-5202-4f3c-b570-73bfe600b1f1.png",
+      "sourceCategory": "imagegen-referenced",
+      "path": "public/assets/destinations/shanghai/01.png",
+      "bytes": 2397174,
+      "sha256": "6449869b190cd7de9c0b7c3eddc28463b6342ab9a385f0d78eb9d657c7a6ecdc",
+      "status": "byte-identical-existing-asset",
+      "dimensions": {
+        "width": 1536,
+        "height": 1024
+      }
+    },
+    {
+      "source": "codex/generated_images/01a019db-3763-70f0-a11c-92c3726472d8/exec-7e4c4ff3-a7b0-4aa9-9e64-76180c8b1b59.png",
+      "sourceCategory": "imagegen-referenced",
+      "path": "public/assets/destinations/shanghai/02.png",
+      "bytes": 3238117,
+      "sha256": "5afbd8a7860876c964de955d15ceaf0eab47548092a4b371d0db4bf908e16623",
+      "status": "byte-identical-existing-asset",
+      "dimensions": {
+        "width": 1536,
+        "height": 1024
+      }
+    },
+    {
+      "source": "codex/generated_images/01a019db-3763-70f0-a11c-92c3726472d8/exec-155727eb-8c08-4685-90a1-71abe62ba94b.png",
+      "sourceCategory": "imagegen-referenced",
+      "path": "public/assets/destinations/shanghai/03.png",
+      "bytes": 2743007,
+      "sha256": "329fde86c4b9ba082f929212c9af39976afbd0e037904cd52df478be471d8a73",
+      "status": "byte-identical-existing-asset",
+      "dimensions": {
+        "width": 1536,
+        "height": 1024
+      }
+    },
+    {
+      "source": "codex/generated_images/01a019db-3763-70f0-a11c-92c3726472d8/exec-1d4c65c7-dd33-43b1-9fdf-931b58dd47bc.png",
+      "sourceCategory": "imagegen-referenced",
+      "path": "public/assets/destinations/shanghai/04.png",
+      "bytes": 2135161,
+      "sha256": "61cc2ae72799fe3f844f21b0c0a28a9a0883c76e661e2eace99ffcb71c414a44",
+      "status": "byte-identical-existing-asset",
+      "dimensions": {
+        "width": 1536,
+        "height": 1024
+      }
+    },
+    {
+      "source": "codex/generated_images/01a019db-3763-70f0-a11c-92c3726472d8/exec-edc973f3-e630-4f17-90cc-4fae2801cc4d.png",
+      "sourceCategory": "imagegen-referenced",
+      "path": "public/assets/destinations/guizhou/01.png",
+      "bytes": 3461510,
+      "sha256": "19d19cda5a2ee117f3c4a5ac445326f9dac5d8baf75b60e6d1d45c67beacb1b7",
+      "status": "byte-identical-existing-asset",
+      "dimensions": {
+        "width": 1536,
+        "height": 1024
+      }
+    },
+    {
+      "source": "codex/generated_images/01a019db-3763-70f0-a11c-92c3726472d8/exec-1cf5a87c-b58c-4cd7-995d-442a21d5d3bd.png",
+      "sourceCategory": "imagegen-referenced",
+      "path": "public/assets/destinations/guizhou/02.png",
+      "bytes": 2802685,
+      "sha256": "5c20b781461513bbb52c2f75267a0114e803860e5c69df937a3993cdb13f33f9",
+      "status": "byte-identical-existing-asset",
+      "dimensions": {
+        "width": 1536,
+        "height": 1024
+      }
+    },
+    {
+      "source": "codex/generated_images/01a01cc1-88f7-7ce1-924f-56f4376614d5/exec-8253820a-491e-4bc5-a419-33ec4f2759f2.png",
+      "sourceCategory": "imagegen-referenced",
+      "path": "public/assets/destinations/guizhou/03.png",
+      "bytes": 3201997,
+      "sha256": "984dc6b62c78ef9d3ffb0f9d01df4cf99a5f67cfa8c75e13e52d44accb2b80e6",
+      "status": "byte-identical-existing-asset",
+      "dimensions": {
+        "width": 1536,
+        "height": 1024
+      }
+    },
+    {
+      "source": "codex/generated_images/01a019db-3763-70f0-a11c-92c3726472d8/exec-9e7ed1ac-f60c-4db1-bec0-a1820edc08eb.png",
+      "sourceCategory": "imagegen-referenced",
+      "path": "public/assets/destinations/guizhou/04.png",
+      "bytes": 2452418,
+      "sha256": "07543fd5e82698c6be7741f477822561142c784e58aeabdec02acf4121c168fb",
+      "status": "byte-identical-existing-asset",
+      "dimensions": {
+        "width": 1536,
+        "height": 1024
+      }
+    },
+    {
+      "source": "codex/generated_images/01a019db-3763-70f0-a11c-92c3726472d8/exec-896dc30f-50b0-4d57-b343-a5d14cf74b4d.png",
+      "sourceCategory": "imagegen-referenced",
+      "path": "archive/imagegen/rejected/dali-03-attempt-1.png",
+      "bytes": 2841598,
+      "sha256": "4f9c0c564f4b3f9484c57ceaf20c2719ce2677e11189fa970781c418d8287ce3",
+      "status": "rejected-historical-candidate",
+      "dimensions": {
+        "width": 1536,
+        "height": 1024
+      },
+      "note": "徽派建筑特征与大理地理不符"
+    },
+    {
+      "source": "codex/generated_images/01a019db-3763-70f0-a11c-92c3726472d8/exec-f6ebaa12-4fb7-4c80-95d3-749bdc8cadce.png",
+      "sourceCategory": "imagegen-referenced",
+      "path": "archive/imagegen/rejected/dali-03-attempt-2.png",
+      "bytes": 2858528,
+      "sha256": "b1e43000195f4622c1c5e79e08fc96114fb689ce09460a2db46c5a1a8fb61f18",
+      "status": "rejected-historical-candidate",
+      "dimensions": {
+        "width": 1536,
+        "height": 1024
+      },
+      "note": "墙面伪文字"
+    },
+    {
+      "source": "codex/generated_images/01a019db-3763-70f0-a11c-92c3726472d8/exec-373ddd1f-22f2-470e-b5c6-70ba1c85457d.png",
+      "sourceCategory": "imagegen-referenced",
+      "path": "archive/imagegen/rejected/hangzhou-04-attempt-1.png",
+      "bytes": 2286896,
+      "sha256": "0f754f31bdd354038de3a65e05e72fc06a6b47d09140316b08406a6ac1b0380b",
+      "status": "rejected-historical-candidate",
+      "dimensions": {
+        "width": 1536,
+        "height": 1024
+      },
+      "note": "狭窄水巷与杭州大运河尺度不符"
+    },
+    {
+      "source": "codex/generated_images/01a019db-3763-70f0-a11c-92c3726472d8/exec-e193136c-1028-4215-b27c-3465d79d7f91.png",
+      "sourceCategory": "imagegen-referenced",
+      "path": "archive/imagegen/rejected/nanjing-03-attempt-1.png",
+      "bytes": 2288613,
+      "sha256": "fcebb503fe783902f504c87b6a91c0449fc2e7306a477f3a59a9072fd8037802",
+      "status": "rejected-historical-candidate",
+      "dimensions": {
+        "width": 1536,
+        "height": 1024
+      },
+      "note": "秦淮河尺度与伪文字问题"
+    },
+    {
+      "source": "codex/generated_images/01a019db-3763-70f0-a11c-92c3726472d8/exec-e626f601-3669-4e4d-a872-9a0092fdb345.png",
+      "sourceCategory": "imagegen-referenced",
+      "path": "archive/imagegen/rejected/shanghai-01-attempt-1.png",
+      "bytes": 2430548,
+      "sha256": "0c43301421023f838b36bed6de827b6f6968a68fdfc6ff7bb23f5d72320214bb",
+      "status": "rejected-historical-candidate",
+      "dimensions": {
+        "width": 1536,
+        "height": 1024
+      },
+      "note": "建筑立面字母或徽标状纹理"
+    },
+    {
+      "source": "codex/generated_images/01a019db-3763-70f0-a11c-92c3726472d8/exec-3e2dc898-541d-4489-9552-dec9b6113731.png",
+      "sourceCategory": "imagegen-referenced",
+      "path": "archive/imagegen/rejected/shanghai-04-attempt-1.png",
+      "bytes": 2183920,
+      "sha256": "9e652eb4a01c0df8dfe200ec3e8361d7456a615d4579e654fcfa9ccf3b2232b1",
+      "status": "rejected-historical-candidate",
+      "dimensions": {
+        "width": 1536,
+        "height": 1024
+      },
+      "note": "建筑屏幕伪字符"
+    },
+    {
+      "source": "codex/generated_images/01a019db-3763-70f0-a11c-92c3726472d8/exec-67c8fa32-b99a-4299-b986-28f86753a7f4.png",
+      "sourceCategory": "imagegen-referenced",
+      "path": "archive/imagegen/rejected/guizhou-03-attempt-1.png",
+      "bytes": 2864187,
+      "sha256": "0e977256a8742273ce32c8e342474fde6caa9d5b112a419665d224e4b56aed99",
+      "status": "rejected-historical-candidate",
+      "dimensions": {
+        "width": 1536,
+        "height": 1024
+      },
+      "note": "插秧水田与早秋成熟稻田不符"
+    },
+    {
+      "source": "codex/generated_images/01a009c4-686a-7fc0-a0f8-67d1af026418/exec-10fd69ec-b140-403e-969d-435535fa3fd6.png",
+      "sourceCategory": "imagegen-matched-original",
+      "path": "public/assets/hero-dali-dawn.png",
+      "bytes": 1761980,
+      "sha256": "3c7ad61ce3af2c4ffd09234e55e7a856861edd5982028da11db7b29b19ea1ab8",
+      "status": "byte-identical-existing-asset",
+      "dimensions": {
+        "width": 1536,
+        "height": 1024
+      }
+    },
+    {
+      "source": "codex/generated_images/01a009c4-686a-7fc0-a0f8-67d1af026418/exec-589b8a33-7128-41a5-b359-4edea0d9f781.png",
+      "sourceCategory": "imagegen-matched-original",
+      "path": "public/assets/destination-guilin.png",
+      "bytes": 2053484,
+      "sha256": "ef5557dfc47680dde221c8059a6b27e8387ce87f158b162f5e4aa95855e06b15",
+      "status": "byte-identical-existing-asset",
+      "dimensions": {
+        "width": 1586,
+        "height": 992
+      }
+    },
+    {
+      "source": "codex/generated_images/01a009c4-686a-7fc0-a0f8-67d1af026418/exec-c108bb11-532a-482e-a0f8-2ab476b0089a.png",
+      "sourceCategory": "imagegen-matched-original",
+      "path": "public/assets/destination-sichuan.png",
+      "bytes": 1930144,
+      "sha256": "7b3f977ac1cbb9b3d8ee8961b807434aafd7947efe98af2286ccef8b21a3f35c",
+      "status": "byte-identical-existing-asset",
+      "dimensions": {
+        "width": 1586,
+        "height": 992
+      }
+    },
+    {
+      "source": "codex/generated_images/01a009c4-686a-7fc0-a0f8-67d1af026418/exec-f2a371bf-000b-4ea3-aeeb-8fe6f997da70.png",
+      "sourceCategory": "imagegen-matched-original",
+      "path": "public/assets/guide-dali-courtyard.png",
+      "bytes": 2543010,
+      "sha256": "32d2faca9da48afedc6000908f1ca2b1509f4fc9d62faeb718801097f134f2bc",
+      "status": "byte-identical-existing-asset",
+      "dimensions": {
+        "width": 1484,
+        "height": 1060
+      }
+    },
+    {
+      "source": "codex/generated_images/01a009c4-686a-7fc0-a0f8-67d1af026418/exec-fad180fc-2350-4054-a05c-d79e1d19cae0.png",
+      "sourceCategory": "imagegen-matched-original",
+      "path": "public/assets/guardian-rainy-mountain.png",
+      "bytes": 1983177,
+      "sha256": "74f76a2c704cc6ffa13206c593f39ba14f5b12e22daff4d9da44d5f1b5b3e0c8",
+      "status": "byte-identical-existing-asset",
+      "dimensions": {
+        "width": 1586,
+        "height": 992
+      }
+    },
+    {
+      "source": "project-worktree/ReadMe.md@9bdfa5c",
+      "sourceCategory": "prior-readme",
+      "path": "archive/prior-docs/ReadMe-2026-08-24.md",
+      "bytes": 5835,
+      "sha256": "3fd57d21a11de4cc29b4c9df81a1bbcc937610948e927cfe2a6844fccfe98fbe",
+      "status": "archived-original"
+    }
+  ],
+  "missing": [
+    {
+      "source": "codex-clipboard-7d6668da-cce2-4bca-b337-090205fab6cf.png",
+      "status": "original-temporary-file-unavailable",
+      "reason": "Source path no longer exists; related before/after QA captures remain in artifacts, not claimed byte-identical."
+    },
+    {
+      "source": "codex-clipboard-89b43fca-c7e8-49d8-a7f8-34d73b6d310f.png",
+      "status": "original-temporary-file-unavailable",
+      "reason": "Source path no longer exists; related before/after QA captures remain in artifacts, not claimed byte-identical."
+    }
+  ]
+}

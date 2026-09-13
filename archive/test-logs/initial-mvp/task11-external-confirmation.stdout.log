@@ -1,0 +1,6 @@
+
+Running 1 test using 1 worker
+
+  ok 1 [chromium] › tests\e2e\accessibility.spec.ts:70:1 › external quote confirmation remains in the local demo (1.2s)
+
+  1 passed (3.6s)

@@ -1,0 +1,475 @@
+$ pnpm lint && pnpm typecheck && pnpm test && pnpm build
+$ eslint .
+$ tsc --noEmit
+$ vitest run
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/e2e/accessibility.spec.ts [ tests/e2e/accessibility.spec.ts ]
+Error: Playwright Test did not expect test.beforeEach() to be called here.
+Most common reasons include:
+- You are calling test.beforeEach() in a configuration file.
+- You are calling test.beforeEach() in a file that is imported by the configuration file.
+- You have two different versions of @playwright/test. This usually happens
+  when one of the dependencies in your package.json depends on @playwright/test.
+- You are calling test.beforeEach() from an async test.describe() block. Only sync ones are supported.
+ ❯ _TestTypeImpl._currentSuite node_modules/.pnpm/playwright@1.62.1/node_modules/playwright/lib/common/index.js:2263:13
+ ❯ _TestTypeImpl._hook node_modules/.pnpm/playwright@1.62.1/node_modules/playwright/lib/common/index.js:2349:24
+ ❯ Function.beforeEach node_modules/.pnpm/playwright@1.62.1/node_modules/playwright/lib/common/index.js:1209:12
+ ❯ tests/e2e/accessibility.spec.ts:6:6
+      4| const runtimeErrors = new WeakMap<import('@playwright/test').Page, str…
+      5|
+      6| test.beforeEach(async ({ page }) => {
+       |      ^
+      7|   const errors: string[] = [];
+      8|   runtimeErrors.set(page, errors);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+ FAIL  tests/e2e/core-journey.spec.ts [ tests/e2e/core-journey.spec.ts ]
+Error: Playwright Test did not expect test.use() to be called here.
+Most common reasons include:
+- You are calling test.use() in a configuration file.
+- You are calling test.use() in a file that is imported by the configuration file.
+- You have two different versions of @playwright/test. This usually happens
+  when one of the dependencies in your package.json depends on @playwright/test.
+- You are calling test.use() from an async test.describe() block. Only sync ones are supported.
+ ❯ _TestTypeImpl._currentSuite node_modules/.pnpm/playwright@1.62.1/node_modules/playwright/lib/common/index.js:2263:13
+ ❯ _TestTypeImpl._use node_modules/.pnpm/playwright@1.62.1/node_modules/playwright/lib/common/index.js:2425:24
+ ❯ Function.use node_modules/.pnpm/playwright@1.62.1/node_modules/playwright/lib/common/index.js:1209:12
+ ❯ tests/e2e/core-journey.spec.ts:19:6
+     17| };
+     18|
+     19| test.use({ viewport: { width: 1440, height: 1024 } });
+       |      ^
+     20|
+     21| test('guide to guarded alternative plan through the public UI', async …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
+
+ FAIL  tests/e2e/responsive.spec.ts [ tests/e2e/responsive.spec.ts ]
+Error: Playwright Test did not expect test.beforeEach() to be called here.
+Most common reasons include:
+- You are calling test.beforeEach() in a configuration file.
+- You are calling test.beforeEach() in a file that is imported by the configuration file.
+- You have two different versions of @playwright/test. This usually happens
+  when one of the dependencies in your package.json depends on @playwright/test.
+- You are calling test.beforeEach() from an async test.describe() block. Only sync ones are supported.
+ ❯ _TestTypeImpl._currentSuite node_modules/.pnpm/playwright@1.62.1/node_modules/playwright/lib/common/index.js:2263:13
+ ❯ _TestTypeImpl._hook node_modules/.pnpm/playwright@1.62.1/node_modules/playwright/lib/common/index.js:2349:24
+ ❯ Function.beforeEach node_modules/.pnpm/playwright@1.62.1/node_modules/playwright/lib/common/index.js:1209:12
+ ❯ tests/e2e/responsive.spec.ts:5:6
+      3| const runtimeErrors = new WeakMap<import('@playwright/test').Page, str…
+      4|
+      5| test.beforeEach(async ({ page }) => {
+       |      ^
+      6|   const errors: string[] = [];
+      7|   runtimeErrors.set(page, errors);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/5]⎯
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/component/risk-timeline.test.tsx > RiskTimeline > makes demo risk freshness explicit and records a Plan A choice only in local trip decisions
+TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "选择调整苍山徒步为古城慢游方案"
+
+Here are the accessible roles:
+
+  paragraph:
+
+  Name "":
+  [36m<p[39m
+    [33mclass[39m=[32m"_demoNote_221ac1"[39m
+  [36m/>[39m
+
+  --------------------------------------------------heading:
+
+  Name "备选方案":
+  [36m<h2[39m
+    [33mclass[39m=[32m"_alternativesHeading_221ac1"[39m
+  [36m/>[39m
+
+  --------------------------------------------------article:
+
+  Name "":
+  [36m<article[39m
+    [33mclass[39m=[32m"_event_221ac1"[39m
+  [36m/>[39m
+
+  Name "Plan A":
+  [36m<article[39m
+    [33maria-label[39m=[32m"Plan A"[39m
+    [33mclass[39m=[32m"_plan_221ac1"[39m
+  [36m/>[39m
+
+  Name "Plan B":
+  [36m<article[39m
+    [33maria-label[39m=[32m"Plan B"[39m
+    [33mclass[39m=[32m"_plan_221ac1"[39m
+  [36m/>[39m
+
+  Name "Plan C":
+  [36m<article[39m
+    [33maria-label[39m=[32m"Plan C"[39m
+    [33mclass[39m=[32m"_plan_221ac1"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  paragraph:
+
+  Name "":
+  [36m<p />[39m
+
+  Name "":
+  [36m<p />[39m
+
+  Name "":
+  [36m<p />[39m
+
+  Name "":
+  [36m<p />[39m
+
+  Name "":
+  [36m<p />[39m
+
+  --------------------------------------------------
+  heading:
+
+  Name "苍山沿线强降雨演示提醒":
+  [36m<h2 />[39m
+
+  Name "调整苍山徒步为古城慢游":
+  [36m<h3 />[39m
+
+  Name "改乘下午交通并延后出发":
+  [36m<h3 />[39m
+
+  Name "保留原计划并等待官方提示":
+  [36m<h3 />[39m
+
+  --------------------------------------------------
+  term:
+
+  Name "":
+  [36m<dt />[39m
+
+  Name "":
+  [36m<dt />[39m
+
+  Name "":
+  [36m<dt />[39m
+
+  Name "":
+  [36m<dt />[39m
+
+  Name "":
+  [36m<dt />[39m
+
+  Name "":
+  [36m<dt />[39m
+
+  Name "":
+  [36m<dt />[39m
+
+  Name "":
+  [36m<dt />[39m
+
+  Name "":
+  [36m<dt />[39m
+
+  --------------------------------------------------
+  definition:
+
+  Name "":
+  [36m<dd />[39m
+
+  Name "":
+  [36m<dd />[39m
+
+  Name "":
+  [36m<dd />[39m
+
+  Name "":
+  [36m<dd />[39m
+
+  Name "":
+  [36m<dd />[39m
+
+  Name "":
+  [36m<dd />[39m
+
+  Name "":
+  [36m<dd />[39m
+
+  Name "":
+  [36m<dd />[39m
+
+  Name "":
+  [36m<dd />[39m
+
+  --------------------------------------------------
+  button:
+
+  Name "选择 Plan A：调整苍山徒步为古城慢游方案":
+  [36m<button[39m
+    [33maria-label[39m=[32m"选择 Plan A：调整苍山徒步为古城慢游方案"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "选择 Plan B：改乘下午交通并延后出发方案":
+  [36m<button[39m
+    [33maria-label[39m=[32m"选择 Plan B：改乘下午交通并延后出发方案"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "选择 Plan C：保留原计划并等待官方提示方案":
+  [36m<button[39m
+    [33maria-label[39m=[32m"选择 Plan C：保留原计划并等待官方提示方案"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  --------------------------------------------------status:
+
+  Name "":
+  [36m<p[39m
+    [33mclass[39m=[32m"_status_221ac1"[39m
+    [33mrole[39m=[32m"status"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+
+Ignored nodes: comments, script, style
+[36m<section[39m
+  [33maria-label[39m=[32m"行程守护风险时间线"[39m
+  [33mclass[39m=[32m"_timeline_221ac1"[39m
+  [33mrole[39m=[32m"region"[39m
+[36m>[39m
+  [36m<p[39m
+    [33mclass[39m=[32m"_demoNote_221ac1"[39m
+  [36m>[39m
+    [0m固定沙箱事件，不读取实时位置、天气或航班状态。[0m
+  [36m</p>[39m
+  [36m<h2[39m
+    [33mclass[39m=[32m"_alternativesHeading_221ac1"[39m
+  [36m>[39m
+    [0m备选方案[0m
+  [36m</h2>[39m
+  [36m<article[39m
+    [33mclass[39m=[32m"_event_221ac1"[39m
+  [36m>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"_eventHead_221ac1"[39m
+    [36m>[39m
+      [36m<svg[39m
+        [33maria-hidden[39m=[32m"true"[39m
+        [33mfill[39m=[32m"currentColor"[39m
+        [33mheight[39m=[32m"22"[39m
+        [33mviewBox[39m=[32m"0 0 256 256"[39m
+        [33mwidth[39m=[32m"22"[39m
+        [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+      [36m>[39m
+        [36m<path[39m
+          [33md[39m=[32m"M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm-8,56a8,8,0,0,1,16,0v56a8,8,0,0,1-16,0Zm8,104a12,12,0,1,1,12-12A12,12,0,0,1,128,184Z"[39m
+        [36m/>[39m
+      [36m</svg>[39m
+      [36m<div>[39m
+        [36m<p>[39m
+          [0mRISK / [0m
+          [0mNOTIFIED[0m
+        [36m</p>[39m
+        [36m<h2>[39m
+          [0m苍山沿线强降雨演示提醒[0m
+        [36m</h2>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+    [36m<p>[39m
+      [0m固定沙箱事件：仅用于展示风险提示与备选决策，不代表实时天气或景区状态。[0m
+    [36m</p>[39m
+    [36m<small>[39m
+      [0m来源：[0m
+      [0m星屿沙箱风险事件[0m
+      [0m · 证据时间：[0m
+      [0m2026-08-16T09:00:00+08:00[0m
+    [36m</small>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"_plans_221ac1"[39m
+    [36m>[39m
+      [36m<article[39m
+        [33maria-label[39m=[32m"Plan A"[39m
+        [33mclass[39m=[32m"_plan_221ac1"[39m
+      [36m>[39m
+        [36m<p>[39m
+          [0mPLAN [0m
+          [0mA[0m
+        [36m</p>[39m
+        [36m<h3>[39m
+          [0m调整苍山徒步为古城慢游[0m
+        [36m</h3>[39m
+        [36m<dl>[39m
+          [36m<div>[39m
+            [36m<dt>[39m
+              [0m成本[0m
+            [36m</dt>[39m
+            [36m<dd>[39m
+              [0m预计不增加费用[0m
+            [36m</dd>[39m
+          [36m</div>[39m
+          [36m<div>[39m
+            [36m<dt>[39m
+              [0m耗时[0m
+            [36m</dt>[39m
+            [36m<dd>[39m
+              [0m当天调整[0m
+            [36m</dd>[39m
+          [36m</div>[39m
+          [36m<div>[39m
+            [36m<dt>[39m
+              [0m风险[0m
+            [36m</dt>[39m
+            [36m<dd>[39m
+              [0m低[0m
+            [36m</dd>[39m
+          [36m</div>[39m
+        [36m</dl>[39m
+        [36m<button[39m
+          [33maria-label[39m=[32m"选择 Plan A：调整苍山徒步为古城慢游方案"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [0m选择[0m
+          [0m调整苍山徒步为古城慢游[0m
+          [0m方案[0m
+        [36m</button>[39m
+      [36m</article>[39m
+      [36m<article[39m
+        [33maria-label[39m=[32m"Plan B"[39m
+        [33mclass[39m=[32m"_plan_221ac1"[39m
+      [36m>[39m
+        [36m<p>[39m
+          [0mPLAN [0m
+          [0mB[0m
+        [36m</p>[39m
+        [36m<h3>[39m
+          [0m改乘下午交通并延后出发[0m
+        [36m</h3>[39m
+        [36m<dl>[39m
+          [36m<div>[39m
+            [36m<dt>[39m
+              [0m成本[0m
+            [36m</dt>[39m
+            [36m<dd>[39m
+              [0m以供应商页面为准[0m
+            [36m</dd>[39m
+          [36m</div>[39m
+          [36m<div>[39m
+            [36m<dt>[39m
+              [0m耗时[0m
+            [36m</dt>[39m
+            [36m<dd>[39m
+              [0m约 3 小时[0m
+            [36m</dd>[39m
+          [36m</div>[39m
+          [36m<div>[39m
+            [36m<dt>[39m
+              [0m风险[0m
+            [36m</dt>[39m
+            [36m<dd>[39m
+              [0m中[0m
+            [36m</dd>[39m
+          [36m</div>[39m
+        [36m</dl>[39m
+        [36m<button[39m
+          [33maria-label[39m=[32m"选择 Plan B：改乘下午交通并延后出发方案"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [0m选择[0m
+          [0m改乘下午交通并延后出发[0m
+          [0m方案[0m
+        [36m</button>[39m
+      [36m</article>[39m
+      [36m<article[39m
+        [33maria-label[39m=[32m"Plan C"[39m
+        [33mclass[39m=[32m"_plan_221ac1"[39m
+      [36m>[39m
+        [36m<p>[39m
+          [0mPLAN [0m
+          [0mC[0m
+        [36m</p>[39m
+        [36m<h3>[39m
+          [0m保留原计划并等待官方提示[0m
+        [36m</h3>[39m
+        [36m<dl>[39m
+          [36m<div>[39m
+            [36m<dt>[39m
+              [0m成本[0m
+            [36m</dt>[39m
+            [36m<dd>[39m
+              [0m无自动下单[0m
+            [36m</dd>[39m
+          [36m</div>[39m
+          [36m<div>[39m
+            [36m<dt>[39m
+              [0m耗时[0m
+            [36m</dt>[39m
+            [36m<dd>[39m
+              [0m持续观察[0m
+            [36m</dd>[39m
+          [36m</div>[39m
+          [36m<div>[39m
+            [36m<dt>[39m
+              [0m风险[0m
+            [36m</dt>[39m
+            [36m<dd>[39m
+              [0m高[0m
+            [36m</dd>[39m
+          [36m</div>[39m
+        [36m</dl>[39m
+        [36m<button[39m
+          [33maria-label[39m=[32m"选择 Plan C：保留原计划并等待官方提示方案"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [0m选择[0m
+          [0m保留原计划并等待官方提示[0m
+          [0m方案[0m
+        [36m</button>[39m
+      [36m</article>[39m
+    [36m</div>[39m
+  [36m</article>[39m
+  [36m<p[39m
+    [33mclass[39m=[32m"_status_221ac1"[39m
+    [33mrole[39m=[32m"status"[39m
+  [36m>[39m
+    [0m方案已保存到本浏览器的旅行决策，未创建订单[0m
+  [36m</p>[39m
+[36m</section>[39m
+ ❯ Object.getElementError node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ tests/component/risk-timeline.test.tsx:25:39
+     23|     expect(within(timeline).getAllByRole('article', { name: /Plan [ABC…
+     24|
+     25|     await user.click(within(timeline).getByRole('button', { name: '选择调…
+       |                                       ^
+     26|     expect(screen.getByRole('status')).toHaveTextContent('方案已保存到本浏览器的旅…
+     27|     expect(useTripStore.getState().guardianPlans['draft-dali-slow-5d']…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/5]⎯
+
+ FAIL  tests/component/site-header.test.tsx > renders usable primary navigation with the homepage marked current
+Error: expect(element).toHaveAttribute("href", "/guardian/demo") // element.getAttribute("href") === "/guardian/demo"
+
+Expected the element to have attribute:
+  href="/guardian/demo"
+Received:
+  href="/guardian/dali-slow-5d"
+ ❯ tests/component/site-header.test.tsx:29:54
+     27|     '/partners',
+     28|   );
+     29|   expect(screen.getByRole('link', { name: '行程守护' })).toHaveAttribute(
+       |                                                      ^
+     30|     'href',
+     31|     '/guardian/demo',
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/5]⎯
+

@@ -1,0 +1,14 @@
+
+ RUN  v4.1.10 D:/Codex-chat/xingyu-travel/.worktrees/xingyu-public-mvp
+
+
+ Test Files  29 passed (29)
+      Tests  215 passed (215)
+   Start at  16:00:18
+   Duration  87.67s (transform 2.68s, setup 54.86s, import 806.35s, tests 23.40s, environment 278.90s)
+
+▲ Next.js 16.2.12 (Turbopack)
+
+  Creating an optimized production build ...
+[ELIFECYCLE] Command failed with exit code 1.
+[ELIFECYCLE] Command failed with exit code 1.

@@ -1,0 +1,6 @@
+
+Running 1 test using 1 worker
+
+  ok 1 [chromium] › tests\e2e\responsive.spec.ts:42:5 › mobile public MVP › does not horizontally overflow on /compare?kind=flight&destination=%E5%A4%A7%E7%90%86&from=2026-08-22&to=2026-08-27&travelers=2 (1.1s)
+
+  1 passed (3.2s)

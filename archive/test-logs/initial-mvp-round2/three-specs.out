@@ -1,0 +1,23 @@
+
+Running 18 tests using 1 worker
+
+  ok  1 [chromium] › tests\e2e\accessibility.spec.ts:32:3 › has no critical or serious axe violations on / (1.9s)
+  ok  2 [chromium] › tests\e2e\accessibility.spec.ts:32:3 › has no critical or serious axe violations on /compare?kind=flight&destination=%E5%A4%A7%E7%90%86&from=2026-08-22&to=2026-08-27&travelers=2 (1.6s)
+  ok  3 [chromium] › tests\e2e\accessibility.spec.ts:32:3 › has no critical or serious axe violations on /square (1.8s)
+  ok  4 [chromium] › tests\e2e\accessibility.spec.ts:32:3 › has no critical or serious axe violations on /partners (1.9s)
+  ok  5 [chromium] › tests\e2e\accessibility.spec.ts:32:3 › has no critical or serious axe violations on /assistant (1.5s)
+  ok  6 [chromium] › tests\e2e\accessibility.spec.ts:32:3 › has no critical or serious axe violations on /guardian/dali-slow-5d (1.8s)
+  ok  7 [chromium] › tests\e2e\accessibility.spec.ts:39:1 › search main path and search tabs work from the keyboard (1.4s)
+  ok  8 [chromium] › tests\e2e\accessibility.spec.ts:58:1 › filter dialog traps focus, closes with Escape, and restores its trigger (1.1s)
+  ok  9 [chromium] › tests\e2e\accessibility.spec.ts:77:1 › external quote confirmation remains in the local demo (1.1s)
+  ok 10 [chromium] › tests\e2e\accessibility.spec.ts:85:1 › reduced motion removes smooth scrolling and motion transitions (1.1s)
+  ok 11 [chromium] › tests\e2e\core-journey.spec.ts:21:1 › guide to guarded alternative plan through the public UI (6.5s)
+  ok 12 [chromium] › tests\e2e\responsive.spec.ts:113:3 › mobile public MVP › mobile navigation is available without horizontal overflow (2.2s)
+  ok 13 [chromium] › tests\e2e\responsive.spec.ts:122:5 › mobile public MVP › does not horizontally overflow on /compare?kind=flight&destination=%E5%A4%A7%E7%90%86&from=2026-08-22&to=2026-08-27&travelers=2 (1.3s)
+  ok 14 [chromium] › tests\e2e\responsive.spec.ts:122:5 › mobile public MVP › does not horizontally overflow on /square (2.2s)
+  ok 15 [chromium] › tests\e2e\responsive.spec.ts:122:5 › mobile public MVP › does not horizontally overflow on /trips/dali-slow-5d (3.2s)
+  ok 16 [chromium] › tests\e2e\responsive.spec.ts:122:5 › mobile public MVP › does not horizontally overflow on /partners (1.3s)
+  ok 17 [chromium] › tests\e2e\responsive.spec.ts:122:5 › mobile public MVP › does not horizontally overflow on /assistant (1.1s)
+  ok 18 [chromium] › tests\e2e\responsive.spec.ts:122:5 › mobile public MVP › does not horizontally overflow on /guardian/dali-slow-5d (1.2s)
+
+  18 passed (37.4s)

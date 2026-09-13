@@ -1,0 +1,1063 @@
+# Review package: 4a94c32..0b3fd9d
+
+## Commits
+0b3fd9d fix: connect navigation to real local journeys
+
+## Files changed
+ src/app/guardian/[tripId]/page.tsx       |  2 +-
+ src/app/trips/page.tsx                   |  9 +++-
+ src/components/site-header.module.css    | 77 +++++++++++++++++++++++++-------
+ src/components/site-header.tsx           | 64 ++++++++++++++++++++++----
+ src/features/trips/trip-collection.tsx   | 34 +++++++++++++-
+ src/features/trips/trips.module.css      | 49 ++++++++++++++++++++
+ src/stores/trip-store.ts                 | 56 +++++++++++++++++++----
+ tests/component/site-header.test.tsx     | 62 ++++++++++++++++++++++++-
+ tests/component/trip-collection.test.tsx | 20 +++++++++
+ tests/unit/production-safeguards.test.ts |  6 +++
+ tests/unit/trip-store.test.ts            | 68 ++++++++++++++++++++++++++++
+ 11 files changed, 407 insertions(+), 40 deletions(-)
+
+## Diff
+diff --git a/src/app/guardian/[tripId]/page.tsx b/src/app/guardian/[tripId]/page.tsx
+index ae5eba1..3f191d6 100644
+--- a/src/app/guardian/[tripId]/page.tsx
++++ b/src/app/guardian/[tripId]/page.tsx
+@@ -2,12 +2,12 @@ import Image from 'next/image';
+ import { notFound } from 'next/navigation';
+ import { SiteHeader } from '@/components/site-header';
+ import { brandAssets } from '@/data/assets';
+ import { isKnownGuardianTrip, riskEventsForTrip } from '@/data/risk-events';
+ import { RiskTimeline } from '@/features/guardian/risk-timeline';
+ import styles from '@/features/guardian/guardian.module.css';
+ 
+ export default async function GuardianPage({ params }: { params: Promise<{ tripId: string }> }) {
+   const { tripId } = await params;
+   if (!isKnownGuardianTrip(tripId)) notFound();
+-return <><SiteHeader activePath="/guardian/demo" variant="solid" /><main className={styles.page}><section className={styles.hero}><div className={styles.heroCopy}><p>TRIP GUARDIAN / DEMO</p><h1>先看风险，再决定下一步</h1><span>风险时间线与 Plan A/B/C 均来自固定演示事件；选择只会写入当前浏览器的行程决策。</span></div><Image alt={brandAssets.guardian.alt} className={styles.heroImage} height={brandAssets.guardian.height} priority src={brandAssets.guardian.src} width={brandAssets.guardian.width} /></section><RiskTimeline events={riskEventsForTrip(tripId)} tripId={tripId} /></main></>;
++  return <><SiteHeader activePath={`/guardian/${tripId}`} variant="solid" /><main className={styles.page}><section className={styles.hero}><div className={styles.heroCopy}><p>TRIP GUARDIAN / DEMO</p><h1>先看风险，再决定下一步</h1><span>风险时间线与 Plan A/B/C 均来自固定演示事件；选择只会写入当前浏览器的行程决策。</span></div><Image alt={brandAssets.guardian.alt} className={styles.heroImage} height={brandAssets.guardian.height} priority src={brandAssets.guardian.src} width={brandAssets.guardian.width} /></section><RiskTimeline events={riskEventsForTrip(tripId)} tripId={tripId} /></main></>;
+ }
+diff --git a/src/app/trips/page.tsx b/src/app/trips/page.tsx
+index df256ee..6aa3827 100644
+--- a/src/app/trips/page.tsx
++++ b/src/app/trips/page.tsx
+@@ -1,11 +1,16 @@
+ import { SiteHeader } from '@/components/site-header';
+ import { TripCollection } from '@/features/trips/trip-collection';
+ 
+-export default function TripsPage() {
++export default async function TripsPage({
++  searchParams,
++}: {
++  searchParams: Promise<{ intent?: string | string[] }>;
++}) {
++  const intent = (await searchParams).intent === 'guardian' ? 'guardian' : undefined;
+   return (
+     <>
+       <SiteHeader activePath="/trips" variant="solid" />
+-      <TripCollection />
++      <TripCollection intent={intent} />
+     </>
+   );
+ }
+diff --git a/src/components/site-header.module.css b/src/components/site-header.module.css
+index 92aedcc..e3c1890 100644
+--- a/src/components/site-header.module.css
++++ b/src/components/site-header.module.css
+@@ -22,32 +22,32 @@
+ }
+ 
+ .header[data-variant='solid'] {
+   color: var(--ink);
+   border-color: rgb(16 16 15 / 14%);
+   background: rgb(244 240 232 / 96%);
+   box-shadow: 0 10px 30px rgb(16 16 15 / 7%);
+   backdrop-filter: blur(16px);
+ }
+ 
+-.header[data-variant='solid'] .tripLink {
++.header[data-variant='solid'] :is(.tripLink, .profileLink) {
+   border-color: rgb(16 16 15 / 30%);
+ }
+ 
+ .inner {
+   width: min(calc(100% - 64px), var(--content-max));
+   min-height: 82px;
+   margin: 0 auto;
+   display: grid;
+-  grid-template-columns: 190px 1fr 128px;
++  grid-template-columns: minmax(140px, 180px) minmax(0, 1fr) auto;
+   align-items: center;
+-  gap: 32px;
++  gap: clamp(18px, 2.2vw, 34px);
+ }
+ 
+ .brand {
+   display: inline-flex;
+   align-items: baseline;
+   gap: 9px;
+   width: max-content;
+   color: inherit;
+   text-decoration: none;
+ }
+@@ -60,124 +60,167 @@
+ 
+ .brandLatin {
+   font-size: 17px;
+   font-weight: 300;
+   letter-spacing: 0.14em;
+ }
+ 
+ .nav {
+   display: flex;
+   justify-content: center;
+-  gap: clamp(24px, 3.8vw, 58px);
++  gap: clamp(14px, 2.1vw, 34px);
+ }
+ 
+ .menuButton {
+   display: none;
+   align-items: center;
+   justify-content: center;
+   width: 42px;
+   height: 42px;
+   padding: 0;
+   color: inherit;
+   border: 1px solid currentColor;
+   background: transparent;
+   cursor: pointer;
+ }
+ 
+ .navLink,
+-.tripLink {
++.tripLink,
++.profileLink {
+   position: relative;
+   color: inherit;
+   font-size: 15px;
+   letter-spacing: 0.08em;
+   text-decoration: none;
+   white-space: nowrap;
+ }
+ 
++.navUnavailable {
++  cursor: progress;
++  opacity: .58;
++}
++
+ .navLink::after {
+   content: '';
+   position: absolute;
+   right: 0;
+   bottom: -11px;
+   left: 0;
+   height: 1px;
+   background: currentColor;
+   transform: scaleX(0);
+   transform-origin: left;
+   transition: transform 180ms ease;
+ }
+ 
+ .navLink:hover::after,
+ .navLink:focus-visible::after,
+ .navLink[aria-current='page']::after {
+   transform: scaleX(1);
+ }
+ 
+-.tripLink {
++.accountLinks {
++  display: flex;
+   justify-self: end;
+-  padding: 11px 15px;
++  gap: 7px;
++}
++
++.tripLink,
++.profileLink {
++  display: inline-flex;
++  min-height: 43px;
++  align-items: center;
++  justify-content: center;
++  gap: 7px;
++  padding: 10px 12px;
+   border: 1px solid rgb(244 240 232 / 52%);
+ }
+ 
+-.header[data-scrolled='true'] .tripLink {
++.profileLink {
++  border-color: transparent;
++}
++
++.header[data-scrolled='true'] :is(.tripLink, .profileLink) {
+   border-color: rgb(16 16 15 / 30%);
+ }
+ 
+ .brand:focus-visible,
+ .navLink:focus-visible,
+-.tripLink:focus-visible {
++.tripLink:focus-visible,
++.profileLink:focus-visible,
++.menuButton:focus-visible {
+   outline: 2px solid var(--sand);
+   outline-offset: 5px;
+ }
+ 
+-@media (max-width: 900px) {
++@media (max-width: 1050px) {
+   .inner {
+     width: min(calc(100% - 40px), var(--content-max));
+-    grid-template-columns: 1fr auto auto;
+-    gap: 8px 24px;
++    grid-template-columns: minmax(0, 1fr) auto auto;
++    gap: 8px 16px;
+     padding: 14px 0 12px;
+   }
+ 
+   .nav {
+     display: none;
+     grid-column: 1 / -1;
+     grid-row: 2;
+     flex-direction: column;
+     gap: 0;
+     padding: 4px 0 0;
+     border-top: 1px solid rgb(244 240 232 / 35%);
+   }
+ 
+   .header[data-scrolled='true'] .nav,
+   .header[data-variant='solid'] .nav { border-color: rgb(16 16 15 / 18%); }
+   .nav[data-open='true'] { display: flex; }
+ 
+   .menuButton { display: inline-flex; }
+ 
+   .navLink {
+-    padding: 12px 0;
+-    font-size: 13px;
++    min-height: 44px;
++    padding: 12px 2px;
++    font-size: 14px;
+   }
+ 
+   .navLink::after {
+     bottom: -8px;
+   }
+ }
+ 
+ @media (max-width: 520px) {
+   .inner {
+     width: calc(100% - 32px);
++    gap: 8px;
+   }
+ 
+   .brandChinese {
+     font-size: 21px;
+   }
+ 
+   .brandLatin {
+     font-size: 14px;
+   }
+ 
+-  .tripLink {
+-    padding: 8px 10px;
+-    font-size: 13px;
++  .accountLinks {
++    gap: 5px;
++  }
++
++  .tripLink,
++  .profileLink {
++    min-height: 42px;
++    padding: 8px 9px;
++    font-size: 12px;
++    letter-spacing: .03em;
++  }
++
++  .tripLabel {
++    position: absolute;
++    width: 1px;
++    height: 1px;
++    padding: 0;
++    overflow: hidden;
++    clip: rect(0, 0, 0, 0);
++    white-space: nowrap;
++    border: 0;
+   }
+ }
+diff --git a/src/components/site-header.tsx b/src/components/site-header.tsx
+index 6b4f060..95c9f1d 100644
+--- a/src/components/site-header.tsx
++++ b/src/components/site-header.tsx
+@@ -1,86 +1,134 @@
+ 'use client';
+ 
+ import Link from 'next/link';
+-import { List, X } from '@phosphor-icons/react';
+-import { useEffect, useState } from 'react';
++import { List, SuitcaseRolling, UserCircle, X } from '@phosphor-icons/react';
++import { useEffect, useRef, useState } from 'react';
++import { isKnownGuardianTrip } from '@/data/risk-events';
++import {
++  hydrateWorkbenchTripStore,
++  selectMostRecentGuardianTrip,
++  type TripStoreState,
++  useTripStore,
++  useTripStoreHydration,
++} from '@/stores/trip-store';
+ import styles from './site-header.module.css';
+ 
+ const primaryLinks = [
+   { href: '/', label: '首页' },
+   { href: '/compare', label: '真实比价' },
+   { href: '/square', label: '灵感广场' },
+   { href: '/partners', label: '寻找搭子' },
+-  { href: '/guardian/dali-slow-5d', label: '行程守护' },
++  { href: '/assistant', label: '旅行助手' },
+ ] as const;
++const guardianIntentHref = '/trips?intent=guardian';
++
++function selectGuardianHref(state: Pick<TripStoreState, 'trips'>) {
++  const trip = selectMostRecentGuardianTrip(state, isKnownGuardianTrip);
++  return trip ? `/guardian/${encodeURIComponent(trip.sourcePostSlug)}` : guardianIntentHref;
++}
+ 
+ type SiteHeaderProps = {
+   activePath?: string;
+   variant?: 'overlay' | 'solid';
+ };
+ 
+ export function SiteHeader({ activePath = '/', variant = 'overlay' }: SiteHeaderProps) {
+   const [hasScrolled, setHasScrolled] = useState(false);
+   const [mobileNavOpen, setMobileNavOpen] = useState(false);
++  const menuButtonRef = useRef<HTMLButtonElement>(null);
++  const guardianHref = useTripStore(selectGuardianHref);
++  const tripHydrated = useTripStoreHydration((state) => state.hydrated);
++  const tripHydrationError = useTripStoreHydration((state) => state.hydrationError);
+ 
+   useEffect(() => {
+     const updateHeader = () => setHasScrolled(window.scrollY > 48);
+     updateHeader();
+     window.addEventListener('scroll', updateHeader, { passive: true });
+     return () => window.removeEventListener('scroll', updateHeader);
+   }, []);
+ 
+   useEffect(() => {
++    void hydrateWorkbenchTripStore();
++  }, []);
++
++  useEffect(() => {
++    if (!mobileNavOpen) return;
+     const closeOnEscape = (event: KeyboardEvent) => {
+-      if (event.key === 'Escape') setMobileNavOpen(false);
++      if (event.key !== 'Escape') return;
++      event.preventDefault();
++      setMobileNavOpen(false);
++      menuButtonRef.current?.focus();
+     };
+     window.addEventListener('keydown', closeOnEscape);
+     return () => window.removeEventListener('keydown', closeOnEscape);
+-  }, []);
++  }, [mobileNavOpen]);
+ 
+   return (
+     <header
+       className={styles.header}
+       data-scrolled={hasScrolled ? 'true' : 'false'}
+       data-variant={variant}
+     >
+       <div className={styles.inner}>
+         <Link className={styles.brand} href="/" aria-label="行屿 XINGYU">
+           <span className={styles.brandChinese}>行屿</span>
+           <span className={styles.brandLatin}>XINGYU</span>
+         </Link>
+ 
+         <button
+           aria-controls="primary-navigation"
+           aria-expanded={mobileNavOpen}
+           aria-label={mobileNavOpen ? '关闭导航' : '打开导航'}
+           className={styles.menuButton}
+           onClick={() => setMobileNavOpen((open) => !open)}
++          ref={menuButtonRef}
+           type="button"
+         >
+           {mobileNavOpen ? <X aria-hidden size={22} /> : <List aria-hidden size={24} />}
+         </button>
+ 
+         <nav className={styles.nav} aria-label="主导航" data-open={mobileNavOpen} id="primary-navigation">
+           {primaryLinks.map((link) => {
+             const isCurrent = activePath === link.href;
+             return (
+               <Link
+                 className={styles.navLink}
+                 href={link.href}
+                 key={link.href}
+                 aria-current={isCurrent ? 'page' : undefined}
+                 onClick={() => setMobileNavOpen(false)}
+               >
+                 {link.label}
+               </Link>
+             );
+           })}
++          {tripHydrated && !tripHydrationError ? (
++            <Link
++              aria-current={activePath.startsWith('/guardian/') ? 'page' : undefined}
++              className={styles.navLink}
++              href={guardianHref}
++              onClick={() => setMobileNavOpen(false)}
++            >
++              行程守护
++            </Link>
++          ) : (
++            <span aria-disabled="true" className={`${styles.navLink} ${styles.navUnavailable}`}>
++              行程守护
++            </span>
++          )}
+         </nav>
+ 
+-        <Link aria-current={activePath === '/trips' ? 'page' : undefined} className={styles.tripLink} href="/trips">
+-          我的行程
+-        </Link>
++        <div className={styles.accountLinks}>
++          <Link aria-current={activePath === '/trips' ? 'page' : undefined} aria-label="我的行程" className={styles.tripLink} href="/trips">
++            <SuitcaseRolling aria-hidden size={18} />
++            <span className={styles.tripLabel}>我的行程</span>
++          </Link>
++          <Link aria-current={activePath === '/profile' ? 'page' : undefined} className={styles.profileLink} href="/profile">
++            <UserCircle aria-hidden size={19} />
++            <span>个人中心</span>
++          </Link>
++        </div>
+       </div>
+     </header>
+   );
+ }
+diff --git a/src/features/trips/trip-collection.tsx b/src/features/trips/trip-collection.tsx
+index c52db5a..cdcdf3e 100644
+--- a/src/features/trips/trip-collection.tsx
++++ b/src/features/trips/trip-collection.tsx
+@@ -21,21 +21,21 @@ const statusLabels: Record<Exclude<CollectionFilter, 'all'>, string> = {
+   active: '规划中',
+   guarded: '守护中',
+   archived: '已归档',
+ };
+ const dateFormatter = new Intl.DateTimeFormat('zh-CN', {
+   year: 'numeric',
+   month: 'short',
+   day: 'numeric',
+ });
+ 
+-export function TripCollection() {
++export function TripCollection({ intent }: { intent?: 'guardian' }) {
+   const trips = useTripStore(selectTripRecords);
+   const hydrated = useTripStoreHydration((state) => state.hydrated);
+   const hydrationError = useTripStoreHydration((state) => state.hydrationError);
+   const [filter, setFilter] = useState<CollectionFilter>('all');
+ 
+   useEffect(() => {
+     void hydrateWorkbenchTripStore();
+   }, []);
+ 
+   const collectionTrips = useMemo(
+@@ -45,35 +45,48 @@ export function TripCollection() {
+     [trips],
+   );
+   const filteredTrips = filter === 'all'
+     ? collectionTrips
+     : collectionTrips.filter((trip) => trip.status === filter);
+   const counts = {
+     active: collectionTrips.filter((trip) => trip.status === 'active').length,
+     guarded: collectionTrips.filter((trip) => trip.status === 'guarded').length,
+     archived: collectionTrips.filter((trip) => trip.status === 'archived').length,
+   };
++  const guardianSetupTrip = collectionTrips.find((trip) => trip.status === 'active');
+ 
+   if (!hydrated) {
+     return <CollectionState title="正在读取我的行程…" message="正在校验保存在当前浏览器中的行程。" />;
+   }
+   if (hydrationError) {
+     return (
+       <CollectionState
+         actionHref="/square"
+         actionLabel="去灵感广场"
+         message="浏览器中的原数据没有被覆盖。你可以稍后重试，或从攻略页重新开始。"
+         title="本地行程暂时无法读取"
+       />
+     );
+   }
+   if (collectionTrips.length === 0) {
++    if (intent === 'guardian') {
++      return (
++        <CollectionState
++          actionHref="/square"
++          actionLabel="从攻略创建行程"
++          message="进入行程工作台后，可在“共同决策”中确认并开启本地守护演示。守护不会读取实时位置或发出真实预警。"
++          secondaryHref="/compare"
++          secondaryLabel="先做一次比价"
++          title="开启守护前，先创建行程"
++        />
++      );
++    }
+     return (
+       <CollectionState
+         actionHref="/square"
+         actionLabel="去灵感广场"
+         message="从一篇喜欢的攻略生成行程，或先比较真实价格，再决定去哪里。"
+         secondaryHref="/compare"
+         secondaryLabel="先做一次比价"
+         title="还没有保存的行程"
+       />
+     );
+@@ -82,20 +95,22 @@ export function TripCollection() {
+   return (
+     <main className={styles.collectionPage}>
+       <header className={styles.collectionHero}>
+         <div>
+           <p>MY TRIPS / BROWSER LOCAL</p>
+           <h1>我的行程</h1>
+         </div>
+         <p>把已经接受的攻略行程集中在这里，继续规划、守护或回看。数据只保存在当前浏览器。</p>
+       </header>
+ 
++      {intent === 'guardian' ? <GuardianSetup trip={guardianSetupTrip} /> : null}
++
+       <section aria-labelledby="trip-list-title" className={styles.collectionSection}>
+         <div className={styles.collectionToolbar}>
+           <div>
+             <p>TRIP INDEX</p>
+             <h2 id="trip-list-title">行程册</h2>
+             <span>{collectionTrips.length} 个行程 · 当前显示 {filteredTrips.length} 个</span>
+           </div>
+           <div aria-label="筛选行程状态" className={styles.collectionFilters} role="group">
+             <FilterButton active={filter === 'all'} label={`全部 ${collectionTrips.length}`} onClick={() => setFilter('all')} />
+             <FilterButton active={filter === 'active'} label={`规划中 ${counts.active}`} onClick={() => setFilter('active')} />
+@@ -105,20 +120,37 @@ export function TripCollection() {
+         </div>
+ 
+         <div className={styles.tripCardGrid}>
+           {filteredTrips.map((trip) => <TripCollectionCard key={trip.id} trip={trip} />)}
+         </div>
+       </section>
+     </main>
+   );
+ }
+ 
++function GuardianSetup({ trip }: { trip?: WorkbenchTrip }) {
++  return (
++    <section aria-labelledby="guardian-setup-title" className={styles.guardianSetup}>
++      <div>
++        <p>GUARDIAN SETUP / LOCAL DEMO</p>
++        <h2 id="guardian-setup-title">开启行程守护</h2>
++        <span>行程守护不会自动开启。请进入一条规划中的行程，阅读本地演示边界并确认授权。</span>
++      </div>
++      {trip ? (
++        <Link href={`/trips/${trip.sourcePostSlug}`}>前往{trip.title}开启守护 <ArrowRight aria-hidden size={17} /></Link>
++      ) : (
++        <Link href="/square">创建可开启守护的行程 <ArrowRight aria-hidden size={17} /></Link>
++      )}
++    </section>
++  );
++}
++
+ function FilterButton({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
+   return <button aria-pressed={active} onClick={onClick} type="button">{label}</button>;
+ }
+ 
+ export function TripCollectionCard({ trip }: { trip: WorkbenchTrip }) {
+   return (
+     <article className={styles.tripCollectionCard} data-has-cover={trip.coverImage ? 'true' : 'false'}>
+       {trip.coverImage ? (
+         <div className={styles.tripCardCover}>
+           <Image alt={`${trip.destination}行程封面`} fill sizes="(max-width: 640px) 100vw, 50vw" src={trip.coverImage} />
+diff --git a/src/features/trips/trips.module.css b/src/features/trips/trips.module.css
+index a73d4f4..6da751d 100644
+--- a/src/features/trips/trips.module.css
++++ b/src/features/trips/trips.module.css
+@@ -370,20 +370,67 @@
+ }
+ 
+ .collectionHero > p {
+   max-width: 620px;
+   margin: 0 0 4px;
+   color: rgb(16 16 15 / 66%);
+   font-size: 15px;
+   line-height: 1.85;
+ }
+ 
++.guardianSetup {
++  display: flex;
++  align-items: center;
++  justify-content: space-between;
++  gap: 28px;
++  margin-top: 28px;
++  padding: 24px 26px;
++  color: var(--ivory);
++  background: var(--pine);
++  border: 1px solid rgb(244 240 232 / 16%);
++}
++
++.guardianSetup p {
++  margin: 0 0 7px;
++  color: var(--sand);
++  font-size: 10px;
++  font-weight: 700;
++  letter-spacing: .16em;
++}
++
++.guardianSetup h2 {
++  margin: 0 0 7px;
++  font-family: var(--font-display);
++  font-size: 25px;
++  font-weight: 500;
++}
++
++.guardianSetup span {
++  color: rgb(244 240 232 / 70%);
++  font-size: 12px;
++  line-height: 1.7;
++}
++
++.guardianSetup a {
++  display: inline-flex;
++  min-height: 44px;
++  flex: 0 0 auto;
++  align-items: center;
++  gap: 7px;
++  padding: 10px 13px;
++  color: var(--ink);
++  background: var(--sand);
++  font-size: 12px;
++  font-weight: 700;
++  text-decoration: none;
++}
++
+ .collectionSection { padding-top: 32px; }
+ .collectionToolbar { display: flex; align-items: end; justify-content: space-between; gap: 30px; }
+ .collectionToolbar h2 { margin: 0; font-family: var(--font-display); font-size: 30px; font-weight: 500; }
+ .collectionToolbar > div:first-child > span { display: block; margin-top: 7px; color: rgb(16 16 15 / 58%); font-size: 12px; }
+ .collectionFilters { display: flex; flex-wrap: wrap; justify-content: end; gap: 7px; }
+ .collectionFilters button {
+   min-height: 38px;
+   padding: 8px 13px;
+   color: var(--ink);
+   background: transparent;
+@@ -458,18 +505,20 @@
+   .nodeToolbar { align-items: flex-start; flex-direction: column; }
+   .candidateColumn, .roomSidebar { grid-template-columns: 1fr; }
+   .budgetPanel { padding: 26px 20px; }
+   .budgetNumbers { display: grid; grid-template-columns: 1fr 1fr; }
+   .localActions, .compareCta { align-items: flex-start; flex-direction: column; }
+   .compareCta a { width: 100%; justify-content: center; }
+   .statePanel { padding: 36px 22px; }
+   .collectionPage { width: min(100% - 24px, var(--content-max)); padding-top: 108px; }
+   .collectionHero { grid-template-columns: 1fr; gap: 24px; padding-top: 30px; }
+   .collectionToolbar { align-items: flex-start; flex-direction: column; }
++  .guardianSetup { align-items: flex-start; flex-direction: column; padding: 22px 20px; }
++  .guardianSetup a { width: 100%; justify-content: center; }
+   .collectionFilters { width: 100%; justify-content: flex-start; }
+   .collectionFilters button { flex: 1 0 calc(50% - 7px); }
+   .tripCollectionCard { grid-template-columns: 1fr; }
+   .tripCardCover { min-height: 190px; }
+   .tripCardFooter { align-items: flex-start; flex-direction: column; }
+   .tripCardFooter a { min-height: 40px; align-items: center; }
+   .collectionStatePage { padding-inline: 12px; }
+ }
+diff --git a/src/stores/trip-store.ts b/src/stores/trip-store.ts
+index 1000dd9..6c5e391 100644
+--- a/src/stores/trip-store.ts
++++ b/src/stores/trip-store.ts
+@@ -289,20 +289,49 @@ export function selectTripBySourceSlug(
+ ) {
+   return Object.values(state.trips).find((trip) => trip.sourcePostSlug === sourcePostSlug);
+ }
+ 
+ export function selectAcceptedTripCount(state: Pick<TripStoreState, 'trips'>) {
+   return Object.values(state.trips).filter(
+     (trip) => trip.status === 'active' || trip.status === 'guarded' || trip.status === 'archived',
+   ).length;
+ }
+ 
++type GuardianTripSupport = (sourcePostSlug: string) => boolean;
++const supportsEveryGuardianTrip: GuardianTripSupport = () => true;
++
++/**
++ * Returns one canonical guarded trip without relying on object insertion order.
++ * Newer updates win, then newer creation time, then the ascending source slug.
++ */
++export function selectMostRecentGuardianTrip(
++  state: Pick<TripStoreState, 'trips'>,
++  supportsTrip: GuardianTripSupport = supportsEveryGuardianTrip,
++): WorkbenchTrip | undefined {
++  let selected: WorkbenchTrip | undefined;
++  for (const trip of Object.values(state.trips)) {
++    if (trip.status !== 'guarded' || !trip.guardianEnabled || !supportsTrip(trip.sourcePostSlug)) {
++      continue;
++    }
++    if (!selected || isGuardianTripMoreRecent(trip, selected)) selected = trip;
++  }
++  return selected;
++}
++
++function isGuardianTripMoreRecent(candidate: WorkbenchTrip, selected: WorkbenchTrip) {
++  const updatedDifference = Date.parse(candidate.updatedAt) - Date.parse(selected.updatedAt);
++  if (updatedDifference !== 0) return updatedDifference > 0;
++  const createdDifference = Date.parse(candidate.createdAt) - Date.parse(selected.createdAt);
++  if (createdDifference !== 0) return createdDifference > 0;
++  return candidate.sourcePostSlug < selected.sourcePostSlug;
++}
++
+ export function getTrip(state: Pick<TripStoreState, 'trips'>, tripId: string): WorkbenchTrip {
+   const trip = state.trips[tripId] ?? Object.values(state.trips).find(
+     (candidate) => candidate.sourcePostSlug === tripId,
+   );
+   if (!trip) throw new Error(`TRIP_NOT_FOUND:${tripId}`);
+   return trip;
+ }
+ 
+ function validateSettings(patch: TripSettingsPatch) {
+   if (patch.budget !== undefined && (!Number.isFinite(patch.budget) || patch.budget < 0)) {
+@@ -577,21 +606,30 @@ export const useTripStoreHydration = create<TripStoreHydrationState>(() => ({
+   hydrated: false,
+   hydrationError: false,
+ }));
+ 
+ export const useTripStore = create<TripStoreState>()(
+   createPersistedTripState({
+     onHydrationError: () => useTripStoreHydration.setState({ hydrationError: true }),
+   }),
+ );
+ 
+-export async function hydrateWorkbenchTripStore() {
+-  if (typeof window === 'undefined' || useTripStoreHydration.getState().hydrated) return;
+-  try {
+-    useTripStoreHydration.setState({ hydrated: false, hydrationError: false });
+-    await useTripStore.persist.rehydrate();
+-  } catch {
+-    useTripStoreHydration.setState({ hydrationError: true });
+-  } finally {
+-    useTripStoreHydration.setState({ hydrated: true });
++let tripHydrationPromise: Promise<void> | undefined;
++
++export function hydrateWorkbenchTripStore(): Promise<void> {
++  if (typeof window === 'undefined' || useTripStoreHydration.getState().hydrated) {
++    return Promise.resolve();
+   }
++  if (tripHydrationPromise) return tripHydrationPromise;
++  tripHydrationPromise = (async () => {
++    try {
++      useTripStoreHydration.setState({ hydrated: false, hydrationError: false });
++      await useTripStore.persist.rehydrate();
++    } catch {
++      useTripStoreHydration.setState({ hydrationError: true });
++    } finally {
++      useTripStoreHydration.setState({ hydrated: true });
++      tripHydrationPromise = undefined;
++    }
++  })();
++  return tripHydrationPromise;
+ }
+diff --git a/tests/component/site-header.test.tsx b/tests/component/site-header.test.tsx
+index c2f409c..81b280c 100644
+--- a/tests/component/site-header.test.tsx
++++ b/tests/component/site-header.test.tsx
+@@ -1,13 +1,23 @@
+ import { render, screen } from '@testing-library/react';
+-import { expect, it } from 'vitest';
++import userEvent from '@testing-library/user-event';
++import { beforeEach, describe, expect, it } from 'vitest';
+ import { SiteHeader } from '@/components/site-header';
++import { postsBySlug } from '@/data/posts';
++import { extractTripDraft } from '@/domain/trips/extract-draft';
++import { createTripStore, useTripStore, useTripStoreHydration } from '@/stores/trip-store';
++
++beforeEach(() => {
++  window.localStorage.clear();
++  useTripStore.setState({ trips: {}, partnerIntents: {}, guardianPlans: {} });
++  useTripStoreHydration.setState({ hydrated: true, hydrationError: false });
++});
+ 
+ it('renders usable primary navigation with the homepage marked current', () => {
+   render(<SiteHeader activePath="/" />);
+ 
+   expect(screen.getByRole('navigation', { name: '主导航' })).toBeInTheDocument();
+   expect(screen.getByRole('link', { name: '行屿 XINGYU' })).toHaveAttribute(
+     'href',
+     '/',
+   );
+   expect(screen.getByRole('link', { name: '首页' })).toHaveAttribute(
+@@ -19,31 +29,79 @@ it('renders usable primary navigation with the homepage marked current', () => {
+     '/compare',
+   );
+   expect(screen.getByRole('link', { name: '灵感广场' })).toHaveAttribute(
+     'href',
+     '/square',
+   );
+   expect(screen.getByRole('link', { name: '寻找搭子' })).toHaveAttribute(
+     'href',
+     '/partners',
+   );
++  expect(screen.getByRole('link', { name: '旅行助手' })).toHaveAttribute(
++    'href',
++    '/assistant',
++  );
+   expect(screen.getByRole('link', { name: '行程守护' })).toHaveAttribute(
+     'href',
+-    '/guardian/dali-slow-5d',
++    '/trips?intent=guardian',
+   );
+   expect(screen.getByRole('link', { name: '我的行程' })).toHaveAttribute(
+     'href',
+     '/trips',
+   );
++  expect(screen.getByRole('link', { name: '个人中心' })).toHaveAttribute(
++    'href',
++    '/profile',
++  );
+ });
+ 
+ it('marks only the matching route as current', () => {
+   render(<SiteHeader activePath="/partners" />);
+ 
+   expect(screen.getByRole('link', { name: '寻找搭子' })).toHaveAttribute(
+     'aria-current',
+     'page',
+   );
+   expect(screen.getByRole('link', { name: '首页' })).not.toHaveAttribute(
+     'aria-current',
+   );
+ });
++
++describe('contextual guardian navigation', () => {
++  it('keeps the guardian destination neutral until local trips finish hydrating', () => {
++    useTripStoreHydration.setState({ hydrated: false, hydrationError: false });
++
++    render(<SiteHeader variant="solid" />);
++
++    expect(screen.queryByRole('link', { name: '行程守护' })).not.toBeInTheDocument();
++    expect(screen.getByText('行程守护')).toHaveAttribute('aria-disabled', 'true');
++  });
++
++  it('links to the canonical source slug of the most recent supported guarded trip', () => {
++    const store = createTripStore();
++    const trip = store.getState().savePostAsTrip(extractTripDraft(postsBySlug['dali-slow-5d']));
++    store.getState().enableGuardian(trip.id, true);
++    useTripStore.setState({ trips: store.getState().trips });
++
++    render(<SiteHeader variant="solid" />);
++
++    expect(screen.getByRole('link', { name: '行程守护' })).toHaveAttribute(
++      'href',
++      '/guardian/dali-slow-5d',
++    );
++  });
++});
++
++it('closes the one mobile menu with Escape and restores focus to its trigger', async () => {
++  const user = userEvent.setup();
++  render(<SiteHeader variant="solid" />);
++
++  const trigger = screen.getByRole('button', { name: '打开导航' });
++  await user.click(trigger);
++  const guardianLink = screen.getByRole('link', { name: '行程守护' });
++  guardianLink.focus();
++  await user.keyboard('{Escape}');
++
++  expect(trigger).toHaveFocus();
++  expect(trigger).toHaveAttribute('aria-expanded', 'false');
++  expect(screen.getAllByRole('navigation', { name: '主导航' })).toHaveLength(1);
++});
+diff --git a/tests/component/trip-collection.test.tsx b/tests/component/trip-collection.test.tsx
+index bad3a83..faa00f8 100644
+--- a/tests/component/trip-collection.test.tsx
++++ b/tests/component/trip-collection.test.tsx
+@@ -69,20 +69,40 @@ describe('TripCollection', () => {
+     expect(screen.getByRole('link', { name: '去灵感广场' })).toHaveAttribute('href', '/square');
+   });
+ 
+   it('directs an empty collection toward guides and comparison', () => {
+     render(<TripCollection />);
+ 
+     expect(screen.getByRole('heading', { name: '还没有保存的行程' })).toBeInTheDocument();
+     expect(screen.getByRole('link', { name: '去灵感广场' })).toHaveAttribute('href', '/square');
+     expect(screen.getByRole('link', { name: '先做一次比价' })).toHaveAttribute('href', '/compare');
+   });
++
++  it('explains how to create and enable guardian when guardian intent opens an empty collection', () => {
++    render(<TripCollection intent="guardian" />);
++
++    expect(screen.getByRole('heading', { name: '开启守护前，先创建行程' })).toBeInTheDocument();
++    expect(screen.getByText(/进入行程工作台后，可在“共同决策”中确认并开启本地守护演示/)).toBeInTheDocument();
++    expect(screen.getByRole('link', { name: '从攻略创建行程' })).toHaveAttribute('href', '/square');
++  });
++
++  it('offers the most recent active trip as the guardian setup destination', () => {
++    seedTrips();
++    render(<TripCollection intent="guardian" />);
++
++    const setup = screen.getByRole('region', { name: '开启行程守护' });
++    expect(within(setup).getByText(/行程守护不会自动开启/)).toBeInTheDocument();
++    expect(within(setup).getByRole('link', { name: '前往川西慢行计划开启守护' })).toHaveAttribute(
++      'href',
++      '/trips/sichuan-autumn-road',
++    );
++  });
+ });
+ 
+ function seedTrips() {
+   const store = createTripStore();
+   const dali = store.getState().savePostAsTrip(extractTripDraft(postsBySlug['dali-slow-5d']));
+   const sichuan = store.getState().savePostAsTrip(extractTripDraft(postsBySlug['sichuan-autumn-road']));
+   const guilin = store.getState().savePostAsTrip(extractTripDraft(postsBySlug['guilin-river-morning']));
+   useTripStore.setState({
+     trips: {
+       [dali.id]: { ...dali, status: 'guarded', guardianEnabled: true, updatedAt: '2026-08-19T09:00:00.000Z' },
+diff --git a/tests/unit/production-safeguards.test.ts b/tests/unit/production-safeguards.test.ts
+index 3b8498d..7132eb5 100644
+--- a/tests/unit/production-safeguards.test.ts
++++ b/tests/unit/production-safeguards.test.ts
+@@ -14,15 +14,21 @@ describe('production safeguards', () => {
+     expect(JSON.stringify(payload)).not.toMatch(/secret|token|password|env/i);
+   });
+ 
+   it('builds crawler metadata with a stable public origin rather than localhost', async () => {
+     const [rules, pages, appManifest] = await Promise.all([robots(), sitemap(), manifest()]);
+     const serialized = JSON.stringify({ rules, pages, appManifest });
+ 
+     expect(serialized).not.toContain('localhost');
+     expect(pages).toEqual(expect.arrayContaining([
+       expect.objectContaining({ url: expect.stringMatching(/^https:\/\//) }),
++      expect.objectContaining({ url: expect.stringMatching(/\/assistant$/) }),
++      expect.objectContaining({ url: expect.stringMatching(/\/partners$/) }),
++      expect.objectContaining({ url: expect.stringMatching(/\/profile$/) }),
+       expect.objectContaining({ url: expect.stringMatching(/\/trips$/) }),
+     ]));
++    expect(pages.map((page) => page.url)).not.toEqual(expect.arrayContaining([
++      expect.stringMatching(/\/guardian\//),
++    ]));
+     expect(appManifest).toMatchObject({ name: '行屿 XINGYU', display: 'standalone' });
+   });
+ });
+diff --git a/tests/unit/trip-store.test.ts b/tests/unit/trip-store.test.ts
+index df6a62f..f074e7f 100644
+--- a/tests/unit/trip-store.test.ts
++++ b/tests/unit/trip-store.test.ts
+@@ -1,34 +1,55 @@
+ import { beforeEach, describe, expect, it, vi } from 'vitest';
+ import { extractTripDraft } from '@/domain/trips/extract-draft';
+ import { postsBySlug } from '@/data/posts';
+ import {
+   createTripStore,
+   getBudgetSummary,
++  hydrateWorkbenchTripStore,
+   selectAcceptedTripCount,
++  selectMostRecentGuardianTrip,
+   selectTripBySourceSlug,
+   selectTripRecords,
+   transitionTrip,
++  useTripStore,
++  useTripStoreHydration,
+ } from '@/stores/trip-store';
+ 
+ const daliDraft = extractTripDraft(postsBySlug['dali-slow-5d']);
+ const sichuanDraft = extractTripDraft(postsBySlug['sichuan-autumn-road']);
++const guilinDraft = extractTripDraft(postsBySlug['guilin-river-morning']);
+ const canonicalKey = 'xingyu-demo-v1';
+ const legacyDraftKey = 'xingyu-demo-trip-drafts';
+ const stableMigrationTimestamp = '2026-08-18T00:00:00.000Z';
+ 
+ beforeEach(() => {
+   vi.useRealTimers();
+   window.localStorage.clear();
+ });
+ 
+ describe('trip state machine', () => {
++  it('coalesces concurrent hydration requests from the header and route content', async () => {
++    useTripStoreHydration.setState({ hydrated: false, hydrationError: false });
++    let finishHydration: (() => void) | undefined;
++    const pendingHydration = new Promise<void>((resolve) => { finishHydration = resolve; });
++    const rehydrate = vi.spyOn(useTripStore.persist, 'rehydrate').mockReturnValue(pendingHydration);
++
++    const headerHydration = hydrateWorkbenchTripStore();
++    const routeHydration = hydrateWorkbenchTripStore();
++
++    expect(rehydrate).toHaveBeenCalledTimes(1);
++    finishHydration?.();
++    await Promise.all([headerHydration, routeHydration]);
++    expect(useTripStoreHydration.getState()).toEqual({ hydrated: true, hydrationError: false });
++    rehydrate.mockRestore();
++  });
++
+   it('accepts a reviewed draft and enables guardian only after consent', () => {
+     const store = createTripStore();
+ 
+     store.getState().acceptDraft(daliDraft);
+     expect(store.getState().trips[daliDraft.id].status).toBe('active');
+     expect(() => store.getState().enableGuardian(daliDraft.id, false)).toThrow(
+       'TRIP_GUARDIAN_CONSENT_REQUIRED',
+     );
+ 
+     store.getState().enableGuardian(daliDraft.id, true);
+@@ -154,20 +175,67 @@ describe('decision room', () => {
+ 
+   it('stores a guardian plan only on an accepted trip and preserves trip isolation', () => {
+     const store = createTripStore();
+     store.getState().acceptDraft(daliDraft);
+ 
+     store.getState().selectGuardianPlan(daliDraft.sourcePostSlug, { id: 'PLAN-A', title: '室内备选' });
+     expect(store.getState().guardianPlans).toEqual({ [daliDraft.id]: { id: 'PLAN-A', title: '室内备选' } });
+     expect(() => store.getState().selectGuardianPlan('unknown-trip', { id: 'PLAN-B', title: '不应保存' })).toThrow('TRIP_NOT_FOUND:unknown-trip');
+     expect(store.getState().guardianPlans).toEqual({ [daliDraft.id]: { id: 'PLAN-A', title: '室内备选' } });
+   });
++
++  it('selects guarded trips by updated time, then created time, then source slug', () => {
++    const store = createTripStore();
++    const dali = store.getState().savePostAsTrip(daliDraft);
++    const sichuan = store.getState().savePostAsTrip(sichuanDraft);
++    const guilin = store.getState().savePostAsTrip(guilinDraft);
++    const guarded = Object.fromEntries([dali, sichuan, guilin].map((trip) => [
++      trip.id,
++      { ...trip, status: 'guarded' as const, guardianEnabled: true },
++    ]));
++
++    expect(selectMostRecentGuardianTrip({ trips: {
++      ...guarded,
++      [dali.id]: { ...guarded[dali.id], updatedAt: '2026-08-19T12:00:00.000Z' },
++      [sichuan.id]: { ...guarded[sichuan.id], updatedAt: '2026-08-19T13:00:00.000Z' },
++      [guilin.id]: { ...guarded[guilin.id], updatedAt: '2026-08-19T11:00:00.000Z' },
++    } })?.sourcePostSlug).toBe('sichuan-autumn-road');
++
++    const sameUpdate = '2026-08-19T13:00:00.000Z';
++    expect(selectMostRecentGuardianTrip({ trips: {
++      ...guarded,
++      [dali.id]: { ...guarded[dali.id], updatedAt: sameUpdate, createdAt: '2026-08-19T11:00:00.000Z' },
++      [sichuan.id]: { ...guarded[sichuan.id], updatedAt: sameUpdate, createdAt: '2026-08-19T10:00:00.000Z' },
++      [guilin.id]: { ...guarded[guilin.id], updatedAt: sameUpdate, createdAt: '2026-08-19T09:00:00.000Z' },
++    } })?.sourcePostSlug).toBe('dali-slow-5d');
++
++    const sameCreated = '2026-08-19T11:00:00.000Z';
++    expect(selectMostRecentGuardianTrip({ trips: Object.fromEntries(
++      Object.entries(guarded).map(([id, trip]) => [id, { ...trip, updatedAt: sameUpdate, createdAt: sameCreated }]),
++    ) })?.sourcePostSlug).toBe('dali-slow-5d');
++  });
++
++  it('excludes active and unsupported guarded trips from guardian navigation', () => {
++    const store = createTripStore();
++    const dali = store.getState().savePostAsTrip(daliDraft);
++    const sichuan = store.getState().savePostAsTrip(sichuanDraft);
++    const trips = {
++      [dali.id]: { ...dali, status: 'guarded' as const, guardianEnabled: true, updatedAt: '2026-08-19T11:00:00.000Z' },
++      [sichuan.id]: { ...sichuan, status: 'guarded' as const, guardianEnabled: true, updatedAt: '2026-08-19T12:00:00.000Z' },
++    };
++
++    expect(selectMostRecentGuardianTrip({ trips }, (slug) => slug === 'dali-slow-5d')).toMatchObject({
++      id: dali.id,
++      sourcePostSlug: 'dali-slow-5d',
++    });
++    expect(selectMostRecentGuardianTrip({ trips: { [sichuan.id]: { ...sichuan, status: 'active' } } })).toBeUndefined();
++  });
+ });
+ 
+ describe('draft merge and persistence', () => {
+   it('saves a converted guide once and returns the same canonical trip on repeat', () => {
+     vi.useFakeTimers();
+     vi.setSystemTime(new Date('2026-08-19T10:30:00.000Z'));
+     const store = createTripStore();
+ 
+     const first = store.getState().savePostAsTrip(
+       daliDraft,

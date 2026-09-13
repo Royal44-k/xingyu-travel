@@ -1,0 +1,831 @@
+# COMMITS
+a452a17 fix: harden partner scoring and safety gates
+
+# STAT
+ src/data/partners.ts                   | 135 ++++++++++++++++++++-------------
+ src/features/chat/chat-room.tsx        |   3 +
+ src/features/partners/match-list.tsx   |   5 +-
+ src/stores/partner-store.ts            |  34 ++++-----
+ tests/component/partner-flow.test.tsx  |  50 +++++++++++-
+ tests/unit/partner-eligibility.test.ts | 100 +++++++++++++++++++++++-
+ 6 files changed, 247 insertions(+), 80 deletions(-)
+
+# DIFF
+diff --git a/src/data/partners.ts b/src/data/partners.ts
+index 60cfd51..85f91de 100644
+--- a/src/data/partners.ts
++++ b/src/data/partners.ts
+@@ -1,10 +1,11 @@
++import { z } from 'zod';
+ import { scoreMatch, type MatchReasonKey, type MatchSignals } from '@/domain/partners/score-match';
+ 
+ export type PartnerRiskStatus = 'clear' | 'review' | 'restricted';
+ 
+ export interface PartnerProfile {
+   id: string;
+   age: number;
+   identityVerified: boolean;
+   riskStatus: PartnerRiskStatus;
+ }
+@@ -33,21 +34,25 @@ export interface PartnerCandidate extends PartnerProfile {
+   budget: number;
+   pace: string;
+   interests: string[];
+   route: string;
+   lodgingBoundary: string;
+   schedule: string;
+   socialPreference: string;
+   capacity: number;
+   certified: boolean;
+   blockedUserIds: string[];
+-  matchSignals: MatchSignals;
++  matchPreferences: {
++    budgetTolerance: number;
++    scheduleCompatibility: number;
++    socialCompatibility: number;
++  };
+ }
+ 
+ export type EligibilityResult =
+   | { allowed: true }
+   | { allowed: false; code: 'AGE_RESTRICTED' | 'IDENTITY_REQUIRED' | 'RISK_RESTRICTED' };
+ 
+ export const defaultPartnerIntent: PartnerIntent = {
+   destination: '川西',
+   startDate: '2026-09-18',
+   endDate: '2026-09-23',
+@@ -82,30 +87,24 @@ export const demoPartnerCandidates: PartnerCandidate[] = [{
+   budget: 5000,
+   pace: '舒缓',
+   interests: ['雪山', '摄影'],
+   route: '成都—康定—新都桥',
+   lodgingBoundary: '接受同性拼房，需独立床位',
+   schedule: '早起，22:30 前休息',
+   socialPreference: '结伴活动，也保留独处时间',
+   capacity: 3,
+   certified: true,
+   blockedUserIds: [],
+-  matchSignals: {
+-    destination: '川西',
+-    dateOverlap: 1,
+-    budgetFit: 0.9,
+-    paceFit: 1,
+-    interestFit: 0.8,
+-    routeFit: 1,
+-    lodgingFit: 1,
+-    scheduleFit: 0.6,
+-    socialFit: 0.8,
++  matchPreferences: {
++    budgetTolerance: 2000,
++    scheduleCompatibility: 0.2,
++    socialCompatibility: 0.6,
+   },
+ }, {
+   id: 'user-azhou',
+   displayName: '阿舟',
+   age: 30,
+   identityVerified: true,
+   riskStatus: 'clear',
+   introduction: '轻装徒步与在地饮食爱好者，重视预算透明和分开住宿。',
+   destination: '川西',
+   startDate: '2026-09-19',
+@@ -113,81 +112,81 @@ export const demoPartnerCandidates: PartnerCandidate[] = [{
+   budget: 5600,
+   pace: '适中',
+   interests: ['徒步', '在地饮食'],
+   route: '成都—康定—塔公',
+   lodgingBoundary: '各自独立房间',
+   schedule: '自然醒，23:00 前休息',
+   socialPreference: '白天同行，晚间自由安排',
+   capacity: 2,
+   certified: true,
+   blockedUserIds: [],
+-  matchSignals: {
+-    destination: '川西',
+-    dateOverlap: 0.75,
+-    budgetFit: 0.82,
+-    paceFit: 0.72,
+-    interestFit: 0.65,
+-    routeFit: 0.78,
+-    lodgingFit: 0.65,
+-    scheduleFit: 0.75,
+-    socialFit: 0.82,
++  matchPreferences: {
++    budgetTolerance: 2400,
++    scheduleCompatibility: 0.75,
++    socialCompatibility: 0.82,
+   },
+ }];
+ 
+ const reasonLabels: Readonly<Record<MatchReasonKey, string>> = {
+   date: '旅行日期高度重合',
+   budget: '预算范围很接近',
+   pace: '旅行节奏很合拍',
+   interest: '共同兴趣较多',
+   route: '期待路线方向一致',
+   lodging: '住宿边界相容',
+   schedule: '每日作息较一致',
+   social: '社交偏好相近',
+ };
+ 
+ export function isPartnerEligible(profile: PartnerProfile): EligibilityResult {
+-  if (profile.age < 18) return { allowed: false, code: 'AGE_RESTRICTED' };
++  if (!Number.isFinite(profile.age) || profile.age < 18) return { allowed: false, code: 'AGE_RESTRICTED' };
+   if (!profile.identityVerified) return { allowed: false, code: 'IDENTITY_REQUIRED' };
+   if (profile.riskStatus !== 'clear') return { allowed: false, code: 'RISK_RESTRICTED' };
+   return { allowed: true };
+ }
+ 
+-export function validatePartnerIntent(intent: PartnerIntent):
++const realIsoDateSchema = (message: string) => z.string().regex(/^\d{4}-\d{2}-\d{2}$/, message).refine((value) => {
++  const parsed = new Date(`${value}T00:00:00.000Z`);
++  return !Number.isNaN(parsed.valueOf()) && parsed.toISOString().slice(0, 10) === value;
++}, message);
++
++export const partnerIntentSchema = z.object({
++  destination: z.string().trim().min(1, '请输入目的地').max(80, '目的地不能超过 80 个字符'),
++  startDate: realIsoDateSchema('请选择有效的出发日期'),
++  endDate: realIsoDateSchema('请选择有效的返程日期'),
++  budget: z.number().finite().positive('请输入大于 0 的预算'),
++  pace: z.string().trim().min(1, '请选择旅行节奏').max(80, '旅行节奏不能超过 80 个字符'),
++  interests: z.array(z.string().trim().min(1, '兴趣不能为空').max(80, '单项兴趣不能超过 80 个字符'))
++    .min(1, '请至少选择一项兴趣').max(20, '兴趣最多填写 20 项'),
++  route: z.string().trim().min(1, '请输入期待路线').max(240, '期待路线不能超过 240 个字符'),
++  lodgingBoundary: z.string().trim().min(1, '请说明住宿边界').max(240, '住宿边界不能超过 240 个字符'),
++  schedule: z.string().trim().min(1, '请说明日常作息').max(240, '日常作息不能超过 240 个字符'),
++  socialPreference: z.string().trim().min(1, '请说明社交偏好').max(240, '社交偏好不能超过 240 个字符'),
++  capacity: z.number().int('同行容量必须是整数').min(1, '同行容量至少为 1 人').max(12, '同行容量最多为 12 人'),
++  certificationRequired: z.boolean(),
++}).strict().superRefine((intent, context) => {
++  if (intent.endDate < intent.startDate) {
++    context.addIssue({ code: 'custom', path: ['endDate'], message: '返程日期不能早于出发日期' });
++  }
++});
++
++export function validatePartnerIntent(intent: unknown):
+   | { success: true; data: PartnerIntent }
+   | { success: false; fieldErrors: Record<string, string> } {
++  const parsed = partnerIntentSchema.safeParse(intent);
++  if (parsed.success) return { success: true, data: parsed.data };
+   const fieldErrors: Record<string, string> = {};
+-  if (!intent.destination.trim()) fieldErrors.destination = '请输入目的地';
+-  if (!isIsoDate(intent.startDate)) fieldErrors.startDate = '请选择有效的出发日期';
+-  if (!isIsoDate(intent.endDate)) fieldErrors.endDate = '请选择有效的返程日期';
+-  else if (isIsoDate(intent.startDate) && intent.endDate < intent.startDate) {
+-    fieldErrors.endDate = '返程日期不能早于出发日期';
+-  }
+-  if (!Number.isFinite(intent.budget) || intent.budget <= 0) fieldErrors.budget = '请输入大于 0 的预算';
+-  if (!intent.pace.trim()) fieldErrors.pace = '请选择旅行节奏';
+-  if (!intent.interests.length || intent.interests.some((interest) => !interest.trim())) {
+-    fieldErrors.interests = '请至少选择一项兴趣';
++  for (const issue of parsed.error.issues) {
++    const key = typeof issue.path[0] === 'string' ? issue.path[0] : 'form';
++    fieldErrors[key] ??= key === 'form' ? '意愿数据包含未知或无效字段' : issue.message;
+   }
+-  if (!intent.route.trim()) fieldErrors.route = '请输入期待路线';
+-  if (!intent.lodgingBoundary.trim()) fieldErrors.lodgingBoundary = '请说明住宿边界';
+-  if (!intent.schedule.trim()) fieldErrors.schedule = '请说明日常作息';
+-  if (!intent.socialPreference.trim()) fieldErrors.socialPreference = '请说明社交偏好';
+-  if (!Number.isInteger(intent.capacity) || intent.capacity < 1) fieldErrors.capacity = '同行容量至少为 1 人';
+-  if (Object.keys(fieldErrors).length) return { success: false, fieldErrors };
+-  return { success: true, data: {
+-    ...intent,
+-    destination: intent.destination.trim(),
+-    interests: intent.interests.map((interest) => interest.trim()),
+-    route: intent.route.trim(),
+-    lodgingBoundary: intent.lodgingBoundary.trim(),
+-    schedule: intent.schedule.trim(),
+-    socialPreference: intent.socialPreference.trim(),
+-  } };
++  return { success: false, fieldErrors };
+ }
+ 
+ export function filterPartnerCandidates(
+   intent: PartnerIntent,
+   candidates: PartnerCandidate[],
+   relations: { viewerId: string; blockedCandidateIds: string[] },
+ ) {
+   const blocked = new Set(relations.blockedCandidateIds);
+   return candidates.filter((candidate) =>
+     candidate.destination === intent.destination &&
+@@ -200,24 +199,54 @@ export function filterPartnerCandidates(
+     isPartnerEligible(candidate).allowed,
+   );
+ }
+ 
+ export function scorePartnerCandidate(_intent: PartnerIntent, candidate: PartnerCandidate): {
+   candidate: PartnerCandidate;
+   score: number;
+   reasons: string[];
+   reasonKeys: MatchReasonKey[];
+ } {
+-  const result = scoreMatch(candidate.matchSignals, candidate);
++  const result = scoreMatch(deriveMatchSignals(_intent, candidate), candidate);
+   return {
+     candidate,
+     score: result.score,
+     reasons: result.reasons.map(({ key }) => reasonLabels[key]),
+     reasonKeys: result.reasons.map(({ key }) => key),
+   };
+ }
+ 
+-function isIsoDate(value: string) {
+-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+-  const parsed = new Date(`${value}T00:00:00.000Z`);
+-  return !Number.isNaN(parsed.valueOf()) && parsed.toISOString().slice(0, 10) === value;
++function deriveMatchSignals(intent: PartnerIntent, candidate: PartnerCandidate): MatchSignals {
++  const paceOrder = ['舒缓', '适中', '紧凑'];
++  const intentPace = paceOrder.indexOf(intent.pace);
++  const candidatePace = paceOrder.indexOf(candidate.pace);
++  return {
++    destination: intent.destination,
++    dateOverlap: dateOverlap(intent.startDate, intent.endDate, candidate.startDate, candidate.endDate),
++    budgetFit: Math.max(0, 1 - Math.abs(intent.budget - candidate.budget) / candidate.matchPreferences.budgetTolerance),
++    paceFit: intentPace < 0 || candidatePace < 0 ? 0 : Math.max(0, 1 - Math.abs(intentPace - candidatePace) / 2),
++    interestFit: overlapRatio(intent.interests, candidate.interests),
++    routeFit: overlapRatio(routeStops(intent.route), routeStops(candidate.route)),
++    lodgingFit: intent.lodgingBoundary === candidate.lodgingBoundary ? 1 : 0,
++    scheduleFit: intent.schedule === candidate.schedule ? candidate.matchPreferences.scheduleCompatibility : 0,
++    socialFit: intent.socialPreference === candidate.socialPreference ? candidate.matchPreferences.socialCompatibility : 0,
++  };
++}
++
++function dateOverlap(intentStart: string, intentEnd: string, candidateStart: string, candidateEnd: string) {
++  const day = 86_400_000;
++  const start = Math.max(Date.parse(`${intentStart}T00:00:00Z`), Date.parse(`${candidateStart}T00:00:00Z`));
++  const end = Math.min(Date.parse(`${intentEnd}T00:00:00Z`), Date.parse(`${candidateEnd}T00:00:00Z`));
++  const intentDays = (Date.parse(`${intentEnd}T00:00:00Z`) - Date.parse(`${intentStart}T00:00:00Z`)) / day + 1;
++  return end < start || intentDays <= 0 ? 0 : Math.min(1, ((end - start) / day + 1) / intentDays);
++}
++
++function routeStops(route: string) {
++  return route.split(/[—–→>\/、,，-]+/).map((stop) => stop.trim()).filter(Boolean);
++}
++
++function overlapRatio(intentValues: string[], candidateValues: string[]) {
++  const intentSet = new Set(intentValues.map((value) => value.trim()).filter(Boolean));
++  if (intentSet.size === 0) return 0;
++  const candidateSet = new Set(candidateValues.map((value) => value.trim()).filter(Boolean));
++  return [...intentSet].filter((value) => candidateSet.has(value)).length / intentSet.size;
+ }
+diff --git a/src/features/chat/chat-room.tsx b/src/features/chat/chat-room.tsx
+index 9630533..4a095fa 100644
+--- a/src/features/chat/chat-room.tsx
++++ b/src/features/chat/chat-room.tsx
+@@ -20,20 +20,23 @@ export function ChatRoom({ matchId }: { matchId: string }) {
+   const hydrationError = usePartnerStoreHydration((state) => state.hydrationError);
+   const [draft, setDraft] = useState('');
+   const [sendError, setSendError] = useState('');
+   const [sendWarning, setSendWarning] = useState('');
+   const [trustedOpen, setTrustedOpen] = useState(false);
+   const trustedTriggerRef = useRef<HTMLButtonElement>(null);
+ 
+   useEffect(() => { void hydratePartnerStore(); }, []);
+ 
+   if (!match) return <LockedChat title="聊天暂不可用" message="找不到这条本地演示匹配，或它从未完成双方同意。" />;
++  if (match.viewerId !== demoViewerProfile.id) {
++    return <LockedChat title="聊天暂不可用" message="这条本地演示匹配不属于当前演示身份。" />;
++  }
+   if (match.status !== 'matched') {
+     return <LockedChat title={match.status === 'blocked' || match.status === 'reported' ? '此聊天已锁定' : '聊天暂不可用'} message={match.status === 'pending_mutual' ? '只有双方明确同意后才会开放聊天。' : '拉黑或举报会立即结束匹配，聊天不可恢复。'} />;
+   }
+   const candidate = demoPartnerCandidates.find(({ id }) => id === match.candidateId);
+   if (!candidate) return <LockedChat title="聊天暂不可用" message="搭子公开资料已不可用，请返回匹配页。" />;
+ 
+   const submit = (event: React.FormEvent) => {
+     event.preventDefault();
+     try {
+       const result = sendMessage(demoViewerProfile, matchId, draft);
+diff --git a/src/features/partners/match-list.tsx b/src/features/partners/match-list.tsx
+index fbcfadb..1b3b79c 100644
+--- a/src/features/partners/match-list.tsx
++++ b/src/features/partners/match-list.tsx
+@@ -11,20 +11,21 @@ import styles from './partners.module.css';
+ export function PartnerMatchExperience() {
+   const [published, setPublished] = useState(false);
+   const [actionError, setActionError] = useState('');
+   const intent = usePartnerStore((state) => state.intents[demoViewerProfile.id]);
+   const matches = usePartnerStore((state) => state.matches);
+   const blockedCandidateIds = usePartnerStore((state) => state.blockedCandidateIds);
+   const publishIntent = usePartnerStore((state) => state.publishIntent);
+   const requestMatch = usePartnerStore((state) => state.requestMatch);
+   const simulateMutualApproval = usePartnerStore((state) => state.simulateMutualApproval);
+   const hydrationError = usePartnerStoreHydration((state) => state.hydrationError);
++  const hydrated = usePartnerStoreHydration((state) => state.hydrated);
+ 
+   useEffect(() => { void hydratePartnerStore(); }, []);
+   const candidates = useMemo(() => intent ? filterPartnerCandidates(intent, demoPartnerCandidates, {
+     viewerId: demoViewerProfile.id, blockedCandidateIds,
+   }) : demoPartnerCandidates, [blockedCandidateIds, intent]);
+   const matchByCandidate = useMemo(() => Object.fromEntries(
+     Object.values(matches).map((match) => [match.candidateId, match]),
+   ), [matches]);
+ 
+   const handlePublish = (nextIntent: PartnerIntent) => {
+@@ -40,21 +41,23 @@ export function PartnerMatchExperience() {
+   return (
+     <main className={styles.page}>
+       <header className={styles.hero}>
+         <div className={styles.eyebrow}><span>TRUSTED COMPANIONS</span><span>浏览器本地沙箱</span></div>
+         <div className={styles.heroGrid}>
+           <div><h1>先谈边界，<br />再一起出发。</h1><p>公开浏览演示搭子卡片。发布、认识、聊天和安全操作均需成年、身份状态已验证且风险状态清晰。</p></div>
+           <aside aria-label="演示身份状态"><ShieldCheck aria-hidden size={30} weight="thin" /><p>DEMO IDENTITY STATUS</p><strong>已完成身份状态验证 · 风险状态清晰</strong><span>此处仅展示验证状态，不收集证件号、照片或人脸。</span></aside>
+         </div>
+       </header>
+       {hydrationError && <p className={styles.notice} role="status">本地匹配记录校验失败，已继续使用安全的内存状态；原数据未被覆盖。</p>}
+-      <IntentForm initialIntent={intent ?? defaultPartnerIntent} onPublish={handlePublish} />
++      {hydrated
++        ? <IntentForm key={JSON.stringify(intent ?? defaultPartnerIntent)} initialIntent={intent ?? defaultPartnerIntent} onPublish={handlePublish} />
++        : <p className={styles.notice} aria-live="polite">正在读取本地匹配意愿…</p>}
+       {published && <p className={styles.publishedNotice}><CheckCircle aria-hidden size={18} />已发布到本地演示匹配</p>}
+       {actionError && <p className={styles.formError} role="alert">{actionError}</p>}
+       <section aria-labelledby="candidate-title" className={styles.candidateSection}>
+         <div className={styles.sectionHeading}><div><p>PUBLIC PROFILES / 02</p><h2 id="candidate-title">合拍，也要能说清为什么</h2></div><span>{intent ? `${candidates.length} 位通过硬条件` : '公开卡片可先浏览，发布后计算匹配'}</span></div>
+         <div className={styles.cardGrid}>
+           {candidates.map((candidate, index) => {
+             const scored = intent ? scorePartnerCandidate(intent, candidate) : undefined;
+             const match = matchByCandidate[candidate.id];
+             return (
+               <article className={styles.partnerCard} data-testid={`partner-card-${candidate.id}`} key={candidate.id}>
+diff --git a/src/stores/partner-store.ts b/src/stores/partner-store.ts
+index 011c3e0..5acad45 100644
+--- a/src/stores/partner-store.ts
++++ b/src/stores/partner-store.ts
+@@ -1,20 +1,21 @@
+ 'use client';
+ 
+ import { create } from 'zustand';
+ import { createStore } from 'zustand/vanilla';
+ import { persist } from 'zustand/middleware';
+ import { z } from 'zod';
+ import {
+   demoPartnerCandidates,
+   filterPartnerCandidates,
+   isPartnerEligible,
++  partnerIntentSchema,
+   validatePartnerIntent,
+   type PartnerIntent,
+   type PartnerProfile,
+ } from '@/data/partners';
+ 
+ export type PartnerMatchStatus = 'pending_mutual' | 'matched' | 'blocked' | 'reported';
+ export type CheckInStatus = 'none' | 'checked_in' | 'missed';
+ 
+ export interface PartnerMessage {
+   id: string;
+@@ -60,38 +61,20 @@ export interface PartnerStoreState {
+ interface CreatePartnerStoreOptions { onHydrationError?: (error: unknown) => void }
+ interface PartnerStoreHydrationState { hydrated: boolean; hydrationError: boolean }
+ 
+ const allowedTransitions: Readonly<Record<PartnerMatchStatus, readonly PartnerMatchStatus[]>> = {
+   pending_mutual: ['matched', 'blocked', 'reported'],
+   matched: ['blocked', 'reported'],
+   blocked: [],
+   reported: [],
+ };
+ 
+-const isoDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
+-  const date = new Date(`${value}T00:00:00.000Z`);
+-  return !Number.isNaN(date.valueOf()) && date.toISOString().slice(0, 10) === value;
+-});
+-const intentSchema = z.object({
+-  destination: z.string().trim().min(1).max(80),
+-  startDate: isoDateSchema,
+-  endDate: isoDateSchema,
+-  budget: z.number().finite().positive(),
+-  pace: z.string().trim().min(1).max(80),
+-  interests: z.array(z.string().trim().min(1).max(80)).min(1).max(20),
+-  route: z.string().trim().min(1).max(240),
+-  lodgingBoundary: z.string().trim().min(1).max(240),
+-  schedule: z.string().trim().min(1).max(240),
+-  socialPreference: z.string().trim().min(1).max(240),
+-  capacity: z.number().int().min(1).max(12),
+-  certificationRequired: z.boolean(),
+-}).strict().refine((intent) => intent.endDate >= intent.startDate);
+ const messageSchema = z.object({
+   id: z.string().min(1).max(180),
+   senderId: z.string().min(1).max(120),
+   body: z.string().min(1).max(1000),
+   sentAt: z.string().datetime(),
+   demoMode: z.literal(true),
+ }).strict();
+ const matchSchema = z.object({
+   id: z.string().min(1).max(180),
+   viewerId: z.string().min(1).max(120),
+@@ -99,21 +82,21 @@ const matchSchema = z.object({
+   status: z.enum(['pending_mutual', 'matched', 'blocked', 'reported']),
+   viewerContactConsent: z.boolean(),
+   candidateContactConsent: z.boolean(),
+   messages: z.array(messageSchema).max(500),
+   trustedContactAcknowledged: z.boolean(),
+   tripShared: z.boolean(),
+   checkInStatus: z.enum(['none', 'checked_in', 'missed']),
+   demoMode: z.literal(true),
+ }).strict();
+ const persistedPartnerStateSchema = z.object({
+-  intents: z.record(z.string(), intentSchema),
++  intents: z.record(z.string(), partnerIntentSchema),
+   matches: z.record(z.string(), matchSchema),
+   visibleMatchIds: z.array(z.string()),
+   blockedCandidateIds: z.array(z.string()),
+ }).strict().superRefine((state, context) => {
+   for (const [matchId, match] of Object.entries(state.matches)) {
+     if (match.id !== matchId) context.addIssue({ code: 'custom', path: ['matches', matchId], message: 'key mismatch' });
+   }
+   if (new Set(state.visibleMatchIds).size !== state.visibleMatchIds.length) {
+     context.addIssue({ code: 'custom', path: ['visibleMatchIds'], message: 'duplicate id' });
+   }
+@@ -125,21 +108,25 @@ const persistedPartnerStateSchema = z.object({
+   }
+ });
+ type PersistedPartnerState = z.infer<typeof persistedPartnerStateSchema>;
+ 
+ export function transitionPartnerMatch(status: PartnerMatchStatus, next: PartnerMatchStatus) {
+   if (!allowedTransitions[status].includes(next)) throw new Error(`PARTNER_INVALID_TRANSITION:${status}:${next}`);
+   return next;
+ }
+ 
+ export function containsContactDetails(body: string) {
+-  return /(?:\b1[3-9]\d{9}\b)|(?:[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,})|(?:(?:微信|wechat|weixin|vx|v信|wx)\s*[:：号]?\s*[a-z0-9_-]{4,})/i.test(body);
++  const formattedChinesePhone = /(?<!\d)1[3-9](?:[\s-]?\d){9}(?!\d)/;
++  const email = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i;
++  const bareHandle = /(?:^|[\s：:，,；;])@[a-z0-9_\-\u4e00-\u9fff]{2,32}(?![a-z0-9_\-\u4e00-\u9fff])/iu;
++  const contactLabel = /(?:微\s*信|加\s*[vVＶ]|[vV][xX]|[wW][xX]|wechat|weixin|v\s*信)\s*(?:号|id|[:：])?\s*[a-z0-9_-]{2,32}/iu;
++  return formattedChinesePhone.test(body) || email.test(body) || bareHandle.test(body) || contactLabel.test(body);
+ }
+ 
+ function requireEligibility(profile: PartnerProfile) {
+   const result = isPartnerEligible(profile);
+   if (!result.allowed) throw new Error(result.code);
+ }
+ 
+ function requireMatch(state: PartnerStoreState, profile: PartnerProfile, matchId: string) {
+   requireEligibility(profile);
+   const match = state.matches[matchId];
+@@ -242,21 +229,26 @@ function stateCreator(
+     }),
+     blockMatch: (profile, matchId) => set((state) => lockMatch(state, profile, matchId, 'blocked')),
+     reportMatch: (profile, matchId) => set((state) => lockMatch(state, profile, matchId, 'reported')),
+   };
+ }
+ 
+ function lockMatch(state: PartnerStoreState, profile: PartnerProfile, matchId: string, next: 'blocked' | 'reported') {
+   const match = requireMatch(state, profile, matchId);
+   const status = transitionPartnerMatch(match.status, next);
+   return {
+-    matches: { ...state.matches, [matchId]: { ...match, status } },
++    matches: { ...state.matches, [matchId]: {
++      ...match,
++      status,
++      viewerContactConsent: false,
++      candidateContactConsent: false,
++    } },
+     visibleMatchIds: state.visibleMatchIds.filter((id) => id !== matchId),
+     blockedCandidateIds: next === 'blocked'
+       ? [...new Set([...state.blockedCandidateIds, match.candidateId])]
+       : state.blockedCandidateIds,
+   };
+ }
+ 
+ function parsePersistedState(state: unknown): PersistedPartnerState {
+   const parsed = persistedPartnerStateSchema.safeParse(state);
+   if (parsed.success) return parsed.data;
+diff --git a/tests/component/partner-flow.test.tsx b/tests/component/partner-flow.test.tsx
+index 180718f..be0dc94 100644
+--- a/tests/component/partner-flow.test.tsx
++++ b/tests/component/partner-flow.test.tsx
+@@ -1,60 +1,84 @@
+ import { render, screen, within } from '@testing-library/react';
+ import userEvent from '@testing-library/user-event';
+ import { beforeEach, describe, expect, it } from 'vitest';
+ import { defaultPartnerIntent, demoPartnerCandidates, demoViewerProfile } from '@/data/partners';
+ import { ChatRoom } from '@/features/chat/chat-room';
+ import { PartnerMatchExperience } from '@/features/partners/match-list';
+-import { usePartnerStore, usePartnerStoreHydration } from '@/stores/partner-store';
++import { createPartnerStore, usePartnerStore, usePartnerStoreHydration } from '@/stores/partner-store';
+ 
+ beforeEach(() => {
+   window.localStorage.clear();
+   usePartnerStore.setState({ intents: {}, matches: {}, visibleMatchIds: [], blockedCandidateIds: [] });
+   usePartnerStoreHydration.setState({ hydrated: false, hydrationError: false });
+ });
+ 
+ describe('partner matching flow', () => {
+   it('keeps public cards browseable and validates every required intent before publishing', async () => {
+     const user = userEvent.setup();
+     render(<PartnerMatchExperience />);
+ 
+     expect(screen.getByRole('heading', { name: demoPartnerCandidates[0].displayName })).toBeInTheDocument();
+     expect(screen.getByText('已完成身份状态验证 · 风险状态清晰')).toBeInTheDocument();
+     expect(screen.getByText('此处仅展示验证状态，不收集证件号、照片或人脸。')).toBeInTheDocument();
+ 
+-    const destination = screen.getByLabelText('目的地');
++    const destination = await screen.findByLabelText('目的地');
+     await user.clear(destination);
+-    await user.click(screen.getByRole('button', { name: '发布匹配意愿' }));
++    await user.click(await screen.findByRole('button', { name: '发布匹配意愿' }));
+ 
+     expect(screen.getByRole('alert')).toHaveTextContent('请输入目的地');
+     expect(screen.queryByText('已发布到本地演示匹配')).not.toBeInTheDocument();
+   });
+ 
+   it('shows exactly three reasons and withholds chat until sandbox mutual approval', async () => {
+     const user = userEvent.setup();
+     render(<PartnerMatchExperience />);
+ 
+-    await user.click(screen.getByRole('button', { name: '发布匹配意愿' }));
++    await user.click(await screen.findByRole('button', { name: '发布匹配意愿' }));
+     expect(await screen.findByText('已发布到本地演示匹配')).toBeInTheDocument();
+     const card = screen.getByTestId(`partner-card-${demoPartnerCandidates[0].id}`);
+     expect(within(card).getByText('92')).toBeInTheDocument();
+     expect(within(card).getAllByRole('listitem')).toHaveLength(3);
+     expect(within(card).getByText('旅行日期高度重合')).toBeInTheDocument();
+ 
+     await user.click(within(card).getByRole('button', { name: '愿意认识木雨' }));
+     expect(within(card).getByText('等待对方同意')).toBeInTheDocument();
+     expect(within(card).queryByRole('link', { name: '进入聊天' })).not.toBeInTheDocument();
+ 
+     await user.click(within(card).getByRole('button', { name: '模拟对方同意（沙箱）' }));
+     expect(within(card).getByText('双方已同意')).toBeInTheDocument();
+     expect(within(card).getByRole('link', { name: '进入聊天' })).toHaveAttribute('href', expect.stringMatching(/^\/chat\/match-/));
+   });
++
++  it('hydrates the saved intent before mounting the form and preserves unchanged values', async () => {
++    const user = userEvent.setup();
++    const savedIntent = {
++      ...defaultPartnerIntent,
++      destination: '稻城',
++      budget: 6880,
++      route: '成都—康定—稻城',
++    };
++    const source = createPartnerStore();
++    await source.persist.rehydrate();
++    source.getState().publishIntent(demoViewerProfile, savedIntent);
++
++    render(<PartnerMatchExperience />);
++
++    expect(screen.getByText('正在读取本地匹配意愿…')).toBeInTheDocument();
++    const destination = await screen.findByLabelText('目的地');
++    expect(destination).toHaveValue('稻城');
++    expect(screen.getByLabelText('旅行预算')).toHaveValue(6880);
++    expect(screen.getByLabelText('期待路线')).toHaveValue('成都—康定—稻城');
++    await user.click(screen.getByRole('button', { name: '发布匹配意愿' }));
++
++    expect(usePartnerStore.getState().intents[demoViewerProfile.id]).toEqual(savedIntent);
++  });
+ });
+ 
+ describe('matched chat safety flow', () => {
+   it('blocks contact details until bilateral consent and warns after permitted send', async () => {
+     const user = userEvent.setup();
+     const matchId = createMatchedDemo();
+     render(<ChatRoom matchId={matchId} />);
+ 
+     await user.type(screen.getByLabelText('消息'), '加微信 travel_2026');
+     await user.click(screen.getByRole('button', { name: '发送' }));
+@@ -100,18 +124,36 @@ describe('matched chat safety flow', () => {
+     expect(screen.getByRole('link', { name: '返回搭子匹配' })).toHaveAttribute('href', '/partners');
+     expect(screen.queryByLabelText('消息')).not.toBeInTheDocument();
+   });
+ 
+   it('guards unknown and unmatched chat ids with a locked recovery state', () => {
+     render(<ChatRoom matchId="unknown-match" />);
+ 
+     expect(screen.getByRole('heading', { name: '聊天暂不可用' })).toBeInTheDocument();
+     expect(screen.getByRole('link', { name: '返回搭子匹配' })).toHaveAttribute('href', '/partners');
+   });
++
++  it('locks a shape-valid matched chat owned by another viewer', () => {
++    const foreignProfile = { ...demoViewerProfile, id: 'foreign-viewer' };
++    const foreignStore = createPartnerStore();
++    foreignStore.getState().publishIntent(foreignProfile, defaultPartnerIntent);
++    const matchId = foreignStore.getState().requestMatch(foreignProfile, demoPartnerCandidates[0].id);
++    foreignStore.getState().simulateMutualApproval(foreignProfile, matchId);
++    usePartnerStore.setState({
++      matches: foreignStore.getState().matches,
++      visibleMatchIds: foreignStore.getState().visibleMatchIds,
++    });
++
++    render(<ChatRoom matchId={matchId} />);
++
++    expect(screen.getByRole('heading', { name: '聊天暂不可用' })).toBeInTheDocument();
++    expect(screen.queryByText('你好，我们可以先从路线节奏和住宿边界聊起。')).not.toBeInTheDocument();
++    expect(screen.queryByLabelText('消息')).not.toBeInTheDocument();
++  });
+ });
+ 
+ function createMatchedDemo() {
+   usePartnerStore.getState().publishIntent(demoViewerProfile, defaultPartnerIntent);
+   const matchId = usePartnerStore.getState().requestMatch(demoViewerProfile, demoPartnerCandidates[0].id);
+   usePartnerStore.getState().simulateMutualApproval(demoViewerProfile, matchId);
+   return matchId;
+ }
+diff --git a/tests/unit/partner-eligibility.test.ts b/tests/unit/partner-eligibility.test.ts
+index 68f7457..7362196 100644
+--- a/tests/unit/partner-eligibility.test.ts
++++ b/tests/unit/partner-eligibility.test.ts
+@@ -1,21 +1,22 @@
+ import { beforeEach, describe, expect, it } from 'vitest';
+ import {
+   defaultPartnerIntent,
+   demoPartnerCandidates,
+   filterPartnerCandidates,
+   isPartnerEligible,
+   scorePartnerCandidate,
+   validatePartnerIntent,
+   type PartnerCandidate,
++  type PartnerIntent,
+ } from '@/data/partners';
+-import { createPartnerStore } from '@/stores/partner-store';
++import { containsContactDetails, createPartnerStore } from '@/stores/partner-store';
+ 
+ const eligibleProfile = {
+   id: 'viewer-demo',
+   age: 28,
+   identityVerified: true,
+   riskStatus: 'clear' as const,
+ };
+ 
+ beforeEach(() => window.localStorage.clear());
+ 
+@@ -27,20 +28,30 @@ describe('partner eligibility', () => {
+   ])('blocks ineligible partner actions with a deterministic code', (profile, code) => {
+     expect(isPartnerEligible({ id: 'viewer', ...profile })).toEqual({ allowed: false, code });
+   });
+ 
+   it('allows a clear, identity-verified adult without collecting identity artifacts', () => {
+     expect(isPartnerEligible(eligibleProfile)).toEqual({ allowed: true });
+     expect(eligibleProfile).not.toHaveProperty('idNumber');
+     expect(eligibleProfile).not.toHaveProperty('identityPhoto');
+     expect(eligibleProfile).not.toHaveProperty('face');
+   });
++
++  it.each([Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, undefined])(
++    'treats malformed runtime age %s as age restricted',
++    (age) => {
++      expect(isPartnerEligible({ ...eligibleProfile, age } as typeof eligibleProfile)).toEqual({
++        allowed: false,
++        code: 'AGE_RESTRICTED',
++      });
++    },
++  );
+ });
+ 
+ describe('partner intent and hard filters', () => {
+   it('requires every intent field and a valid date, budget, interest, and capacity', () => {
+     expect(validatePartnerIntent({
+       ...defaultPartnerIntent,
+       destination: '',
+       endDate: '2026-09-01',
+       budget: 0,
+       interests: [],
+@@ -79,20 +90,62 @@ describe('partner intent and hard filters', () => {
+   it('keeps the approved candidate at 92 with exactly three understandable shared-model reasons', () => {
+     const result = scorePartnerCandidate(defaultPartnerIntent, demoPartnerCandidates[0]);
+ 
+     expect(result.score).toBe(92);
+     expect(result.reasons).toEqual([
+       '旅行日期高度重合',
+       '预算范围很接近',
+       '旅行节奏很合拍',
+     ]);
+   });
++
++  it.each([
++    ['budget', { budget: 9000 }, 74, ['旅行日期高度重合', '旅行节奏很合拍', '共同兴趣较多']],
++    ['pace', { pace: '紧凑' }, 77, ['旅行日期高度重合', '预算范围很接近', '共同兴趣较多']],
++    ['interests', { interests: ['徒步'] }, 77, ['旅行日期高度重合', '预算范围很接近', '旅行节奏很合拍']],
++    ['route', { route: '拉萨—林芝' }, 82, ['旅行日期高度重合', '预算范围很接近', '旅行节奏很合拍']],
++  ])('derives a predictable score from changed %s intent', (_field, patch, score, reasons) => {
++    expect(scorePartnerCandidate({ ...defaultPartnerIntent, ...patch }, demoPartnerCandidates[0])).toMatchObject({
++      score,
++      reasons,
++    });
++  });
++
++  it('changes the top reasons when several current intent preferences diverge', () => {
++    expect(scorePartnerCandidate({
++      ...defaultPartnerIntent,
++      budget: 9000,
++      pace: '紧凑',
++      interests: ['徒步'],
++      route: '拉萨—林芝',
++    }, demoPartnerCandidates[0])).toMatchObject({
++      score: 34,
++      reasons: ['旅行日期高度重合', '住宿边界相容', '社交偏好相近'],
++    });
++  });
++
++  it.each([
++    ['overlong destination', { destination: '川'.repeat(81) }],
++    ['invalid calendar date', { startDate: '2026-02-30' }],
++    ['capacity over limit', { capacity: 13 }],
++    ['too many interests', { interests: Array.from({ length: 21 }, (_, index) => `兴趣${index}`) }],
++    ['unknown sensitive field', { preciseCoordinates: '30,120' }],
++  ])('rejects strict runtime intent input before persistence: %s', (_label, patch) => {
++    const malformed = { ...defaultPartnerIntent, ...patch } as unknown as PartnerIntent;
++    const store = createPartnerStore();
++
++    const validation = validatePartnerIntent(malformed);
++    expect(validation.success).toBe(false);
++    if (!validation.success) expect(Object.keys(validation.fieldErrors).length).toBeGreaterThan(0);
++    expect(() => store.getState().publishIntent(eligibleProfile, malformed)).toThrow('PARTNER_INVALID_INTENT');
++    expect(store.getState().intents).toEqual({});
++  });
+ });
+ 
+ describe('partner match and chat state', () => {
+   it('gates publish and match, then allows only pending_mutual to advance to matched', () => {
+     const store = createPartnerStore();
+     const candidateId = demoPartnerCandidates[0].id;
+ 
+     expect(() => store.getState().publishIntent(
+       { ...eligibleProfile, identityVerified: false },
+       defaultPartnerIntent,
+@@ -127,20 +180,37 @@ describe('partner match and chat state', () => {
+     });
+     store.getState().setContactConsent(eligibleProfile, matchId, 'candidate', true);
+ 
+     expect(store.getState().sendMessage(eligibleProfile, matchId, '电话 13800138000')).toEqual({
+       sent: true,
+       warning: '联系方式已在双方同意后发送，仍请谨慎核验并优先使用站内沟通。',
+     });
+     expect(store.getState().matches[matchId].messages.at(-1)?.body).toBe('电话 13800138000');
+   });
+ 
++  it.each([
++    '电话 138 0013 8000',
++    '手机 138-0013-8000',
++    '联系 @travel_2026',
++    '微 信 travel_2026',
++    '加V: travel_2026',
++    'vx travel2026',
++    '邮箱 ME@example.com',
++  ])('detects contact bypass form: %s', (body) => {
++    expect(containsContactDetails(body)).toBe(true);
++  });
++
++  it.each(['走 318 国道', '预算 5200 元', '9 月 18 日出发', '航班号 CA1234']) (
++    'does not block ordinary travel number: %s',
++    (body) => expect(containsContactDetails(body)).toBe(false),
++  );
++
+   it('locks matches immediately after block or report and records check-in safety state', () => {
+     const blockedStore = matchedStore();
+     const blockedId = Object.keys(blockedStore.getState().matches)[0];
+     blockedStore.getState().acknowledgeTrustedContact(eligibleProfile, blockedId);
+     blockedStore.getState().shareTrip(eligibleProfile, blockedId);
+     blockedStore.getState().recordCheckIn(eligibleProfile, blockedId, 'checked_in');
+     expect(blockedStore.getState().matches[blockedId]).toMatchObject({
+       trustedContactAcknowledged: true,
+       tripShared: true,
+       checkInStatus: 'checked_in',
+@@ -152,20 +222,48 @@ describe('partner match and chat state', () => {
+       'PARTNER_MATCH_LOCKED',
+     );
+ 
+     const reportedStore = matchedStore();
+     const reportedId = Object.keys(reportedStore.getState().matches)[0];
+     reportedStore.getState().reportMatch(eligibleProfile, reportedId);
+     expect(reportedStore.getState().matches[reportedId].status).toBe('reported');
+     expect(reportedStore.getState().visibleMatchIds).not.toContain(reportedId);
+   });
+ 
++  it.each(['blockMatch', 'reportMatch'] as const)(
++    'atomically revokes bilateral contact consent on terminal %s',
++    (action) => {
++      const store = matchedStore();
++      const matchId = Object.keys(store.getState().matches)[0];
++      store.getState().setContactConsent(eligibleProfile, matchId, 'viewer', true);
++      store.getState().setContactConsent(eligibleProfile, matchId, 'candidate', true);
++
++      store.getState()[action](eligibleProfile, matchId);
++
++      expect(store.getState().matches[matchId]).toMatchObject({
++        viewerContactConsent: false,
++        candidateContactConsent: false,
++      });
++      expect(() => store.getState().setContactConsent(eligibleProfile, matchId, 'viewer', true)).toThrow(
++        'PARTNER_MATCH_LOCKED',
++      );
++      expect(() => store.getState().sendMessage(eligibleProfile, matchId, 'me@example.com')).toThrow(
++        'PARTNER_MATCH_LOCKED',
++      );
++      const persisted = JSON.parse(window.localStorage.getItem('xingyu-partner-demo-v1') ?? '{}');
++      expect(persisted.state.matches[matchId]).toMatchObject({
++        viewerContactConsent: false,
++        candidateContactConsent: false,
++      });
++    },
++  );
++
+   it('rejects malformed persisted matches without overwriting the unsafe bytes', async () => {
+     const malformedBytes = JSON.stringify({
+       state: {
+         intents: {},
+         matches: { bad: { id: 'bad', status: 'matched', messages: 'not-an-array' } },
+         visibleMatchIds: ['bad'],
+         blockedCandidateIds: [],
+       },
+       version: 1,
+     });

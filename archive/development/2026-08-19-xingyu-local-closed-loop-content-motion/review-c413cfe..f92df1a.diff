@@ -1,0 +1,962 @@
+# Review package: c413cfe..f92df1a
+
+## Commits
+f92df1a feat: connect guide and offer favorites
+
+## Files changed
+ src/features/comparison/comparison-client.tsx | 109 ++++++++++++++++++++---
+ src/features/comparison/comparison.module.css |  35 ++++++++
+ src/features/comparison/offer-row.tsx         |   8 +-
+ src/features/library/favorite-button.tsx      |  62 ++++++++++++++
+ src/features/library/library.module.css       |  64 ++++++++++++++
+ src/features/square/post-card.tsx             |   6 +-
+ tests/component/comparison-client.test.tsx    | 119 +++++++++++++++++++++++++-
+ tests/component/favorite-sync.test.tsx        |  68 +++++++++++++++
+ 8 files changed, 453 insertions(+), 18 deletions(-)
+
+## Diff
+diff --git a/src/features/comparison/comparison-client.tsx b/src/features/comparison/comparison-client.tsx
+index 417ffd3..83c2450 100644
+--- a/src/features/comparison/comparison-client.tsx
++++ b/src/features/comparison/comparison-client.tsx
+@@ -22,20 +22,25 @@ import {
+ import type {
+   ComparisonProductKind,
+   NormalizedOffer,
+   QuoteEvent,
+ } from '@/domain/comparison/types';
+ import { ExternalBookingDialog } from '@/components/external-booking-dialog';
+ import { offerIdentity } from '@/domain/comparison/offer-identity';
+ import type { ComparisonSearchInput } from '@/domain/shared/api';
+ import { OfferRow } from './offer-row';
+ import { useDialogFocus } from './use-dialog-focus';
++import {
++  hydrateLibraryStore,
++  useLibraryStore,
++  useLibraryStoreHydration,
++} from '@/stores/library-store';
+ import styles from './comparison.module.css';
+ 
+ type ComparisonClientProps = {
+   initialSearch: ComparisonSearchInput;
+   stream?: AsyncIterable<QuoteEvent>;
+   now?: string;
+ };
+ 
+ type SortOrder = 'price-asc' | 'price-desc' | 'updated';
+ 
+@@ -111,33 +116,48 @@ export function ComparisonClient({
+   const [offers, setOffers] = useState<NormalizedOffer[]>([]);
+   const [streamComplete, setStreamComplete] = useState(false);
+   const [degradedMessage, setDegradedMessage] = useState<string>();
+   const [sortOrder, setSortOrder] = useState<SortOrder>('price-asc');
+   const [filtersOpen, setFiltersOpen] = useState(false);
+   const [calendarOpen, setCalendarOpen] = useState(false);
+   const [refundableOnly, setRefundableOnly] = useState(false);
+   const [benefitOnly, setBenefitOnly] = useState(false);
+   const [verifiedOnly, setVerifiedOnly] = useState(false);
+   const [selectedOfferKeys, setSelectedOfferKeys] = useState<string[]>([]);
+-  const [favoriteOfferKeys, setFavoriteOfferKeys] = useState<string[]>([]);
+-  const [alertsEnabled, setAlertsEnabled] = useState(false);
++  const [libraryNotice, setLibraryNotice] = useState('');
++  const [pendingRemoval, setPendingRemoval] = useState<NormalizedOffer>();
+   const [outboundOffer, setOutboundOffer] = useState<NormalizedOffer>();
+   const [comparisonOpen, setComparisonOpen] = useState(false);
+   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+   const filterTriggerRef = useRef<HTMLButtonElement>(null);
+   const filterDialogRef = useRef<HTMLElement>(null);
+   const outboundTriggerRef = useRef<HTMLElement>(null);
+   const compareTriggerRef = useRef<HTMLButtonElement>(null);
+   const compareDialogRef = useRef<HTMLElement>(null);
++  const removalTriggerRef = useRef<HTMLButtonElement>(null);
++  const removalDialogRef = useRef<HTMLElement>(null);
++  const favoriteOffers = useLibraryStore((state) => state.favoriteOffers);
++  const priceAlerts = useLibraryStore((state) => state.priceAlerts);
++  const saveOffer = useLibraryStore((state) => state.saveOffer);
++  const removeOffer = useLibraryStore((state) => state.removeOffer);
++  const setPriceAlert = useLibraryStore((state) => state.setPriceAlert);
++  const libraryHydrated = useLibraryStoreHydration((state) => state.hydrated);
++  const libraryHydrationError = useLibraryStoreHydration((state) => state.hydrationError);
++  const libraryReady = libraryHydrated && !libraryHydrationError;
+ 
+   useDialogFocus(filtersOpen, filterDialogRef, filterTriggerRef, () => setFiltersOpen(false));
+   useDialogFocus(comparisonOpen, compareDialogRef, compareTriggerRef, () => setComparisonOpen(false));
++  useDialogFocus(Boolean(pendingRemoval), removalDialogRef, removalTriggerRef, () => setPendingRemoval(undefined));
++
++  useEffect(() => {
++    void hydrateLibraryStore();
++  }, []);
+ 
+   useEffect(() => {
+     let active = true;
+ 
+     const acceptEvent = (event: QuoteEvent) => {
+       if (!active) return;
+       if (event.type === 'offer') {
+         setOffers((current) => upsertOffer(current, event.payload));
+       } else if (event.type === 'degraded') {
+         setDegradedMessage(event.payload.message);
+@@ -182,20 +202,27 @@ export function ComparisonClient({
+       return left.totalPrice - right.totalPrice;
+     });
+   }, [benefitOnly, offers, refundableOnly, sortOrder, verifiedOnly]);
+ 
+   const selectedOffers = useMemo(
+     () =>
+       offers.filter((offer) => selectedOfferKeys.includes(offerIdentity(offer))),
+     [offers, selectedOfferKeys],
+   );
+ 
++  const savedOfferKeys = useMemo(
++    () => offers.map(offerIdentity).filter((key) => Boolean(favoriteOffers[key])),
++    [favoriteOffers, offers],
++  );
++  const alertsEnabled = savedOfferKeys.length > 0 &&
++    savedOfferKeys.every((key) => Boolean(priceAlerts[key]?.enabled));
++
+   function selectKind(kind: ComparisonProductKind) {
+     setOffers([]);
+     setStreamComplete(false);
+     setDegradedMessage(undefined);
+     setSearch((current) => ({ ...current, kind }));
+     setSelectedOfferKeys([]);
+   }
+ 
+   function selectAdjacentTab(
+     event: KeyboardEvent<HTMLButtonElement>,
+@@ -207,24 +234,48 @@ export function ComparisonClient({
+     if (event.key === 'ArrowRight') nextIndex = (index + 1) % productTabs.length;
+     if (event.key === 'ArrowLeft') {
+       nextIndex = (index - 1 + productTabs.length) % productTabs.length;
+     }
+     if (event.key === 'Home') nextIndex = 0;
+     if (event.key === 'End') nextIndex = productTabs.length - 1;
+     selectKind(productTabs[nextIndex].id);
+     tabRefs.current[nextIndex]?.focus();
+   }
+ 
+-  function toggleInList(key: string, setter: typeof setFavoriteOfferKeys) {
+-    setter((current) =>
+-      current.includes(key) ? current.filter((entry) => entry !== key) : [...current, key],
+-    );
++  function toggleFavorite(offer: NormalizedOffer, trigger: HTMLButtonElement) {
++    if (!libraryReady) return;
++    const key = offerIdentity(offer);
++    if (!favoriteOffers[key]) {
++      saveOffer(offer);
++      return;
++    }
++    if (priceAlerts[key]?.enabled) {
++      removalTriggerRef.current = trigger;
++      setPendingRemoval(offer);
++      return;
++    }
++    removeOffer(key);
++  }
++
++  function toggleAlerts() {
++    if (!libraryReady || savedOfferKeys.length === 0) return;
++    const enabled = !alertsEnabled;
++    for (const key of savedOfferKeys) setPriceAlert(key, enabled);
++    setLibraryNotice(enabled
++      ? '已保存提醒设置；本演示不会在关闭页面后推送'
++      : '已关闭当前收藏报价的降价提醒');
++  }
++
++  function confirmRemoval() {
++    if (!pendingRemoval) return;
++    removeOffer(offerIdentity(pendingRemoval));
++    setPendingRemoval(undefined);
+   }
+ 
+   function toggleComparison(key: string) {
+     setSelectedOfferKeys((current) => {
+       if (current.includes(key)) return current.filter((entry) => entry !== key);
+       if (current.length >= 3) return current;
+       return [...current, key];
+     });
+   }
+ 
+@@ -279,23 +330,25 @@ export function ComparisonClient({
+         <div className={styles.toolbar}>
+           <div>
+             <strong>{visibleOffers.length} 项可比报价</strong>
+             <span>税费与必付费用已统一计入</span>
+           </div>
+           <label className={styles.alertSwitch}>
+             <Bell aria-hidden size={18} />
+             <span>降价提醒</span>
+             <button
+               aria-checked={alertsEnabled}
++              aria-describedby="comparison-library-state"
+               aria-label="降价提醒"
+               className={styles.switch}
+-              onClick={() => setAlertsEnabled((value) => !value)}
++              disabled={!libraryReady || savedOfferKeys.length === 0}
++              onClick={toggleAlerts}
+               role="switch"
+               type="button"
+             >
+               <span />
+             </button>
+           </label>
+           <button
+             aria-expanded={calendarOpen}
+             className={styles.secondaryButton}
+             onClick={() => setCalendarOpen((value) => !value)}
+@@ -322,20 +375,33 @@ export function ComparisonClient({
+               onChange={(event) => setSortOrder(event.target.value as SortOrder)}
+               value={sortOrder}
+             >
+               <option value="price-asc">总价从低到高</option>
+               <option value="price-desc">总价从高到低</option>
+               <option value="updated">最近更新</option>
+             </select>
+           </label>
+         </div>
+ 
++        {!libraryHydrated ? (
++          <p className={styles.libraryNotice} id="comparison-library-state" role="status">正在读取本地收藏与提醒…</p>
++        ) : null}
++        {libraryHydrationError ? (
++          <p className={styles.libraryNotice} id="comparison-library-state" role="alert">本地收藏与提醒无法安全读取，暂时无法更改。请清除浏览器中的本地收藏后重试。</p>
++        ) : null}
++        {libraryReady && savedOfferKeys.length === 0 ? (
++          <p className={styles.libraryNotice} id="comparison-library-state">收藏报价后可开启本地降价提醒。</p>
++        ) : null}
++        {libraryReady && savedOfferKeys.length > 0 && libraryNotice ? (
++          <p className={styles.libraryNotice} id="comparison-library-state" role="status">{libraryNotice}</p>
++        ) : null}
++
+         {calendarOpen ? (
+           <section className={styles.priceCalendar} aria-label="价格日历">
+             <div><span>8月21日</span><strong>¥1,090</strong></div>
+             <div data-best="true"><span>8月22日</span><strong>¥980</strong><small>较低</small></div>
+             <div><span>8月23日</span><strong>¥1,140</strong></div>
+             <p><Info aria-hidden size={16} /> 固定沙箱样本，仅用于展示日期价差。</p>
+           </section>
+         ) : null}
+ 
+         {degradedMessage ? (
+@@ -350,27 +416,26 @@ export function ComparisonClient({
+           className={styles.results}
+           id="comparison-results"
+           role="tabpanel"
+         >
+           {visibleOffers.map((offer) => (
+             <OfferRow
+               comparisonDisabled={
+                 selectedOfferKeys.length >= 3 &&
+                 !selectedOfferKeys.includes(offerIdentity(offer))
+               }
+-              favorite={favoriteOfferKeys.includes(offerIdentity(offer))}
++              favorite={Boolean(favoriteOffers[offerIdentity(offer)])}
++              favoriteDisabled={!libraryReady}
+               key={offerIdentity(offer)}
+               now={now}
+               offer={offer}
+-              onFavorite={() =>
+-                toggleInList(offerIdentity(offer), setFavoriteOfferKeys)
+-              }
++              onFavorite={(trigger) => toggleFavorite(offer, trigger)}
+               onOutbound={(trigger) => {
+                 outboundTriggerRef.current = trigger;
+                 setOutboundOffer(offer);
+               }}
+               onSelect={() => toggleComparison(offerIdentity(offer))}
+               selected={selectedOfferKeys.includes(offerIdentity(offer))}
+             />
+           ))}
+           {offers.length === 0 && !streamComplete ? (
+             <div className={styles.loading} aria-live="polite">
+@@ -417,20 +482,42 @@ export function ComparisonClient({
+       {outboundOffer ? (
+         <ExternalBookingDialog
+           offer={outboundOffer}
+           onClose={() => setOutboundOffer(undefined)}
+           onConfirm={openExternalBooking}
+           open
+           returnFocusRef={outboundTriggerRef}
+         />
+       ) : null}
+ 
++      {pendingRemoval ? (
++        <div className={styles.dialogBackdrop}>
++          <section
++            aria-labelledby="remove-favorite-title"
++            aria-modal="true"
++            className={styles.confirmDialog}
++            ref={removalDialogRef}
++            role="dialog"
++            tabIndex={-1}
++          >
++            <span className={styles.demoPill}>本地收藏</span>
++            <h2 id="remove-favorite-title">移除收藏报价</h2>
++            <p>移除收藏也会关闭这条报价的降价提醒。此操作只影响当前浏览器中的演示数据。</p>
++            <p className={styles.dialogOffer}>{pendingRemoval.provider} · {pendingRemoval.title}</p>
++            <div className={styles.dialogActions}>
++              <button className={styles.secondaryButton} onClick={() => setPendingRemoval(undefined)} type="button">保留收藏</button>
++              <button className={styles.dangerButton} onClick={confirmRemoval} type="button">确认移除并关闭提醒</button>
++            </div>
++          </section>
++        </div>
++      ) : null}
++
+       {comparisonOpen ? (
+         <div className={styles.dialogBackdrop}>
+           <section aria-label="报价同屏对比" aria-modal="true" className={styles.comparisonDialog} ref={compareDialogRef} role="dialog" tabIndex={-1}>
+             <div className={styles.drawerHeader}>
+               <div><p>COMPARE</p><h2>报价同屏对比</h2></div>
+               <button aria-label="关闭同屏对比" className={styles.iconButton} onClick={() => setComparisonOpen(false)} type="button"><X aria-hidden size={21} /></button>
+             </div>
+             <div className={styles.comparisonTableWrap}>
+               <table aria-label="已选报价差异" className={styles.comparisonTable}>
+                 <thead><tr><th scope="col">对比项</th>{selectedOffers.map((offer) => <th key={offerIdentity(offer)} scope="col">{offer.provider}</th>)}</tr></thead>
+diff --git a/src/features/comparison/comparison.module.css b/src/features/comparison/comparison.module.css
+index 75ee365..9aff71d 100644
+--- a/src/features/comparison/comparison.module.css
++++ b/src/features/comparison/comparison.module.css
+@@ -219,20 +219,27 @@
+   gap: 9px;
+   margin-bottom: 14px;
+   padding: 12px 16px;
+   color: #59441e;
+   border: 1px solid #c7aa70;
+   border-radius: 5px;
+   background: #f3e8cb;
+   font-size: 13px;
+ }
+ 
++.libraryNotice {
++  margin: 0 0 14px;
++  color: rgb(16 16 15 / 68%);
++  font-size: 12px;
++  line-height: 1.55;
++}
++
+ .results {
+   display: grid;
+   gap: 12px;
+ }
+ 
+ .offerRow {
+   display: grid;
+   grid-template-columns: minmax(250px, 1.35fr) minmax(180px, 0.75fr) minmax(250px, 1fr) auto;
+   gap: 28px;
+   padding: 24px 25px;
+@@ -378,20 +385,26 @@
+   border-radius: 50%;
+   background: transparent;
+   cursor: pointer;
+ }
+ 
+ .iconButton[aria-pressed='true'] {
+   color: #81443e;
+   background: #f4dfd8;
+ }
+ 
++.iconButton:disabled,
++.switch:disabled {
++  cursor: wait;
++  opacity: .46;
++}
++
+ .expandedConditions {
+   grid-column: 1 / -1;
+   display: grid;
+   grid-template-columns: repeat(3, 1fr);
+   gap: 18px;
+   padding-top: 17px;
+   border-top: 1px solid rgb(16 16 15 / 10%);
+ }
+ 
+ .expandedConditions p {
+@@ -578,20 +591,37 @@
+ .confirmDialog h2 {
+   font-size: 24px;
+   line-height: 1.5;
+ }
+ 
+ .confirmDialog > p {
+   color: rgb(16 16 15 / 68%);
+   line-height: 1.8;
+ }
+ 
++.dialogActions {
++  display: flex;
++  justify-content: flex-end;
++  gap: 10px;
++  margin-top: 24px;
++}
++
++.dangerButton {
++  min-height: 42px;
++  padding: 0 16px;
++  color: var(--ivory);
++  border: 1px solid #79362e;
++  border-radius: 5px;
++  background: #79362e;
++  cursor: pointer;
++}
++
+ .dialogOffer {
+   padding: 12px 14px;
+   border-left: 2px solid var(--sand);
+   background: #e7e1d5;
+ }
+ 
+ .visuallyHidden {
+   position: absolute;
+   width: 1px;
+   height: 1px;
+@@ -606,20 +636,25 @@
+ .primaryButton:focus-visible,
+ .textButton:focus-visible,
+ .iconButton:focus-visible,
+ .switch:focus-visible,
+ .sortControl select:focus-visible,
+ .compareCheck input:focus-visible {
+   outline: 2px solid var(--sand);
+   outline-offset: 3px;
+ }
+ 
++.dangerButton:focus-visible {
++  outline: 2px solid var(--sand);
++  outline-offset: 3px;
++}
++
+ @media (max-width: 1050px) {
+   .toolbar {
+     flex-wrap: wrap;
+   }
+ 
+   .toolbar > div:first-child {
+     flex-basis: 100%;
+   }
+ 
+   .offerRow {
+diff --git a/src/features/comparison/offer-row.tsx b/src/features/comparison/offer-row.tsx
+index de8caaa..7d2fb44 100644
+--- a/src/features/comparison/offer-row.tsx
++++ b/src/features/comparison/offer-row.tsx
+@@ -10,43 +10,45 @@ import {
+   WarningCircle,
+ } from '@phosphor-icons/react';
+ import { useState } from 'react';
+ import type { NormalizedOffer } from '@/domain/comparison/types';
+ import styles from './comparison.module.css';
+ 
+ type OfferRowProps = {
+   offer: NormalizedOffer;
+   now: string;
+   favorite: boolean;
++  favoriteDisabled: boolean;
+   selected: boolean;
+   comparisonDisabled: boolean;
+-  onFavorite: () => void;
++  onFavorite: (trigger: HTMLButtonElement) => void;
+   onSelect: () => void;
+   onOutbound: (trigger: HTMLButtonElement) => void;
+ };
+ 
+ const STALE_AFTER_MS = 2 * 60 * 60 * 1000;
+ 
+ function formatUpdatedAt(value: string): string {
+   const match = value.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+   if (!match) return `${value} 更新`;
+   return `${match[1]}-${match[2]}-${match[3]} ${match[4]}:${match[5]} 更新`;
+ }
+ 
+ function formatPrice(value: number): string {
+   return new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 0 }).format(value);
+ }
+ 
+ export function OfferRow({
+   offer,
+   now,
+   favorite,
++  favoriteDisabled,
+   selected,
+   comparisonDisabled,
+   onFavorite,
+   onSelect,
+   onOutbound,
+ }: OfferRowProps) {
+   const [expanded, setExpanded] = useState(false);
+   const updatedAt = Date.parse(offer.updatedAt);
+   const referenceTime = Date.parse(now);
+   const stale =
+@@ -119,24 +121,26 @@ export function OfferRow({
+           <input
+             checked={selected}
+             disabled={comparisonDisabled}
+             onChange={onSelect}
+             type="checkbox"
+             aria-label={`加入同屏对比：${offer.provider}`}
+           />
+           同屏对比
+         </label>
+         <button
++          aria-describedby={favoriteDisabled ? 'comparison-library-state' : undefined}
+           aria-label={`收藏 ${offer.provider} 报价`}
+           aria-pressed={favorite}
+           className={styles.iconButton}
+-          onClick={onFavorite}
++          disabled={favoriteDisabled}
++          onClick={(event) => onFavorite(event.currentTarget)}
+           type="button"
+         >
+           <Heart aria-hidden size={20} weight={favorite ? 'fill' : 'regular'} />
+         </button>
+       </div>
+ 
+       {expanded ? (
+         <div className={styles.expandedConditions}>
+           <p>{offer.baggageIncluded ? '含 1 件托运行李' : benefit}</p>
+           <p>{offer.refundable ? '起飞前支持按供应商规则退改' : '不可免费退改'}</p>
+diff --git a/src/features/library/favorite-button.tsx b/src/features/library/favorite-button.tsx
+new file mode 100644
+index 0000000..f2560df
+--- /dev/null
++++ b/src/features/library/favorite-button.tsx
+@@ -0,0 +1,62 @@
++'use client';
++
++import { Heart } from '@phosphor-icons/react';
++import { useEffect, useState } from 'react';
++import {
++  hydrateLibraryStore,
++  useLibraryStore,
++  useLibraryStoreHydration,
++} from '@/stores/library-store';
++import styles from './library.module.css';
++
++interface FavoriteButtonProps {
++  slug: string;
++  label: string;
++}
++
++export function FavoriteButton({ slug, label }: FavoriteButtonProps) {
++  const liked = useLibraryStore((state) => state.likedPostSlugs.includes(slug));
++  const togglePostLike = useLibraryStore((state) => state.togglePostLike);
++  const hydrated = useLibraryStoreHydration((state) => state.hydrated);
++  const hydrationError = useLibraryStoreHydration((state) => state.hydrationError);
++  const [message, setMessage] = useState('');
++  const [justLiked, setJustLiked] = useState(false);
++  const unavailable = !hydrated || hydrationError;
++
++  useEffect(() => {
++    void hydrateLibraryStore();
++  }, []);
++
++  function toggleFavorite() {
++    if (unavailable) return;
++    togglePostLike(slug);
++    setMessage(liked ? `已取消喜欢 ${label}` : `已喜欢 ${label}`);
++    setJustLiked(!liked);
++  }
++
++  return (
++    <span className={styles.favoriteControl}>
++      <button
++        aria-label={`喜欢 ${label}`}
++        aria-pressed={liked}
++        className={styles.favoriteButton}
++        data-just-liked={justLiked || undefined}
++        disabled={unavailable}
++        onAnimationEnd={() => setJustLiked(false)}
++        onClick={toggleFavorite}
++        type="button"
++      >
++        <Heart aria-hidden size={20} weight={liked ? 'fill' : 'regular'} />
++      </button>
++      {!hydrated ? (
++        <span className={styles.visuallyHidden} role="status">正在读取本地喜欢状态…</span>
++      ) : null}
++      {hydrationError ? (
++        <span className={styles.visuallyHidden} role="alert">本地喜欢状态无法安全读取，暂时无法更改。</span>
++      ) : null}
++      {message ? (
++        <span aria-live="polite" className={styles.visuallyHidden} role="status">{message}</span>
++      ) : null}
++    </span>
++  );
++}
+diff --git a/src/features/library/library.module.css b/src/features/library/library.module.css
+new file mode 100644
+index 0000000..e3ef0b6
+--- /dev/null
++++ b/src/features/library/library.module.css
+@@ -0,0 +1,64 @@
++.favoriteControl {
++  display: inline-flex;
++}
++
++.favoriteButton {
++  display: inline-grid;
++  width: 32px;
++  height: 32px;
++  padding: 0;
++  place-items: center;
++  color: var(--ink);
++  border: 0;
++  border-radius: 50%;
++  background: transparent;
++  cursor: pointer;
++}
++
++.favoriteButton svg {
++  transition: color 160ms ease;
++}
++
++.favoriteButton[aria-pressed='true'] {
++  color: #a94032;
++}
++
++.favoriteButton[data-just-liked='true'] svg {
++  animation: favorite-success-bounce 360ms ease-out;
++}
++
++.favoriteButton:disabled {
++  color: rgb(16 16 15 / 38%);
++  cursor: wait;
++}
++
++.favoriteButton:focus-visible {
++  outline: 2px solid var(--sand);
++  outline-offset: 3px;
++}
++
++.visuallyHidden {
++  position: absolute;
++  width: 1px;
++  height: 1px;
++  overflow: hidden;
++  clip: rect(0 0 0 0);
++  white-space: nowrap;
++  clip-path: inset(50%);
++}
++
++@keyframes favorite-success-bounce {
++  0%, 100% { transform: scale(1); }
++  45% { transform: scale(1.22); }
++  72% { transform: scale(.96); }
++}
++
++@media (prefers-reduced-motion: reduce) {
++  .favoriteButton svg {
++    transition: none;
++  }
++
++  .favoriteButton[data-just-liked='true'] svg {
++    animation: none;
++  }
++}
+diff --git a/src/features/square/post-card.tsx b/src/features/square/post-card.tsx
+index 7cb94cf..3546acd 100644
+--- a/src/features/square/post-card.tsx
++++ b/src/features/square/post-card.tsx
+@@ -1,38 +1,38 @@
+ 'use client';
+ 
+-import { Flag, Heart, MapPin } from '@phosphor-icons/react';
++import { Flag, MapPin } from '@phosphor-icons/react';
+ import Image from 'next/image';
+ import Link from 'next/link';
+ import { useRef, useState } from 'react';
+ import { ReportDialog } from '@/components/report-dialog';
+ import type { TravelPost } from '@/data/posts';
++import { FavoriteButton } from '@/features/library/favorite-button';
+ import styles from './square.module.css';
+ 
+ export function PostCard({ post }: { post: TravelPost }) {
+-  const [favorite, setFavorite] = useState(false);
+   const [reportOpen, setReportOpen] = useState(false);
+   const reportTriggerRef = useRef<HTMLButtonElement>(null);
+   const image = post.media[0];
+ 
+   return (
+     <article className={styles.postCard}>
+       <Link className={styles.postImageLink} href={`/square/${post.slug}`} aria-label={`阅读攻略：${post.title}`}>
+         <Image alt={image.alt} className={styles.postImage} height={image.height} sizes="(max-width: 700px) 100vw, (max-width: 1100px) 50vw, 33vw" src={image.src} width={image.width} />
+       </Link>
+       <div className={styles.postBody}>
+         <div className={styles.postMeta}><MapPin aria-hidden size={16} weight="fill" /> {post.destination} · {post.days} 天</div>
+         <h2><Link href={`/square/${post.slug}`}>{post.title}</Link></h2>
+         <p>{post.excerpt}</p>
+         <div className={styles.tags}>{post.tags.slice(0, 3).map((tag) => <span key={tag}>#{tag}</span>)}</div>
+         <footer className={styles.cardFooter}>
+           <span className={styles.author}><b aria-hidden>{post.author.avatar}</b>{post.author.name}</span>
+           <div className={styles.cardActions}>
+-            <button aria-label={`收藏 ${post.title}`} aria-pressed={favorite} onClick={() => setFavorite((value) => !value)} type="button"><Heart aria-hidden size={20} weight={favorite ? 'fill' : 'regular'} /></button>
++            <FavoriteButton label={post.title} slug={post.slug} />
+             <button aria-expanded={reportOpen} aria-label={`举报 ${post.title}`} onClick={() => setReportOpen(true)} ref={reportTriggerRef} type="button"><Flag aria-hidden size={19} /></button>
+           </div>
+         </footer>
+         <ReportDialog onClose={() => setReportOpen(false)} open={reportOpen} returnFocusRef={reportTriggerRef} subject={post.title} />
+       </div>
+     </article>
+   );
+ }
+diff --git a/tests/component/comparison-client.test.tsx b/tests/component/comparison-client.test.tsx
+index 738f2bc..777cc1c 100644
+--- a/tests/component/comparison-client.test.tsx
++++ b/tests/component/comparison-client.test.tsx
+@@ -1,15 +1,17 @@
+-import { render, screen, within } from '@testing-library/react';
++import { act, render, screen, within } from '@testing-library/react';
+ import userEvent from '@testing-library/user-event';
+-import { describe, expect, it } from 'vitest';
++import { beforeEach, describe, expect, it, vi } from 'vitest';
+ import type { NormalizedOffer, QuoteEvent } from '@/domain/comparison/types';
+ import { ComparisonClient } from '@/features/comparison/comparison-client';
++import { offerIdentity } from '@/domain/comparison/offer-identity';
++import { useLibraryStore, useLibraryStoreHydration } from '@/stores/library-store';
+ 
+ const initialSearch = {
+   destination: '大理',
+   kind: 'flight',
+   origin: '上海',
+   from: '2026-08-22',
+   to: '2026-08-27',
+   travelers: 2,
+ } as const;
+ 
+@@ -97,20 +99,30 @@ const offers: NormalizedOffer[] = [
+ ];
+ 
+ function streamEvents(events: QuoteEvent[]): AsyncIterable<QuoteEvent> {
+   return {
+     async *[Symbol.asyncIterator]() {
+       for (const event of events) yield event;
+     },
+   };
+ }
+ 
++beforeEach(() => {
++  window.localStorage.clear();
++  useLibraryStore.setState({
++    likedPostSlugs: [],
++    favoriteOffers: {},
++    priceAlerts: {},
++  });
++  useLibraryStoreHydration.setState({ hydrated: true, hydrationError: false });
++});
++
+ describe('ComparisonClient incremental results', () => {
+   it('keeps earlier offers, deduplicates repeated provider/id pairs, and retains results after degradation', async () => {
+     render(
+       <ComparisonClient
+         initialSearch={initialSearch}
+         now="2026-08-16T12:30:00+08:00"
+         stream={streamEvents([
+           { type: 'offer', payload: offers[0] },
+           { type: 'offer', payload: offers[0] },
+           { type: 'offer', payload: offers[1] },
+@@ -174,29 +186,132 @@ describe('ComparisonClient incremental results', () => {
+     await user.click(screen.getByRole('button', { name: '查看 云程旅行 报价条件' }));
+     expect(screen.getByText('含 1 件托运行李')).toBeInTheDocument();
+     expect(screen.getByText('不可免费退改')).toBeInTheDocument();
+ 
+     const favorite = screen.getByRole('button', { name: '收藏 云程旅行 报价' });
+     await user.click(favorite);
+     expect(favorite).toHaveAttribute('aria-pressed', 'true');
+ 
+     await user.click(screen.getByRole('switch', { name: '降价提醒' }));
+     expect(screen.getByRole('switch', { name: '降价提醒' })).toHaveAttribute('aria-checked', 'true');
++    expect(screen.getByText('已保存提醒设置；本演示不会在关闭页面后推送')).toBeInTheDocument();
+ 
+     const compareChecks = screen.getAllByRole('checkbox', { name: /加入同屏对比/ });
+     await user.click(compareChecks[0]);
+     await user.click(compareChecks[1]);
+     await user.click(compareChecks[2]);
+     expect(compareChecks[3]).toBeDisabled();
+     expect(screen.getByText('已选择 3/3 项')).toBeInTheDocument();
+   });
+ 
++  it('keeps a favorite offer and its alert after the comparison client remounts', async () => {
++    const user = userEvent.setup();
++    const firstRender = render(
++      <ComparisonClient
++        initialSearch={initialSearch}
++        now="2026-08-16T12:30:00+08:00"
++        stream={streamEvents([{ type: 'offer', payload: offers[0] }])}
++      />,
++    );
++    await screen.findByText('云程旅行');
++
++    await user.click(screen.getByRole('button', { name: '收藏 云程旅行 报价' }));
++    await user.click(screen.getByRole('switch', { name: '降价提醒' }));
++    expect(screen.getByText('已保存提醒设置；本演示不会在关闭页面后推送')).toBeInTheDocument();
++    firstRender.unmount();
++
++    render(
++      <ComparisonClient
++        initialSearch={initialSearch}
++        now="2026-08-16T12:30:00+08:00"
++        stream={streamEvents([{ type: 'offer', payload: offers[0] }])}
++      />,
++    );
++
++    expect(await screen.findByRole('button', { name: '收藏 云程旅行 报价' })).toHaveAttribute('aria-pressed', 'true');
++    expect(screen.getByRole('switch', { name: '降价提醒' })).toHaveAttribute('aria-checked', 'true');
++  });
++
++  it('confirms the alert impact before atomically removing a favorite and restores focus on Escape', async () => {
++    const user = userEvent.setup();
++    render(
++      <ComparisonClient
++        initialSearch={initialSearch}
++        now="2026-08-16T12:30:00+08:00"
++        stream={streamEvents([{ type: 'offer', payload: offers[0] }])}
++      />,
++    );
++    await screen.findByText('云程旅行');
++    const favorite = screen.getByRole('button', { name: '收藏 云程旅行 报价' });
++    await user.click(favorite);
++    await user.click(screen.getByRole('switch', { name: '降价提醒' }));
++
++    await user.click(favorite);
++    const firstDialog = screen.getByRole('dialog', { name: '移除收藏报价' });
++    expect(firstDialog).toHaveTextContent('移除收藏也会关闭这条报价的降价提醒');
++    expect(within(firstDialog).getByRole('button', { name: '保留收藏' })).toHaveFocus();
++    expect(favorite).toHaveAttribute('aria-pressed', 'true');
++    expect(screen.getByRole('switch', { name: '降价提醒' })).toHaveAttribute('aria-checked', 'true');
++
++    await user.keyboard('{Shift>}{Tab}{/Shift}');
++    expect(within(firstDialog).getByRole('button', { name: '确认移除并关闭提醒' })).toHaveFocus();
++    await user.keyboard('{Escape}');
++    expect(screen.queryByRole('dialog', { name: '移除收藏报价' })).not.toBeInTheDocument();
++    expect(favorite).toHaveFocus();
++    expect(useLibraryStore.getState().priceAlerts[offerIdentity(offers[0])]).toBeDefined();
++
++    await user.click(favorite);
++    const secondDialog = screen.getByRole('dialog', { name: '移除收藏报价' });
++    await user.click(within(secondDialog).getByRole('button', { name: '确认移除并关闭提醒' }));
++
++    expect(favorite).toHaveAttribute('aria-pressed', 'false');
++    expect(useLibraryStore.getState().favoriteOffers[offerIdentity(offers[0])]).toBeUndefined();
++    expect(useLibraryStore.getState().priceAlerts[offerIdentity(offers[0])]).toBeUndefined();
++  });
++
++  it('keeps offer-library actions unavailable while hydrating and exposes a fail-closed error', async () => {
++    let releaseHydration: (() => void) | undefined;
++    const pendingHydration = new Promise<void>((resolve) => { releaseHydration = resolve; });
++    const rehydrate = vi.spyOn(useLibraryStore.persist, 'rehydrate').mockImplementation(async () => {
++      await pendingHydration;
++      useLibraryStore.getState().saveOffer(offers[0]);
++    });
++    useLibraryStoreHydration.setState({ hydrated: false, hydrationError: false });
++    const view = render(
++      <ComparisonClient
++        initialSearch={initialSearch}
++        now="2026-08-16T12:30:00+08:00"
++        stream={streamEvents([{ type: 'offer', payload: offers[0] }])}
++      />,
++    );
++    const favorite = await screen.findByRole('button', { name: '收藏 云程旅行 报价' });
++
++    expect(favorite).toBeDisabled();
++    expect(screen.getByRole('status')).toHaveTextContent('正在读取本地收藏与提醒');
++    await act(async () => { releaseHydration?.(); });
++    expect(await screen.findByRole('button', { pressed: true })).toBeEnabled();
++    rehydrate.mockRestore();
++    view.unmount();
++
++    useLibraryStoreHydration.setState({ hydrated: true, hydrationError: true });
++    render(
++      <ComparisonClient
++        initialSearch={initialSearch}
++        now="2026-08-16T12:30:00+08:00"
++        stream={streamEvents([{ type: 'offer', payload: offers[0] }])}
++      />,
++    );
++
++    expect(await screen.findByRole('alert')).toHaveTextContent('本地收藏与提醒无法安全读取');
++    expect(screen.getByRole('button', { name: '收藏 云程旅行 报价' })).toBeDisabled();
++  });
++
+   it('requires an explicit external booking confirmation with supplier responsibility disclosure', async () => {
+     const user = userEvent.setup();
+     render(
+       <ComparisonClient
+         initialSearch={initialSearch}
+         now="2026-08-16T12:30:00+08:00"
+         stream={streamEvents([{ type: 'offer', payload: offers[0] }])}
+       />,
+     );
+     await screen.findByText('¥1,020 含税总价');
+diff --git a/tests/component/favorite-sync.test.tsx b/tests/component/favorite-sync.test.tsx
+new file mode 100644
+index 0000000..3f9e4cf
+--- /dev/null
++++ b/tests/component/favorite-sync.test.tsx
+@@ -0,0 +1,68 @@
++import { act, cleanup, render, screen } from '@testing-library/react';
++import userEvent from '@testing-library/user-event';
++import { beforeEach, describe, expect, it, vi } from 'vitest';
++import { FavoriteButton } from '@/features/library/favorite-button';
++import {
++  useLibraryStore,
++  useLibraryStoreHydration,
++} from '@/stores/library-store';
++
++beforeEach(() => {
++  window.localStorage.clear();
++  useLibraryStore.setState({
++    likedPostSlugs: [],
++    favoriteOffers: {},
++    priceAlerts: {},
++  });
++  useLibraryStoreHydration.setState({ hydrated: true, hydrationError: false });
++});
++
++describe('FavoriteButton', () => {
++  it('keeps a guide liked after remount and exposes the same state to another button', async () => {
++    const user = userEvent.setup();
++    render(
++      <>
++        <FavoriteButton label="大理攻略" slug="dali-slow-5d" />
++        <FavoriteButton label="大理详情" slug="dali-slow-5d" />
++      </>,
++    );
++
++    await user.click(screen.getByRole('button', { name: '喜欢 大理攻略' }));
++
++    expect(screen.getAllByRole('button', { pressed: true })).toHaveLength(2);
++    expect(screen.getByRole('status')).toHaveTextContent('已喜欢 大理攻略');
++    cleanup();
++    await useLibraryStore.persist.rehydrate();
++    render(<FavoriteButton label="大理攻略" slug="dali-slow-5d" />);
++    expect(screen.getByRole('button', { pressed: true })).toBeInTheDocument();
++  });
++
++  it('holds a saved guide action disabled until hydration finishes without showing an actionable false state', async () => {
++    let releaseHydration: (() => void) | undefined;
++    const pendingHydration = new Promise<void>((resolve) => { releaseHydration = resolve; });
++    const rehydrate = vi.spyOn(useLibraryStore.persist, 'rehydrate').mockImplementation(async () => {
++      await pendingHydration;
++      useLibraryStore.setState({ likedPostSlugs: ['dali-slow-5d'] });
++    });
++    useLibraryStoreHydration.setState({ hydrated: false, hydrationError: false });
++
++    render(<FavoriteButton label="大理攻略" slug="dali-slow-5d" />);
++
++    expect(screen.getByRole('button', { name: '喜欢 大理攻略' })).toBeDisabled();
++    expect(screen.getByRole('status')).toHaveTextContent('正在读取本地喜欢状态');
++
++    await act(async () => { releaseHydration?.(); });
++
++    expect(await screen.findByRole('button', { pressed: true })).toBeEnabled();
++    rehydrate.mockRestore();
++  });
++
++  it('fails closed when library hydration cannot be completed', () => {
++    useLibraryStoreHydration.setState({ hydrated: true, hydrationError: true });
++
++    render(<FavoriteButton label="大理攻略" slug="dali-slow-5d" />);
++
++    expect(screen.getByRole('button', { name: '喜欢 大理攻略' })).toBeDisabled();
++    expect(screen.getByRole('alert')).toHaveTextContent('本地喜欢状态无法安全读取');
++  });
++});

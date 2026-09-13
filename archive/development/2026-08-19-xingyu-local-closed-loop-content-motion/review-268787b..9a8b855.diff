@@ -1,0 +1,77 @@
+# Review package: 268787b..9a8b855
+
+## Commits
+9a8b855 test: make destination asset contract explicit
+
+## Files changed
+ tests/unit/assets.test.ts | 44 +++++++++++++++++++++++++++++++++-----------
+ 1 file changed, 33 insertions(+), 11 deletions(-)
+
+## Diff
+diff --git a/tests/unit/assets.test.ts b/tests/unit/assets.test.ts
+index 5c55fbf..cca155f 100644
+--- a/tests/unit/assets.test.ts
++++ b/tests/unit/assets.test.ts
+@@ -1,29 +1,51 @@
+ import { createHash } from 'node:crypto';
+ import { mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
+ import { tmpdir } from 'node:os';
+ import { join, relative, resolve } from 'node:path';
+ import { expect, it } from 'vitest';
+ import { brandAssets, destinationAssets } from '@/data/assets';
+ 
+ const expectedDestinationPaths = [
+-  'dali',
+-  'guilin',
+-  'sichuan',
+-  'sanya',
+-  'hangzhou',
+-  'nanjing',
+-  'shanghai',
+-  'guizhou',
+-].flatMap((destination) =>
+-  ['01', '02', '03', '04'].map((shot) => `/assets/destinations/${destination}/${shot}.png`),
+-);
++  '/assets/destinations/dali/01.png',
++  '/assets/destinations/dali/02.png',
++  '/assets/destinations/dali/03.png',
++  '/assets/destinations/dali/04.png',
++  '/assets/destinations/guilin/01.png',
++  '/assets/destinations/guilin/02.png',
++  '/assets/destinations/guilin/03.png',
++  '/assets/destinations/guilin/04.png',
++  '/assets/destinations/sichuan/01.png',
++  '/assets/destinations/sichuan/02.png',
++  '/assets/destinations/sichuan/03.png',
++  '/assets/destinations/sichuan/04.png',
++  '/assets/destinations/sanya/01.png',
++  '/assets/destinations/sanya/02.png',
++  '/assets/destinations/sanya/03.png',
++  '/assets/destinations/sanya/04.png',
++  '/assets/destinations/hangzhou/01.png',
++  '/assets/destinations/hangzhou/02.png',
++  '/assets/destinations/hangzhou/03.png',
++  '/assets/destinations/hangzhou/04.png',
++  '/assets/destinations/nanjing/01.png',
++  '/assets/destinations/nanjing/02.png',
++  '/assets/destinations/nanjing/03.png',
++  '/assets/destinations/nanjing/04.png',
++  '/assets/destinations/shanghai/01.png',
++  '/assets/destinations/shanghai/02.png',
++  '/assets/destinations/shanghai/03.png',
++  '/assets/destinations/shanghai/04.png',
++  '/assets/destinations/guizhou/01.png',
++  '/assets/destinations/guizhou/02.png',
++  '/assets/destinations/guizhou/03.png',
++  '/assets/destinations/guizhou/04.png',
++];
+ 
+ async function enumerateDestinationPngPaths(root: string, publicRoot: string): Promise<string[]> {
+   const pngPaths: string[] = [];
+ 
+   async function visit(directory: string): Promise<void> {
+     const entries = await readdir(directory, { withFileTypes: true });
+ 
+     for (const entry of entries) {
+       const absolutePath = join(directory, entry.name);
+       if (entry.isDirectory()) {

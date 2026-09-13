@@ -1,0 +1,285 @@
+# COMMITS
+7b1e61d fix: harden offer and match domain boundaries
+
+# STAT
+ src/data/offers.ts                       | 14 +++++++
+ src/domain/comparison/normalize-offer.ts | 13 ++++++
+ src/domain/comparison/types.ts           |  2 +-
+ src/domain/partners/score-match.ts       |  4 ++
+ tests/unit/normalize-offer.test.ts       | 72 ++++++++++++++++++++++++++++++++
+ tests/unit/score-match.test.ts           | 25 +++++++++++
+ 6 files changed, 129 insertions(+), 1 deletion(-)
+
+# DIFF
+diff --git a/src/data/offers.ts b/src/data/offers.ts
+index 8abc1b8..84b7781 100644
+--- a/src/data/offers.ts
++++ b/src/data/offers.ts
+@@ -40,11 +40,25 @@ export const sandboxOffers: readonly RawOffer[] = [
+     title: '大理湖畔演示住宿',
+     destination: '大理',
+     basePrice: 680,
+     taxes: 30,
+     mandatoryFees: 20,
+     baggageIncluded: false,
+     refundable: true,
+     updatedAt: SANDBOX_OBSERVED_AT,
+     demoMode: true,
+   },
++  {
++    id: 'DEMO-TICKET-DAL-01',
++    provider: '星屿沙箱演示门票',
++    kind: 'ticket',
++    title: '大理古城体验演示门票',
++    destination: '大理',
++    basePrice: 88,
++    taxes: 0,
++    mandatoryFees: 0,
++    baggageIncluded: false,
++    refundable: true,
++    updatedAt: SANDBOX_OBSERVED_AT,
++    demoMode: true,
++  },
+ ] as const;
+diff --git a/src/domain/comparison/normalize-offer.ts b/src/domain/comparison/normalize-offer.ts
+index ba7c546..1fa8df1 100644
+--- a/src/domain/comparison/normalize-offer.ts
++++ b/src/domain/comparison/normalize-offer.ts
+@@ -1,16 +1,29 @@
+ import type { NormalizedOffer, RawOffer } from './types';
+ 
++function assertValidPriceComponent(
++  field: 'basePrice' | 'taxes' | 'mandatoryFees',
++  value: number,
++): void {
++  if (!Number.isFinite(value) || value < 0) {
++    throw new RangeError(`${field} must be a finite non-negative number`);
++  }
++}
++
+ export function normalizeOffer(raw: RawOffer): NormalizedOffer {
+   const taxes = raw.taxes ?? 0;
+   const mandatoryFees = raw.mandatoryFees ?? 0;
+ 
++  assertValidPriceComponent('basePrice', raw.basePrice);
++  assertValidPriceComponent('taxes', taxes);
++  assertValidPriceComponent('mandatoryFees', mandatoryFees);
++
+   return {
+     ...raw,
+     taxes,
+     mandatoryFees,
+     demoMode: raw.demoMode ?? false,
+     currency: 'CNY',
+     totalPrice: raw.basePrice + taxes + mandatoryFees,
+     priceExplanation: `基础价 ¥${raw.basePrice} · 税费 ¥${taxes} · 必付费用 ¥${mandatoryFees}`,
+   };
+ }
+diff --git a/src/domain/comparison/types.ts b/src/domain/comparison/types.ts
+index c0a3ed5..09cd6b2 100644
+--- a/src/domain/comparison/types.ts
++++ b/src/domain/comparison/types.ts
+@@ -1,11 +1,11 @@
+-export const offerKinds = ['flight', 'hotel', 'train', 'car'] as const;
++export const offerKinds = ['flight', 'hotel', 'train', 'car', 'ticket'] as const;
+ 
+ export type OfferKind = (typeof offerKinds)[number];
+ 
+ export interface RawOffer {
+   id: string;
+   provider: string;
+   kind: OfferKind;
+   title?: string;
+   origin?: string;
+   destination?: string;
+diff --git a/src/domain/partners/score-match.ts b/src/domain/partners/score-match.ts
+index beb6c3b..c758ff7 100644
+--- a/src/domain/partners/score-match.ts
++++ b/src/domain/partners/score-match.ts
+@@ -47,20 +47,24 @@ const weightedSignals = [
+   { signal: 'lodgingFit', key: 'lodging', weight: 5 },
+   { signal: 'scheduleFit', key: 'schedule', weight: 5 },
+   { signal: 'socialFit', key: 'social', weight: 5 },
+ ] as const satisfies ReadonlyArray<{
+   signal: ScoredSignal;
+   key: MatchReasonKey;
+   weight: number;
+ }>;
+ 
+ function clampFit(value: number): number {
++  if (!Number.isFinite(value)) {
++    return 0;
++  }
++
+   return Math.min(1, Math.max(0, value));
+ }
+ 
+ export function scoreMatch(intent: MatchSignals, candidate: MatchCandidate): MatchResult {
+   const entries = weightedSignals.map(({ signal, key, weight }, order) => ({
+     key,
+     points: clampFit(intent[signal]) * weight,
+     order,
+   }));
+ 
+diff --git a/tests/unit/normalize-offer.test.ts b/tests/unit/normalize-offer.test.ts
+index 1c8e747..59cc4dd 100644
+--- a/tests/unit/normalize-offer.test.ts
++++ b/tests/unit/normalize-offer.test.ts
+@@ -1,13 +1,27 @@
+ import { describe, expect, it } from 'vitest';
+ import { MockInventoryProvider } from '@/adapters/mock/mock-inventory';
+ import { normalizeOffer } from '@/domain/comparison/normalize-offer';
++import { offerKinds } from '@/domain/comparison/types';
++import { sandboxOffers } from '@/data/offers';
++
++const validRawOffer = {
++  id: 'VALID-OFFER-01',
++  provider: '星屿沙箱',
++  kind: 'flight',
++  basePrice: 100,
++  taxes: 10,
++  mandatoryFees: 5,
++  baggageIncluded: false,
++  refundable: true,
++  updatedAt: '2026-08-16T09:00:00+08:00',
++} as const;
+ 
+ describe('normalizeOffer', () => {
+   it('sorts by comparable total instead of bare price', () => {
+     const offer = normalizeOffer({
+       id: 'MU-DAL-01',
+       provider: '云程旅行',
+       kind: 'flight',
+       basePrice: 860,
+       taxes: 120,
+       mandatoryFees: 40,
+@@ -30,30 +44,88 @@ describe('normalizeOffer', () => {
+       basePrice: 680,
+       baggageIncluded: false,
+       refundable: true,
+       updatedAt: '2026-08-16T09:00:00+08:00',
+       demoMode: true,
+     });
+ 
+     expect(offer.totalPrice).toBe(680);
+     expect(offer.priceExplanation).toBe('基础价 ¥680 · 税费 ¥0 · 必付费用 ¥0');
+   });
++
++  it.each([
++    { field: 'basePrice', value: Number.NaN },
++    { field: 'basePrice', value: Number.POSITIVE_INFINITY },
++    { field: 'basePrice', value: Number.NEGATIVE_INFINITY },
++    { field: 'basePrice', value: -1 },
++    { field: 'taxes', value: Number.NaN },
++    { field: 'taxes', value: Number.POSITIVE_INFINITY },
++    { field: 'taxes', value: Number.NEGATIVE_INFINITY },
++    { field: 'taxes', value: -1 },
++    { field: 'mandatoryFees', value: Number.NaN },
++    { field: 'mandatoryFees', value: Number.POSITIVE_INFINITY },
++    { field: 'mandatoryFees', value: Number.NEGATIVE_INFINITY },
++    { field: 'mandatoryFees', value: -1 },
++  ] as const)('rejects invalid $field value $value before price arithmetic', ({ field, value }) => {
++    const normalize = () => normalizeOffer({ ...validRawOffer, [field]: value });
++
++    expect(normalize).toThrow(RangeError);
++    expect(normalize).toThrow(`${field} must be a finite non-negative number`);
++  });
+ });
+ 
+ describe('MockInventoryProvider', () => {
+   it('returns only fixed sandbox offers that match the search', async () => {
+     const provider = new MockInventoryProvider();
+     const offers = [];
+ 
+     for await (const offer of provider.search({ destination: '大理', kind: 'flight' })) {
+       offers.push(offer);
+     }
+ 
+     expect(offers).not.toHaveLength(0);
+     expect(offers.every((offer) => offer.kind === 'flight')).toBe(true);
+     expect(offers.every((offer) => offer.demoMode)).toBe(true);
+     expect(offers.every((offer) => offer.updatedAt === '2026-08-16T09:00:00+08:00')).toBe(true);
+     expect(offers.map((offer) => offer.totalPrice)).toEqual(
+       [...offers].sort((left, right) => left.totalPrice - right.totalPrice).map((offer) => offer.totalPrice),
+     );
+   });
++
++  it('supports attraction tickets as an offer kind', () => {
++    expect(offerKinds).toContain('ticket');
++  });
++
++  it('exposes an explicit fixed sandbox attraction-ticket record', () => {
++    expect(sandboxOffers).toContainEqual({
++      id: 'DEMO-TICKET-DAL-01',
++      provider: '星屿沙箱演示门票',
++      kind: 'ticket',
++      title: '大理古城体验演示门票',
++      destination: '大理',
++      basePrice: 88,
++      taxes: 0,
++      mandatoryFees: 0,
++      baggageIncluded: false,
++      refundable: true,
++      updatedAt: '2026-08-16T09:00:00+08:00',
++      demoMode: true,
++    });
++  });
++
++  it('searches fixed sandbox attraction tickets by destination and kind', async () => {
++    const provider = new MockInventoryProvider();
++    const offers = [];
++
++    for await (const offer of provider.search({ destination: '大理', kind: 'ticket' })) {
++      offers.push(offer);
++    }
++
++    expect(offers.map((offer) => offer.id)).toEqual(['DEMO-TICKET-DAL-01']);
++    expect(offers[0]).toMatchObject({
++      kind: 'ticket',
++      totalPrice: 88,
++      updatedAt: '2026-08-16T09:00:00+08:00',
++      demoMode: true,
++    });
++  });
+ });
+diff --git a/tests/unit/score-match.test.ts b/tests/unit/score-match.test.ts
+index dea53d1..53a37e2 100644
+--- a/tests/unit/score-match.test.ts
++++ b/tests/unit/score-match.test.ts
+@@ -54,11 +54,36 @@ describe('scoreMatch', () => {
+         lodgingFit: 0,
+         scheduleFit: 0,
+         socialFit: 0,
+       },
+       { id: 'user-muyu', displayName: '木雨' },
+     );
+ 
+     expect(result.score).toBe(25);
+     expect(result.reasons[0]).toMatchObject({ key: 'date', points: 25 });
+   });
++
++  it('normalizes non-finite fit signals to zero and returns serializable reasons', () => {
++    const result = scoreMatch(
++      {
++        destination: '川西',
++        dateOverlap: Number.NaN,
++        budgetFit: Number.POSITIVE_INFINITY,
++        paceFit: Number.NEGATIVE_INFINITY,
++        interestFit: 0,
++        routeFit: 0,
++        lodgingFit: 0,
++        scheduleFit: 0,
++        socialFit: 0,
++      },
++      { id: 'user-muyu', displayName: '木雨' },
++    );
++
++    expect(result.score).toBe(0);
++    expect(result.reasons).toEqual([
++      { key: 'date', points: 0 },
++      { key: 'budget', points: 0 },
++      { key: 'pace', points: 0 },
++    ]);
++    expect(JSON.parse(JSON.stringify(result))).toEqual(result);
++  });
+ });

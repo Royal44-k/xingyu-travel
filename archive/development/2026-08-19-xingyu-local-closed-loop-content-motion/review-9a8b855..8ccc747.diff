@@ -1,0 +1,797 @@
+# Review package: 9a8b855..8ccc747
+
+## Commits
+8ccc747 feat: enrich guide discovery and galleries
+
+## Files changed
+ src/app/square/[slug]/page.tsx              |   7 +-
+ src/app/square/page.tsx                     |  49 ++++++++-
+ src/features/square/destination-filters.tsx | 105 ++++++++++++++++++
+ src/features/square/guide-gallery.tsx       | 161 ++++++++++++++++++++++++++++
+ src/features/square/post-card.tsx           |   4 +-
+ src/features/square/square.module.css       |  69 ++++++++++--
+ tests/component/favorite-sync.test.tsx      |  16 +++
+ tests/component/guide-gallery.test.tsx      |  60 +++++++++++
+ tests/component/square-feed.test.tsx        |  56 ++++++++++
+ 9 files changed, 510 insertions(+), 17 deletions(-)
+
+## Diff
+diff --git a/src/app/square/[slug]/page.tsx b/src/app/square/[slug]/page.tsx
+index 095388c..024a8da 100644
+--- a/src/app/square/[slug]/page.tsx
++++ b/src/app/square/[slug]/page.tsx
+@@ -1,29 +1,30 @@
+ import { notFound, redirect } from 'next/navigation';
+ import { MapPin, Sparkle } from '@phosphor-icons/react/dist/ssr';
+-import Image from 'next/image';
+ import Link from 'next/link';
+ import { SiteHeader } from '@/components/site-header';
+ import { canonicalPostSlug, postsBySlug } from '@/data/posts';
++import { FavoriteButton } from '@/features/library/favorite-button';
+ import { ConvertToTrip } from '@/features/square/convert-to-trip';
++import { GuideGallery } from '@/features/square/guide-gallery';
+ import styles from '@/features/square/square.module.css';
+ 
+ export default async function SquarePostPage({ params }: { params: Promise<{ slug: string }> }) {
+   const { slug } = await params;
+   const canonicalSlug = canonicalPostSlug(slug);
+   if (canonicalSlug !== slug) redirect(`/square/${canonicalSlug}`);
+   const post = postsBySlug[slug];
+   if (!post) notFound();
+ 
+   return (
+     <>
+         <SiteHeader activePath="/square" variant="solid" />
+       <main className={styles.detailPage}>
+         <Link className={styles.backLink} href="/square">← 返回灵感广场</Link>
+-        <header className={styles.detailHeader}><p><MapPin aria-hidden size={16} weight="fill" /> {post.destination} · {post.days} 天 · 预算 ¥{post.budget.toLocaleString('zh-CN')}</p><h1>{post.title}</h1><div className={styles.detailAuthor}><b aria-hidden>{post.author.avatar}</b><span>{post.author.name} · {post.author.role}</span><time dateTime={post.publishedAt}>{new Intl.DateTimeFormat('zh-CN', { dateStyle: 'long' }).format(new Date(post.publishedAt))}</time></div>{(post.ai.generated || post.ai.rewritten) && <span className={styles.aiLabel}><Sparkle aria-hidden size={15} weight="fill" /> {post.ai.generated ? 'AI 生成' : 'AI 改写'}{post.ai.generated && post.ai.rewritten ? ' · 已人工改写' : ''}</span>}</header>
+-        <div className={styles.detailLayout}><article className={styles.article}><p className={styles.lede}>{post.excerpt}</p><div className={styles.mediaGrid}>{post.media.slice(0, 9).map((image, index) => <Image alt={image.alt} className={styles.detailImage} height={image.height} key={`${image.src}-${index}`} sizes="(max-width: 760px) 100vw, 48vw" src={image.src} width={image.width} />)}</div><h2>这次怎么走</h2><ol className={styles.itinerary}>{post.itinerary.map((item) => <li key={item.day}><span>DAY {item.day}</span><div><h3>{item.title}</h3><p>{item.description}</p><small><MapPin aria-hidden size={14} weight="fill" /> {item.location}</small></div></li>)}</ol></article>
++        <header className={styles.detailHeader}><p><MapPin aria-hidden size={16} weight="fill" /> {post.destination} · {post.days} 天 · 预算 ¥{post.budget.toLocaleString('zh-CN')}</p><h1>{post.title}</h1><div className={styles.detailAuthor}><b aria-hidden>{post.author.avatar}</b><span>{post.author.name} · {post.author.role}</span><time dateTime={post.publishedAt}>{new Intl.DateTimeFormat('zh-CN', { dateStyle: 'long' }).format(new Date(post.publishedAt))}</time></div><div className={styles.detailActions}>{(post.ai.generated || post.ai.rewritten) && <span className={styles.aiLabel}><Sparkle aria-hidden size={15} weight="fill" /> {post.ai.generated ? 'AI 生成' : 'AI 改写'}{post.ai.generated && post.ai.rewritten ? ' · 已人工改写' : ''}</span>}<FavoriteButton label={post.title} slug={post.slug} /></div></header>
++        <div className={styles.detailLayout}><article className={styles.article}><p className={styles.lede}>{post.excerpt}</p><GuideGallery images={post.media.slice(0, 9)} title={post.destination} /><h2>这次怎么走</h2><ol className={styles.itinerary}>{post.itinerary.map((item) => <li key={item.day}><span>DAY {item.day}</span><div><h3>{item.title}</h3><p>{item.description}</p><small><MapPin aria-hidden size={14} weight="fill" /> {item.location}</small></div></li>)}</ol></article>
+           <aside className={styles.detailAside}><section><h2>地点卡片</h2>{post.locations.map((location) => <div className={styles.locationCard} key={location.name}><MapPin aria-hidden size={18} weight="fill" /><div><strong>{location.name}</strong><span>{location.area}</span><p>{location.note}</p></div></div>)}</section>{post.products.length > 0 && <section><h2>路书里的演示商品</h2>{post.products.map((product) => <div className={styles.productCard} key={product.name}><span>{product.category}</span><strong>{product.name}</strong><b>¥{product.price}</b><p>{product.note}</p></div>)}</section>}<ConvertToTrip post={post} /></aside>
+         </div>
+       </main>
+     </>
+   );
+ }
+diff --git a/src/app/square/page.tsx b/src/app/square/page.tsx
+index c2c4735..e10e895 100644
+--- a/src/app/square/page.tsx
++++ b/src/app/square/page.tsx
+@@ -1,49 +1,90 @@
+ 'use client';
+ 
+-import { useEffect } from 'react';
++import { useEffect, useState } from 'react';
+ import Link from 'next/link';
+ import { SiteHeader } from '@/components/site-header';
+-import { orderPosts, type FeedMode } from '@/data/posts';
++import { orderPosts, posts as allPosts, type FeedMode } from '@/data/posts';
++import {
++  DestinationFilters,
++  type DestinationFilterValues,
++} from '@/features/square/destination-filters';
+ import { FeedControls } from '@/features/square/feed-controls';
+ import { PostCard } from '@/features/square/post-card';
+ import styles from '@/features/square/square.module.css';
+ import {
+   hydrateProfileStore,
+   useProfileStore,
+   useProfileStoreHydration,
+ } from '@/stores/profile-store';
+ 
+ export default function SquarePage() {
++  const [filters, setFilters] = useState<DestinationFilterValues>({
++    query: '',
++    destination: '',
++    theme: '',
++    maxDays: null,
++  });
+   const personalizedFeed = useProfileStore((state) => state.personalizedFeed);
+   const interestTags = useProfileStore((state) => state.interestTags);
+   const setPersonalizedFeed = useProfileStore((state) => state.setPersonalizedFeed);
+   const clearInterestTags = useProfileStore((state) => state.clearInterestTags);
+   const hydrated = useProfileStoreHydration((state) => state.hydrated);
+   const hydrationError = useProfileStoreHydration((state) => state.hydrationError);
+   const mode: FeedMode = personalizedFeed && interestTags.length > 0 ? 'recommended' : 'chronological';
+-  const posts = orderPosts(mode, interestTags);
++  const orderedPosts = orderPosts(mode, interestTags);
++  const normalizedQuery = filters.query.trim().toLocaleLowerCase('zh-CN');
++  const posts = orderedPosts.filter((post) => {
++    if (filters.destination && post.destination !== filters.destination) return false;
++    if (filters.theme && !post.tags.includes(filters.theme)) return false;
++    if (filters.maxDays && post.days > filters.maxDays) return false;
++    if (!normalizedQuery) return true;
++
++    const searchableText = [
++      post.title,
++      post.excerpt,
++      post.destination,
++      ...post.tags,
++      ...post.locations.map((location) => location.name),
++    ].join(' ').toLocaleLowerCase('zh-CN');
++    return searchableText.includes(normalizedQuery);
++  });
++  const destinations = allPosts.map((post) => post.destination);
++  const themes = ['海岛', '城市漫游', '山水', '人文历史', '慢旅行', '自驾'] as const;
++
++  function clearFilters() {
++    setFilters({ query: '', destination: '', theme: '', maxDays: null });
++  }
+ 
+   useEffect(() => {
+     void hydrateProfileStore();
+   }, []);
+ 
+   return (
+     <>
+         <SiteHeader activePath="/square" variant="solid" />
+       <main className={styles.squarePage}>
+         <header className={styles.hero}><p>GUIDE SQUARE</p><h1>在别人的路书里，找到自己的出发理由。</h1><span>真实的旅行片段，整理成可继续编辑的本地行程草稿。</span></header>
+         <section aria-labelledby="feed-title" className={styles.feedSection}>
+           <div className={styles.feedHeading}><div><p>编辑精选</p><h2 id="feed-title">旅行者正在分享</h2></div>{hydrated ? <FeedControls interestTags={interestTags} mode={mode} onClearInterestTags={clearInterestTags} onModeChange={(nextMode) => setPersonalizedFeed(nextMode === 'recommended')} /> : null}</div>
+           {!hydrated ? (
+             <p className={styles.loading} role="status">正在读取浏览器本地偏好，暂不展示排序与推荐结果。</p>
+           ) : (
+             <>
+               {hydrationError ? <p className={styles.recommendationHint} role="status">本地偏好无法安全读取，当前按时间排序；可前往 <Link href="/profile">演示账户</Link> 重置偏好。</p> : null}
+-              <div className={styles.masonry}>{posts.map((post) => <PostCard key={post.slug} post={post} />)}</div>
++              <DestinationFilters destinations={destinations} onChange={setFilters} onClear={clearFilters} themes={themes} values={filters} />
++              {posts.length > 0 ? (
++                <div className={styles.masonry}>{posts.map((post) => <PostCard key={post.slug} post={post} />)}</div>
++              ) : (
++                <div className={styles.emptyGuides} role="status">
++                  <h3>没有找到符合条件的攻略</h3>
++                  <p>换一个城市、主题或天数，也可以清除筛选重新浏览全部路线。</p>
++                  <button onClick={clearFilters} type="button">重新浏览全部攻略</button>
++                </div>
++              )}
+             </>
+           )}
+         </section>
+       </main>
+     </>
+   );
+ }
+diff --git a/src/features/square/destination-filters.tsx b/src/features/square/destination-filters.tsx
+new file mode 100644
+index 0000000..0f9f701
+--- /dev/null
++++ b/src/features/square/destination-filters.tsx
+@@ -0,0 +1,105 @@
++'use client';
++
++import { MagnifyingGlass, X } from '@phosphor-icons/react';
++import styles from './square.module.css';
++
++export interface DestinationFilterValues {
++  query: string;
++  destination: string;
++  theme: string;
++  maxDays: number | null;
++}
++
++interface DestinationFiltersProps {
++  destinations: readonly string[];
++  themes: readonly string[];
++  values: DestinationFilterValues;
++  onChange: (values: DestinationFilterValues) => void;
++  onClear: () => void;
++}
++
++export function DestinationFilters({
++  destinations,
++  themes,
++  values,
++  onChange,
++  onClear,
++}: DestinationFiltersProps) {
++  const hasActiveFilters = Boolean(
++    values.query.trim() || values.destination || values.theme || values.maxDays,
++  );
++
++  return (
++    <section aria-label="筛选旅行攻略" className={styles.destinationFilters}>
++      <label className={styles.searchField}>
++        <span>搜索攻略</span>
++        <span className={styles.searchInputWrap}>
++          <MagnifyingGlass aria-hidden size={18} />
++          <input
++            onChange={(event) => onChange({ ...values, query: event.target.value })}
++            placeholder="搜索城市、主题或地点"
++            type="search"
++            value={values.query}
++          />
++        </span>
++      </label>
++
++      <label className={styles.filterField}>
++        <span>目的地</span>
++        <select
++          onChange={(event) => onChange({ ...values, destination: event.target.value })}
++          value={values.destination}
++        >
++          <option value="">全部目的地</option>
++          {destinations.map((destination) => (
++            <option key={destination} value={destination}>{destination}</option>
++          ))}
++        </select>
++      </label>
++
++      <label className={styles.filterField}>
++        <span>最多天数</span>
++        <select
++          onChange={(event) => onChange({
++            ...values,
++            maxDays: event.target.value ? Number(event.target.value) : null,
++          })}
++          value={values.maxDays ?? ''}
++        >
++          <option value="">不限天数</option>
++          {[3, 4, 5, 6, 7].map((days) => (
++            <option key={days} value={days}>{days} 天以内</option>
++          ))}
++        </select>
++      </label>
++
++      <div className={styles.themeFilters}>
++        <span>主题</span>
++        <div>
++          {themes.map((theme) => (
++            <button
++              aria-pressed={values.theme === theme}
++              key={theme}
++              onClick={() => onChange({
++                ...values,
++                theme: values.theme === theme ? '' : theme,
++              })}
++              type="button"
++            >
++              {theme}
++            </button>
++          ))}
++        </div>
++      </div>
++
++      <button
++        className={styles.clearFiltersButton}
++        disabled={!hasActiveFilters}
++        onClick={onClear}
++        type="button"
++      >
++        <X aria-hidden size={16} /> 清除筛选
++      </button>
++    </section>
++  );
++}
+diff --git a/src/features/square/guide-gallery.tsx b/src/features/square/guide-gallery.tsx
+new file mode 100644
+index 0000000..ec1d9d7
+--- /dev/null
++++ b/src/features/square/guide-gallery.tsx
+@@ -0,0 +1,161 @@
++'use client';
++
++import { ArrowClockwise, CaretLeft, CaretRight } from '@phosphor-icons/react';
++import Image from 'next/image';
++import { useRef, useState } from 'react';
++import type { PostMedia } from '@/data/posts';
++import styles from './square.module.css';
++
++interface GuideGalleryProps {
++  images: readonly PostMedia[];
++  title: string;
++}
++
++export function GuideGallery({ images, title }: GuideGalleryProps) {
++  const [activeIndex, setActiveIndex] = useState(0);
++  const [failedImages, setFailedImages] = useState<ReadonlySet<number>>(() => new Set());
++  const [retryVersions, setRetryVersions] = useState<Readonly<Record<number, number>>>({});
++  const touchStart = useRef<{ x: number; y: number } | null>(null);
++  const touchLatest = useRef<{ x: number; y: number } | null>(null);
++  const activeImage = images[activeIndex];
++
++  if (!activeImage) return null;
++
++  function showImage(index: number) {
++    const wrappedIndex = (index + images.length) % images.length;
++    setActiveIndex(wrappedIndex);
++  }
++
++  function handleKeyDown(event: React.KeyboardEvent<HTMLElement>) {
++    if (event.key === 'Home') {
++      event.preventDefault();
++      setActiveIndex(0);
++    } else if (event.key === 'End') {
++      event.preventDefault();
++      setActiveIndex(images.length - 1);
++    } else if (event.key === 'ArrowLeft') {
++      event.preventDefault();
++      showImage(activeIndex - 1);
++    } else if (event.key === 'ArrowRight') {
++      event.preventDefault();
++      showImage(activeIndex + 1);
++    }
++  }
++
++  function handleTouchEnd(event: React.TouchEvent<HTMLElement>) {
++    const start = touchStart.current;
++    const changedTouch = event.changedTouches[0];
++    const end = changedTouch
++      ? { x: changedTouch.clientX, y: changedTouch.clientY }
++      : touchLatest.current;
++    touchStart.current = null;
++    touchLatest.current = null;
++    if (!start || !end) return;
++
++    const horizontalDistance = end.x - start.x;
++    const verticalDistance = end.y - start.y;
++    if (Math.abs(horizontalDistance) < 48 || Math.abs(horizontalDistance) <= Math.abs(verticalDistance)) {
++      return;
++    }
++    showImage(activeIndex + (horizontalDistance < 0 ? 1 : -1));
++  }
++
++  function retryCurrentImage() {
++    setFailedImages((current) => {
++      const next = new Set(current);
++      next.delete(activeIndex);
++      return next;
++    });
++    setRetryVersions((current) => ({
++      ...current,
++      [activeIndex]: (current[activeIndex] ?? 0) + 1,
++    }));
++  }
++
++  const imageFailed = failedImages.has(activeIndex);
++
++  return (
++    <section
++      aria-label={`${title}攻略图片画廊`}
++      className={styles.guideGallery}
++      onKeyDown={handleKeyDown}
++      onTouchEnd={handleTouchEnd}
++      onTouchMove={(event) => {
++        const touch = event.touches[0];
++        if (touch) touchLatest.current = { x: touch.clientX, y: touch.clientY };
++      }}
++      onTouchStart={(event) => {
++        const touch = event.touches[0];
++        if (!touch) return;
++        const point = { x: touch.clientX, y: touch.clientY };
++        touchStart.current = point;
++        touchLatest.current = point;
++      }}
++      role="region"
++      tabIndex={0}
++    >
++      <div className={styles.galleryFrame}>
++        <Image
++          alt={activeImage.alt}
++          className={styles.galleryImage}
++          fill
++          key={`${activeImage.src}-${retryVersions[activeIndex] ?? 0}`}
++          onError={() => setFailedImages((current) => new Set(current).add(activeIndex))}
++          onLoad={() => setFailedImages((current) => {
++            if (!current.has(activeIndex)) return current;
++            const next = new Set(current);
++            next.delete(activeIndex);
++            return next;
++          })}
++          priority={activeIndex === 0}
++          sizes="(max-width: 900px) 100vw, 70vw"
++          src={activeImage.src}
++        />
++
++        {imageFailed ? (
++          <div className={styles.galleryError} role="alert">
++            <strong>{activeImage.alt}</strong>
++            <span>图片暂时无法显示，画幅与来源已保留。</span>
++            <button onClick={retryCurrentImage} type="button">
++              <ArrowClockwise aria-hidden size={17} /> 重试当前图片
++            </button>
++          </div>
++        ) : null}
++
++        <button
++          aria-label="上一张图片"
++          className={`${styles.galleryArrow} ${styles.galleryArrowPrevious}`}
++          onClick={() => showImage(activeIndex - 1)}
++          type="button"
++        >
++          <CaretLeft aria-hidden size={22} weight="bold" />
++        </button>
++        <button
++          aria-label="下一张图片"
++          className={`${styles.galleryArrow} ${styles.galleryArrowNext}`}
++          onClick={() => showImage(activeIndex + 1)}
++          type="button"
++        >
++          <CaretRight aria-hidden size={22} weight="bold" />
++        </button>
++        <span aria-label="图片位置" className={styles.galleryPosition} role="status">
++          {activeIndex + 1} / {images.length}
++        </span>
++      </div>
++
++      <div aria-label="选择攻略图片" className={styles.galleryThumbnails} role="group">
++        {images.map((image, index) => (
++          <button
++            aria-label={`查看图片 ${index + 1}：${image.alt}`}
++            aria-pressed={index === activeIndex}
++            key={image.src}
++            onClick={() => setActiveIndex(index)}
++            type="button"
++          >
++            <Image alt="" fill sizes="120px" src={image.src} />
++          </button>
++        ))}
++      </div>
++    </section>
++  );
++}
+diff --git a/src/features/square/post-card.tsx b/src/features/square/post-card.tsx
+index 3546acd..8d89b0d 100644
+--- a/src/features/square/post-card.tsx
++++ b/src/features/square/post-card.tsx
+@@ -1,28 +1,30 @@
+ 'use client';
+ 
+ import { Flag, MapPin } from '@phosphor-icons/react';
+ import Image from 'next/image';
+ import Link from 'next/link';
+ import { useRef, useState } from 'react';
+ import { ReportDialog } from '@/components/report-dialog';
+ import type { TravelPost } from '@/data/posts';
+ import { FavoriteButton } from '@/features/library/favorite-button';
++import { useLibraryStore } from '@/stores/library-store';
+ import styles from './square.module.css';
+ 
+ export function PostCard({ post }: { post: TravelPost }) {
+   const [reportOpen, setReportOpen] = useState(false);
+   const reportTriggerRef = useRef<HTMLButtonElement>(null);
+   const image = post.media[0];
++  const liked = useLibraryStore((state) => state.likedPostSlugs.includes(post.slug));
+ 
+   return (
+-    <article className={styles.postCard}>
++    <article className={styles.postCard} data-selected={liked || undefined}>
+       <Link className={styles.postImageLink} href={`/square/${post.slug}`} aria-label={`阅读攻略：${post.title}`}>
+         <Image alt={image.alt} className={styles.postImage} height={image.height} sizes="(max-width: 700px) 100vw, (max-width: 1100px) 50vw, 33vw" src={image.src} width={image.width} />
+       </Link>
+       <div className={styles.postBody}>
+         <div className={styles.postMeta}><MapPin aria-hidden size={16} weight="fill" /> {post.destination} · {post.days} 天</div>
+         <h2><Link href={`/square/${post.slug}`}>{post.title}</Link></h2>
+         <p>{post.excerpt}</p>
+         <div className={styles.tags}>{post.tags.slice(0, 3).map((tag) => <span key={tag}>#{tag}</span>)}</div>
+         <footer className={styles.cardFooter}>
+           <span className={styles.author}><b aria-hidden>{post.author.avatar}</b>{post.author.name}</span>
+diff --git a/src/features/square/square.module.css b/src/features/square/square.module.css
+index d9138b1..f3a8cfd 100644
+--- a/src/features/square/square.module.css
++++ b/src/features/square/square.module.css
+@@ -24,25 +24,47 @@
+ .preferences { position: relative; }
+ .preferencesTrigger { display: flex; align-items: center; gap: 6px; padding: 10px 3px; font-size: 13px; }
+ .preferencePanel { position: absolute; z-index: 3; right: 0; width: 250px; margin-top: 6px; padding: 14px; border: 1px solid rgb(16 16 15 / 15%); border-radius: var(--radius-control); background: var(--ivory); box-shadow: 0 13px 30px rgb(16 16 15 / 14%); }
+ .preferencePanel p { margin: 0 0 10px; font-size: 13px; line-height: 1.5; }
+ .tagList,
+ .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+ .tagList span,
+ .tags span { padding: 4px 7px; border-radius: 999px; background: rgb(183 154 104 / 16%); color: #6d532a; font-size: 12px; }
+ .clearButton { display: inline-flex; align-items: center; gap: 4px; margin-top: 12px; color: #8e3328; font-size: 12px; }
+ 
++.destinationFilters { display: grid; grid-template-columns: minmax(240px, 1.5fr) minmax(150px, .6fr) minmax(140px, .55fr) auto; gap: 16px; align-items: end; margin: 0 0 30px; padding: 20px; border: 1px solid rgb(16 16 15 / 13%); border-radius: var(--radius-panel); background: rgb(255 255 255 / 24%); }
++.searchField,
++.filterField,
++.themeFilters { display: grid; gap: 8px; color: rgb(16 16 15 / 62%); font-size: 12px; }
++.searchInputWrap { display: flex; min-width: 0; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid rgb(16 16 15 / 20%); border-radius: var(--radius-control); background: var(--ivory); color: #72572f; }
++.searchInputWrap input { min-width: 0; width: 100%; height: 42px; padding: 0; border: 0; outline: 0; background: transparent; color: var(--ink); }
++.filterField select { height: 42px; padding: 0 11px; border: 1px solid rgb(16 16 15 / 20%); border-radius: var(--radius-control); background: var(--ivory); color: var(--ink); }
++.themeFilters { grid-column: 1 / -2; }
++.themeFilters > div { display: flex; flex-wrap: wrap; gap: 8px; }
++.themeFilters button { padding: 7px 11px; border: 1px solid rgb(16 16 15 / 17%); border-radius: 999px; background: transparent; color: var(--ink); cursor: pointer; transition: border-color var(--motion-fast) ease, background var(--motion-fast) ease; }
++.themeFilters button[aria-pressed='true'] { border-color: var(--sand); background: rgb(183 154 104 / 18%); box-shadow: 0 0 0 2px rgb(183 154 104 / 9%); }
++.clearFiltersButton { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 40px; padding: 8px 12px; border: 1px solid rgb(16 16 15 / 20%); border-radius: var(--radius-control); background: transparent; color: var(--ink); cursor: pointer; }
++.clearFiltersButton:disabled { cursor: default; opacity: .42; }
++.emptyGuides { padding: clamp(38px, 7vw, 76px) 24px; border: 1px solid rgb(16 16 15 / 14%); border-radius: var(--radius-panel); text-align: center; }
++.emptyGuides h3 { margin: 0; font-family: var(--font-display); font-size: 28px; font-weight: 500; }
++.emptyGuides p { max-width: 540px; margin: 12px auto 20px; color: rgb(16 16 15 / 64%); line-height: 1.65; }
++.emptyGuides button { padding: 10px 15px; border: 0; border-radius: var(--radius-control); background: var(--pine); color: var(--ivory); cursor: pointer; }
++
+ .masonry { columns: 3; column-gap: 22px; }
+-.postCard { display: inline-block; width: 100%; margin: 0 0 22px; break-inside: avoid; border: 1px solid rgb(16 16 15 / 12%); border-radius: var(--radius-panel); overflow: hidden; background: rgb(255 255 255 / 23%); box-shadow: 0 10px 25px rgb(16 16 15 / 4%); }
+-.postImageLink { display: block; background: var(--mist); }
+-.postImage { display: block; width: 100%; height: auto; transition: transform 220ms ease; }
+-.postImageLink:hover .postImage { transform: scale(1.025); }
++.postCard { display: inline-block; width: 100%; margin: 0 0 22px; break-inside: avoid; border: 1px solid rgb(16 16 15 / 12%); border-radius: var(--radius-panel); overflow: hidden; background: rgb(255 255 255 / 23%); box-shadow: 0 10px 25px rgb(16 16 15 / 4%); transition: transform var(--motion-standard) cubic-bezier(.22, .61, .36, 1), border-color var(--motion-standard) ease, box-shadow var(--motion-standard) ease; }
++.postCard:hover,
++.postCard:focus-within,
++.postCard[data-selected='true'] { transform: translateY(-8px); border-color: rgb(183 154 104 / 72%); box-shadow: 0 15px 34px rgb(16 16 15 / 10%), 0 0 0 2px rgb(183 154 104 / 12%); }
++.postImageLink { display: block; position: relative; aspect-ratio: 3 / 2; overflow: hidden; background: var(--mist); }
++.postImage { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform var(--motion-standard) cubic-bezier(.22, .61, .36, 1); }
++.postImageLink:hover .postImage,
++.postImageLink:focus-visible .postImage { transform: scale(1.035); }
+ .postBody { padding: 17px 17px 14px; }
+ .postMeta { display: flex; align-items: center; gap: 4px; color: #6d532a; font-size: 12px; }
+ .postBody h2 { margin: 10px 0 8px; font-family: var(--font-display); font-size: 23px; font-weight: 500; line-height: 1.32; }
+ .postBody h2 a { text-decoration: none; }
+ .postBody > p { min-height: 3em; margin: 0 0 12px; color: rgb(16 16 15 / 66%); font-size: 13px; line-height: 1.55; }
+ .cardFooter { display: flex; justify-content: space-between; align-items: center; margin-top: 15px; }
+ .author,
+ .detailAuthor { display: flex; align-items: center; gap: 7px; font-size: 12px; }
+ .author b,
+ .detailAuthor b { display: grid; width: 24px; height: 24px; place-items: center; border-radius: 50%; background: var(--pine); color: var(--ivory); font-weight: 500; }
+@@ -53,26 +75,43 @@
+ .reportNotice { display: flex; flex-wrap: wrap; gap: 7px; align-items: center; margin-top: 12px; padding: 9px; border-left: 2px solid var(--sand); background: rgb(183 154 104 / 10%); font-size: 12px; line-height: 1.45; }
+ .reportNotice button { border: 1px solid rgb(16 16 15 / 22%); border-radius: 5px; background: var(--ivory); cursor: pointer; font-size: 12px; }
+ 
+ .backLink { color: #6d532a; font-size: 14px; text-decoration: none; }
+ .detailHeader { max-width: 860px; margin: 45px 0 48px; }
+ .detailHeader > p { display: flex; align-items: center; gap: 5px; margin: 0 0 15px; color: #6d532a; font-size: 14px; }
+ .detailAuthor { gap: 9px; margin-top: 22px; color: rgb(16 16 15 / 67%); }
+ .detailAuthor b { width: 32px; height: 32px; }
+ .detailAuthor time { margin-left: 8px; }
+ .aiLabel { display: inline-flex; align-items: center; gap: 5px; margin-top: 17px; padding: 6px 9px; border-radius: 999px; background: rgb(183 154 104 / 15%); color: #6d532a; font-size: 12px; }
++.detailActions { display: flex; gap: 10px; align-items: center; margin-top: 17px; }
++.detailActions .aiLabel { margin-top: 0; }
+ .detailLayout { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: clamp(35px, 7vw, 110px); align-items: start; }
+ .article { min-width: 0; }
+ .lede { margin: 0 0 31px; font-family: var(--font-display); font-size: 23px; line-height: 1.7; }
+-.mediaGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+-.mediaGrid img:first-child { grid-column: 1 / -1; aspect-ratio: 1.75; }
+-.detailImage { width: 100%; height: 100%; max-height: 440px; border-radius: 10px; object-fit: cover; }
++.guideGallery { min-width: 0; outline: none; touch-action: pan-y; }
++.guideGallery:focus-visible .galleryFrame { outline: 2px solid var(--sand); outline-offset: 4px; }
++.galleryFrame { position: relative; aspect-ratio: 3 / 2; overflow: hidden; border-radius: var(--radius-panel); background: linear-gradient(135deg, var(--pine), var(--ink)); }
++.galleryImage { object-fit: cover; }
++.galleryArrow { position: absolute; z-index: 2; top: 50%; display: grid; width: 42px; height: 42px; padding: 0; place-items: center; transform: translateY(-50%); border: 1px solid rgb(244 240 232 / 42%); border-radius: 50%; background: rgb(16 16 15 / 56%); color: var(--ivory); cursor: pointer; backdrop-filter: blur(8px); }
++.galleryArrowPrevious { left: 14px; }
++.galleryArrowNext { right: 14px; }
++.galleryPosition { position: absolute; z-index: 2; right: 16px; bottom: 14px; padding: 6px 9px; border-radius: 999px; background: rgb(16 16 15 / 62%); color: var(--ivory); font-size: 12px; font-variant-numeric: tabular-nums; }
++.galleryError { position: absolute; z-index: 1; inset: 0; display: grid; padding: 70px clamp(45px, 9vw, 110px); place-content: center; justify-items: center; background: linear-gradient(135deg, rgb(38 49 43 / 94%), rgb(16 16 15 / 94%)); color: var(--ivory); text-align: center; }
++.galleryError strong { font-family: var(--font-display); font-size: clamp(19px, 2vw, 27px); font-weight: 500; }
++.galleryError span { margin-top: 8px; color: rgb(244 240 232 / 70%); font-size: 13px; line-height: 1.6; }
++.galleryError button { display: inline-flex; align-items: center; gap: 6px; margin-top: 18px; padding: 9px 12px; border: 1px solid rgb(244 240 232 / 36%); border-radius: var(--radius-control); background: transparent; color: var(--ivory); cursor: pointer; }
++.galleryThumbnails { display: grid; grid-auto-columns: minmax(94px, 1fr); grid-auto-flow: column; gap: 10px; margin-top: 12px; overflow-x: auto; padding: 3px 3px 8px; }
++.galleryThumbnails button { position: relative; aspect-ratio: 3 / 2; min-width: 0; overflow: hidden; border: 1px solid transparent; border-radius: 9px; background: var(--mist); cursor: pointer; opacity: .62; transition: opacity var(--motion-fast) ease, border-color var(--motion-fast) ease, transform var(--motion-fast) ease; }
++.galleryThumbnails button img { object-fit: cover; }
++.galleryThumbnails button:hover,
++.galleryThumbnails button:focus-visible,
++.galleryThumbnails button[aria-pressed='true'] { border-color: var(--sand); opacity: 1; box-shadow: 0 0 0 2px rgb(183 154 104 / 14%); }
+ .article > h2,
+ .detailAside h2 { margin: 40px 0 16px; font-family: var(--font-display); font-size: 27px; font-weight: 500; }
+ .itinerary { display: grid; gap: 20px; margin: 0; padding: 0; list-style: none; }
+ .itinerary li { display: grid; grid-template-columns: 76px 1fr; gap: 17px; padding-top: 18px; border-top: 1px solid rgb(16 16 15 / 14%); }
+ .itinerary li > span { color: #72572f; font-size: 12px; font-weight: 700; letter-spacing: .08em; }
+ .itinerary h3 { margin: 0; font-size: 17px; }
+ .itinerary p { margin: 7px 0; color: rgb(16 16 15 / 68%); font-size: 14px; line-height: 1.6; }
+ .itinerary small { display: flex; align-items: center; gap: 4px; color: #6d532a; }
+ .detailAside { position: sticky; top: 108px; }
+ .detailAside section { padding-bottom: 6px; }
+@@ -120,12 +159,24 @@
+ .handoffItems { display: grid; gap: 10px; margin: 22px 0; padding: 0; list-style: none; }
+ .handoffItems li { padding-top: 10px; border-top: 1px solid rgb(16 16 15 / 13%); }
+ .handoffItems strong,
+ .handoffItems span { display: block; }
+ .handoffItems span { margin-top: 4px; color: rgb(16 16 15 / 63%); font-size: 13px; line-height: 1.5; }
+ 
+ button:focus-visible,
+ a:focus-visible,
+ .preferencesTrigger:focus-visible { outline: 2px solid var(--sand); outline-offset: 3px; }
+ 
+-@media (max-width: 900px) { .masonry { columns: 2; } .detailLayout { grid-template-columns: 1fr; } .detailAside { position: static; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; } .detailAside .convertButton { grid-column: 1 / -1; } }
+-@media (max-width: 640px) { .squarePage, .detailPage { padding: 145px 20px 48px; } .hero { padding: 24px 0 48px; } .feedHeading { display: block; } .feedControls { justify-content: start; margin-top: 18px; } .masonry { columns: 1; } .detailAside { display: block; } .detailAuthor { flex-wrap: wrap; } .detailAuthor time { width: 100%; margin-left: 41px; } .mediaGrid { grid-template-columns: 1fr; } .mediaGrid img:first-child { grid-column: auto; } .itinerary li { grid-template-columns: 60px 1fr; } }
++@media (max-width: 900px) { .destinationFilters { grid-template-columns: 1fr 1fr; } .searchField { grid-column: 1 / -1; } .themeFilters { grid-column: 1 / -1; } .masonry { columns: 2; } .detailLayout { grid-template-columns: 1fr; } .detailAside { position: static; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; } .detailAside .convertButton { grid-column: 1 / -1; } }
++@media (max-width: 640px) { .squarePage, .detailPage { padding: 145px 20px 48px; } .hero { padding: 24px 0 48px; } .feedHeading { display: block; } .feedControls { justify-content: start; margin-top: 18px; } .destinationFilters { grid-template-columns: minmax(0, 1fr); padding: 16px; } .searchField, .themeFilters { grid-column: auto; } .clearFiltersButton { width: 100%; } .masonry { columns: 1; } .detailAside { display: block; } .detailAuthor { flex-wrap: wrap; } .detailAuthor time { width: 100%; margin-left: 41px; } .galleryArrow { width: 38px; height: 38px; } .galleryArrowPrevious { left: 9px; } .galleryArrowNext { right: 9px; } .galleryThumbnails { grid-auto-columns: 92px; } .galleryError { padding: 54px 44px; } .itinerary li { grid-template-columns: 60px 1fr; } }
++
++@media (prefers-reduced-motion: reduce) {
++  .postCard,
++  .postImage,
++  .themeFilters button,
++  .galleryThumbnails button { transition: none; }
++  .postCard:hover,
++  .postCard:focus-within,
++  .postCard[data-selected='true'],
++  .postImageLink:hover .postImage,
++  .postImageLink:focus-visible .postImage { transform: none; }
++}
+diff --git a/tests/component/favorite-sync.test.tsx b/tests/component/favorite-sync.test.tsx
+index 399bef9..49b9e29 100644
+--- a/tests/component/favorite-sync.test.tsx
++++ b/tests/component/favorite-sync.test.tsx
+@@ -1,30 +1,46 @@
+ import { act, cleanup, render, screen } from '@testing-library/react';
+ import userEvent from '@testing-library/user-event';
+ import { beforeEach, describe, expect, it, vi } from 'vitest';
+ import { FavoriteButton } from '@/features/library/favorite-button';
++import SquarePostPage from '@/app/square/[slug]/page';
+ import {
+   useLibraryStore,
+   useLibraryStoreHydration,
+ } from '@/stores/library-store';
+ 
++vi.mock('next/navigation', () => ({
++  redirect: vi.fn(),
++  useRouter: () => ({ push: vi.fn() }),
++}));
++
+ beforeEach(() => {
+   window.localStorage.clear();
+   useLibraryStore.setState({
+     likedPostSlugs: [],
+     favoriteOffers: {},
+     priceAlerts: {},
+   });
+   useLibraryStoreHydration.setState({ hydrated: true, hydrationError: false });
+ });
+ 
+ describe('FavoriteButton', () => {
++  it('exposes the shared persisted favorite action on the guide detail route', async () => {
++    const user = userEvent.setup();
++    render(await SquarePostPage({ params: Promise.resolve({ slug: 'sanya-bay-rainforest-5d' }) }));
++
++    await user.click(screen.getByRole('button', { name: /喜欢 三亚 5 日/ }));
++
++    expect(useLibraryStore.getState().likedPostSlugs).toContain('sanya-bay-rainforest-5d');
++    expect(screen.getByRole('button', { name: /喜欢 三亚 5 日/ })).toHaveAttribute('aria-pressed', 'true');
++  });
++
+   it('keeps a guide liked after remount and exposes the same state to another button', async () => {
+     const user = userEvent.setup();
+     render(
+       <>
+         <FavoriteButton label="大理攻略" slug="dali-slow-5d" />
+         <FavoriteButton label="大理详情" slug="dali-slow-5d" />
+       </>,
+     );
+ 
+     await user.click(screen.getByRole('button', { name: '喜欢 大理攻略' }));
+diff --git a/tests/component/guide-gallery.test.tsx b/tests/component/guide-gallery.test.tsx
+new file mode 100644
+index 0000000..0d0c010
+--- /dev/null
++++ b/tests/component/guide-gallery.test.tsx
+@@ -0,0 +1,60 @@
++import { fireEvent, render, screen } from '@testing-library/react';
++import userEvent from '@testing-library/user-event';
++import { describe, expect, it, vi } from 'vitest';
++import SquarePostPage from '@/app/square/[slug]/page';
++
++vi.mock('next/navigation', () => ({
++  redirect: vi.fn(),
++  useRouter: () => ({ push: vi.fn() }),
++}));
++
++async function renderSanyaDetail() {
++  render(await SquarePostPage({ params: Promise.resolve({ slug: 'sanya-bay-rainforest-5d' }) }));
++}
++
++describe('GuideGallery', () => {
++  it('supports arrow buttons, thumbnails, and Home/End/Arrow keys across four images', async () => {
++    const user = userEvent.setup();
++    await renderSanyaDetail();
++
++    const gallery = screen.getByRole('region', { name: '三亚攻略图片画廊' });
++    expect(screen.getByRole('status', { name: '图片位置' })).toHaveTextContent('1 / 4');
++    expect(screen.getByRole('button', { name: /查看图片 1/ })).toHaveAttribute('aria-pressed', 'true');
++
++    await user.click(screen.getByRole('button', { name: '下一张图片' }));
++    expect(screen.getByRole('status', { name: '图片位置' })).toHaveTextContent('2 / 4');
++
++    await user.click(screen.getByRole('button', { name: /查看图片 4/ }));
++    expect(screen.getByRole('status', { name: '图片位置' })).toHaveTextContent('4 / 4');
++
++    gallery.focus();
++    await user.keyboard('{Home}{ArrowRight}{End}{ArrowLeft}');
++    expect(screen.getByRole('status', { name: '图片位置' })).toHaveTextContent('3 / 4');
++  });
++
++  it('changes image on a horizontal touch swipe without autoplay', async () => {
++    await renderSanyaDetail();
++    const gallery = screen.getByRole('region', { name: '三亚攻略图片画廊' });
++
++    fireEvent.touchStart(gallery, { touches: [{ clientX: 280, clientY: 120 }] });
++    fireEvent.touchMove(gallery, { touches: [{ clientX: 120, clientY: 124 }] });
++    fireEvent.touchEnd(gallery, { changedTouches: [{ clientX: 120, clientY: 124 }] });
++
++    expect(screen.getByRole('status', { name: '图片位置' })).toHaveTextContent('2 / 4');
++  });
++
++  it('keeps the failed source in a stable frame and retries that same image', async () => {
++    const user = userEvent.setup();
++    await renderSanyaDetail();
++    const image = screen.getByRole('img', { name: /亚龙湾黎明/ });
++    const failedSource = image.getAttribute('src');
++
++    fireEvent.error(image);
++
++    expect(screen.getByRole('alert')).toHaveTextContent('亚龙湾黎明');
++    expect(screen.getByRole('img', { name: /亚龙湾黎明/ })).toHaveAttribute('src', failedSource);
++    await user.click(screen.getByRole('button', { name: '重试当前图片' }));
++    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
++    expect(screen.getByRole('img', { name: /亚龙湾黎明/ })).toHaveAttribute('src', failedSource);
++  });
++});
+diff --git a/tests/component/square-feed.test.tsx b/tests/component/square-feed.test.tsx
+index 4b88b78..901e88a 100644
+--- a/tests/component/square-feed.test.tsx
++++ b/tests/component/square-feed.test.tsx
+@@ -8,20 +8,76 @@ import { useProfileStore, useProfileStoreHydration } from '@/stores/profile-stor
+ beforeEach(() => {
+   window.localStorage.clear();
+   useProfileStore.setState({
+     personalizedFeed: true,
+     interestTags: ['山野', '人文', '慢旅行'],
+   });
+   useProfileStoreHydration.setState({ hydrated: true, hydrationError: false });
+ });
+ 
+ describe('FeedControls', () => {
++  it('searches guide titles, excerpts, destinations, tags, and location names', async () => {
++    const user = userEvent.setup();
++    render(<SquarePage />);
++
++    const search = screen.getByRole('searchbox', { name: '搜索攻略' });
++    for (const [query, expectedTitle] of [
++      ['外滩蓝调', /上海 3 日/],
++      ['完整转场日', /贵州 6 日/],
++      ['三亚', /三亚 5 日/],
++      ['海岛', /三亚 5 日/],
++      ['蜈支洲岛', /三亚 5 日/],
++    ] as const) {
++      await user.clear(search);
++      await user.type(search, query);
++      expect(screen.getByRole('heading', { name: expectedTitle })).toBeInTheDocument();
++    }
++  });
++
++  it('combines destination, theme, and maximum-day filters', async () => {
++    const user = userEvent.setup();
++    render(<SquarePage />);
++
++    await user.selectOptions(screen.getByRole('combobox', { name: '目的地' }), '三亚');
++    await user.click(screen.getByRole('button', { name: '海岛' }));
++    await user.selectOptions(screen.getByRole('combobox', { name: '最多天数' }), '5');
++
++    expect(screen.getByRole('heading', { name: /三亚 5 日/ })).toBeInTheDocument();
++    expect(screen.queryByRole('heading', { name: /川西 6 日/ })).not.toBeInTheDocument();
++  });
++
++  it('clears only session filters while preserving chronological mode and interests', async () => {
++    useProfileStore.setState({ personalizedFeed: false, interestTags: ['海岛', '慢旅行'] });
++    const user = userEvent.setup();
++    render(<SquarePage />);
++
++    await user.type(screen.getByRole('searchbox', { name: '搜索攻略' }), '三亚');
++    await user.click(screen.getByRole('button', { name: '海岛' }));
++    await user.click(screen.getByRole('button', { name: '清除筛选' }));
++
++    expect(screen.getByRole('button', { name: '按时间排序' })).toHaveAttribute('aria-pressed', 'true');
++    expect(useProfileStore.getState().interestTags).toEqual(['海岛', '慢旅行']);
++    expect(screen.getByRole('heading', { name: /川西 6 日/ })).toBeInTheDocument();
++    expect(screen.getByRole('searchbox', { name: '搜索攻略' })).toHaveValue('');
++  });
++
++  it('offers a clear recovery action when no guide matches', async () => {
++    const user = userEvent.setup();
++    render(<SquarePage />);
++
++    await user.type(screen.getByRole('searchbox', { name: '搜索攻略' }), '不存在的目的地');
++
++    expect(screen.getByRole('status')).toHaveTextContent('没有找到符合条件的攻略');
++    await user.click(screen.getByRole('button', { name: '清除筛选' }));
++    expect(screen.getByRole('heading', { name: /三亚 5 日/ })).toBeInTheDocument();
++  });
++
+   it('lets users switch off recommendations', async () => {
+     const user = userEvent.setup();
+     const change = vi.fn();
+     render(<FeedControls mode="recommended" onModeChange={change} />);
+ 
+     await user.click(screen.getByRole('button', { name: '按时间排序' }));
+ 
+     expect(change).toHaveBeenCalledWith('chronological');
+   });
+ 

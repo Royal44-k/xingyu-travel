@@ -1,0 +1,948 @@
+# Review package: 4b7a911..a225a04
+
+## Commits
+a225a04 docs: record verified third final release
+cc88e27 docs: record third final-review gates
+f4ef6f0 fix(trips): restore partner publication bytes exactly
+
+## Files changed
+ .../preview-round3-final-verification-clean.json   | 144 +++++++++++++++++++++
+ ...production-round3-final-verification-clean.json | 141 ++++++++++++++++++++
+ artifacts/design-qa-2026-08-19/vercel-release.json |  24 ++--
+ design-qa.md                                       |   6 +-
+ docs/reports/2026-08-19-xingyu-closed-loop.md      |  24 ++++
+ src/features/trips/trip-workbench.tsx              |  20 +--
+ src/stores/partner-store.ts                        |  97 ++++++++------
+ tests/component/trip-workbench.test.tsx            |  53 +++++++-
+ tests/unit/partner-eligibility.test.ts             |  32 +++++
+ 9 files changed, 472 insertions(+), 69 deletions(-)
+
+## Diff
+diff --git a/artifacts/design-qa-2026-08-19/preview-round3-final-verification-clean.json b/artifacts/design-qa-2026-08-19/preview-round3-final-verification-clean.json
+new file mode 100644
+index 0000000..9b5ebbf
+--- /dev/null
++++ b/artifacts/design-qa-2026-08-19/preview-round3-final-verification-clean.json
+@@ -0,0 +1,144 @@
++{
++  "targetUrl": "https://xingyu-travel-fvetaopy2-lirongouyang522-3492s-projects.vercel.app",
++  "mode": "protected-preview",
++  "browser": "Google Chrome (Playwright channel: chrome)",
++  "startedAt": "2026-08-21T05:55:12.202Z",
++  "unauthenticated": {
++    "status": 200,
++    "finalOrigin": "https://vercel.com",
++    "finalPath": "/login",
++    "result": "expected Preview SSO login"
++  },
++  "routes": [
++    {
++      "route": "/",
++      "label": "首页",
++      "status": 200,
++      "finalPath": "/"
++    },
++    {
++      "route": "/square",
++      "label": "灵感广场",
++      "status": 200,
++      "finalPath": "/square"
++    },
++    {
++      "route": "/square/dali-slow-5d",
++      "label": "攻略详情",
++      "status": 200,
++      "finalPath": "/square/dali-slow-5d"
++    },
++    {
++      "route": "/profile",
++      "label": "个人中心",
++      "status": 200,
++      "finalPath": "/profile"
++    },
++    {
++      "route": "/trips",
++      "label": "我的行程",
++      "status": 200,
++      "finalPath": "/trips"
++    },
++    {
++      "route": "/compare?kind=flight&destination=%E5%A4%A7%E7%90%86&origin=%E4%B8%8A%E6%B5%B7&from=2026-09-18&to=2026-09-22&travelers=3",
++      "label": "统一比价",
++      "status": 200,
++      "finalPath": "/compare"
++    },
++    {
++      "route": "/partners",
++      "label": "旅游搭子",
++      "status": 200,
++      "finalPath": "/partners"
++    },
++    {
++      "route": "/assistant",
++      "label": "AI 旅行助手",
++      "status": 200,
++      "finalPath": "/assistant"
++    },
++    {
++      "route": "/guardian/dali-slow-5d",
++      "label": "行程守护",
++      "status": 200,
++      "finalPath": "/guardian/dali-slow-5d"
++    }
++  ],
++  "assets": [
++    {
++      "path": "/assets/destinations/dali/01.png",
++      "status": 200,
++      "contentType": "image/png",
++      "byteLength": 2487912
++    },
++    {
++      "path": "/_next/image?url=%2Fassets%2Fdestinations%2Fdali%2F01.png&w=1080&q=75",
++      "status": 200,
++      "contentType": "image/png",
++      "byteLength": 364221
++    }
++  ],
++  "securityHeaders": {
++    "x-content-type-options": "nosniff",
++    "referrer-policy": "strict-origin-when-cross-origin",
++    "permissions-policy": "camera=(), microphone=(), geolocation=()",
++    "x-frame-options": "SAMEORIGIN"
++  },
++  "affectedFlows": [
++    {
++      "name": "discovery city -> comparison destination prefilled",
++      "result": "passed"
++    },
++    {
++      "name": "fresh assistant -> advice only without invented trip",
++      "result": "passed"
++    },
++    {
++      "name": "assistant trip -> explicit selection saves once",
++      "result": "passed"
++    },
++    {
++      "name": "assistant latest failure -> previous trip plan controls invalidated",
++      "result": "passed"
++    },
++    {
++      "name": "assistant trip quota -> plan memory and bytes rolled back",
++      "result": "passed"
++    },
++    {
++      "name": "workbench trip quota -> partner owner write compensated",
++      "result": "passed"
++    },
++    {
++      "name": "assistant malformed trip store -> fail closed and preserve bytes",
++      "result": "passed"
++    },
++    {
++      "name": "workbench malformed partner store -> publishing disabled without trip marker",
++      "result": "passed"
++    }
++  ],
++  "loops": [
++    {
++      "name": "interest clear -> re-add -> recommendation survives reload",
++      "result": "passed"
++    },
++    {
++      "name": "like guide -> reload -> profile likes -> unlike",
++      "result": "passed"
++    },
++    {
++      "name": "guide conversion -> My Trips -> workbench -> compare",
++      "result": "passed"
++    },
++    {
++      "name": "favorite offer + alert -> profile -> re-search -> remove confirmation",
++      "result": "passed"
++    }
++  ],
++  "runtimeErrors": [],
++  "runtimeWarnings": [],
++  "completedAt": "2026-08-21T05:59:12.395Z",
++  "result": "passed"
++}
+diff --git a/artifacts/design-qa-2026-08-19/production-round3-final-verification-clean.json b/artifacts/design-qa-2026-08-19/production-round3-final-verification-clean.json
+new file mode 100644
+index 0000000..c6bb8a5
+--- /dev/null
++++ b/artifacts/design-qa-2026-08-19/production-round3-final-verification-clean.json
+@@ -0,0 +1,141 @@
++{
++  "targetUrl": "https://xingyu-travel.vercel.app",
++  "mode": "public-production",
++  "browser": "Google Chrome (Playwright channel: chrome)",
++  "startedAt": "2026-08-21T06:08:47.835Z",
++  "unauthenticated": {
++    "result": "fresh context; no credentials or bypass headers supplied"
++  },
++  "routes": [
++    {
++      "route": "/",
++      "label": "首页",
++      "status": 200,
++      "finalPath": "/"
++    },
++    {
++      "route": "/square",
++      "label": "灵感广场",
++      "status": 200,
++      "finalPath": "/square"
++    },
++    {
++      "route": "/square/dali-slow-5d",
++      "label": "攻略详情",
++      "status": 200,
++      "finalPath": "/square/dali-slow-5d"
++    },
++    {
++      "route": "/profile",
++      "label": "个人中心",
++      "status": 200,
++      "finalPath": "/profile"
++    },
++    {
++      "route": "/trips",
++      "label": "我的行程",
++      "status": 200,
++      "finalPath": "/trips"
++    },
++    {
++      "route": "/compare?kind=flight&destination=%E5%A4%A7%E7%90%86&origin=%E4%B8%8A%E6%B5%B7&from=2026-09-18&to=2026-09-22&travelers=3",
++      "label": "统一比价",
++      "status": 200,
++      "finalPath": "/compare"
++    },
++    {
++      "route": "/partners",
++      "label": "旅游搭子",
++      "status": 200,
++      "finalPath": "/partners"
++    },
++    {
++      "route": "/assistant",
++      "label": "AI 旅行助手",
++      "status": 200,
++      "finalPath": "/assistant"
++    },
++    {
++      "route": "/guardian/dali-slow-5d",
++      "label": "行程守护",
++      "status": 200,
++      "finalPath": "/guardian/dali-slow-5d"
++    }
++  ],
++  "assets": [
++    {
++      "path": "/assets/destinations/dali/01.png",
++      "status": 200,
++      "contentType": "image/png",
++      "byteLength": 2487912
++    },
++    {
++      "path": "/_next/image?url=%2Fassets%2Fdestinations%2Fdali%2F01.png&w=1080&q=75",
++      "status": 200,
++      "contentType": "image/png",
++      "byteLength": 364221
++    }
++  ],
++  "securityHeaders": {
++    "x-content-type-options": "nosniff",
++    "referrer-policy": "strict-origin-when-cross-origin",
++    "permissions-policy": "camera=(), microphone=(), geolocation=()",
++    "x-frame-options": "SAMEORIGIN"
++  },
++  "affectedFlows": [
++    {
++      "name": "discovery city -> comparison destination prefilled",
++      "result": "passed"
++    },
++    {
++      "name": "fresh assistant -> advice only without invented trip",
++      "result": "passed"
++    },
++    {
++      "name": "assistant trip -> explicit selection saves once",
++      "result": "passed"
++    },
++    {
++      "name": "assistant latest failure -> previous trip plan controls invalidated",
++      "result": "passed"
++    },
++    {
++      "name": "assistant trip quota -> plan memory and bytes rolled back",
++      "result": "passed"
++    },
++    {
++      "name": "workbench trip quota -> partner owner write compensated",
++      "result": "passed"
++    },
++    {
++      "name": "assistant malformed trip store -> fail closed and preserve bytes",
++      "result": "passed"
++    },
++    {
++      "name": "workbench malformed partner store -> publishing disabled without trip marker",
++      "result": "passed"
++    }
++  ],
++  "loops": [
++    {
++      "name": "interest clear -> re-add -> recommendation survives reload",
++      "result": "passed"
++    },
++    {
++      "name": "like guide -> reload -> profile likes -> unlike",
++      "result": "passed"
++    },
++    {
++      "name": "guide conversion -> My Trips -> workbench -> compare",
++      "result": "passed"
++    },
++    {
++      "name": "favorite offer + alert -> profile -> re-search -> remove confirmation",
++      "result": "passed"
++    }
++  ],
++  "runtimeErrors": [],
++  "runtimeWarnings": [],
++  "completedAt": "2026-08-21T06:12:16.844Z",
++  "result": "passed"
++}
+diff --git a/artifacts/design-qa-2026-08-19/vercel-release.json b/artifacts/design-qa-2026-08-19/vercel-release.json
+index 72bdd25..6784df5 100644
+--- a/artifacts/design-qa-2026-08-19/vercel-release.json
++++ b/artifacts/design-qa-2026-08-19/vercel-release.json
+@@ -1,29 +1,29 @@
+ {
+-  "deployedCommit": "a4cd194632577d03414c963fa26eb427dbfd73b7",
++  "deployedCommit": "cc88e274c628457eb74af587a19e22a2991911b3",
+   "preview": {
+-    "deploymentId": "dpl_F8z6cvXmsEEMZ85qfHAz1EudNtXq",
+-    "url": "https://xingyu-travel-abvgvmar8-lirongouyang522-3492s-projects.vercel.app",
++    "deploymentId": "dpl_7bL9cTHePAJyGgKrJDeQzewJyGoM",
++    "url": "https://xingyu-travel-fvetaopy2-lirongouyang522-3492s-projects.vercel.app",
+     "target": "preview",
+     "status": "READY",
+     "unauthenticatedResult": "fresh local Chrome redirected to https://vercel.com/login",
+     "automationVerification": "existing default Vercel Automation Bypass was read in process memory; no secret was printed or persisted",
+-    "browserVerification": "preview-round2-final-verification.json"
++    "browserVerification": "preview-round3-final-verification-clean.json"
+   },
+   "production": {
+-    "deploymentId": "dpl_E9kpA1gNdjX54Zzu8YheTmTynteT",
+-    "deploymentUrl": "https://xingyu-travel-dvjn1hjjq-lirongouyang522-3492s-projects.vercel.app",
++    "deploymentId": "dpl_8Cr2HkEChsnCn1Mn6mkaBn7xQYWp",
++    "deploymentUrl": "https://xingyu-travel-fs9wgz522-lirongouyang522-3492s-projects.vercel.app",
+     "publicAlias": "https://xingyu-travel.vercel.app",
+     "target": "production",
+     "status": "READY",
+     "unauthenticatedResult": "200 responses on the public alias in a fresh local Chrome context without credentials or bypass headers",
+-    "browserVerification": "production-round2-final-verification.json",
++    "browserVerification": "production-round3-final-verification-clean.json",
+     "errorLogs": "No error-level entry returned for this deployment in the bounded one-hour query"
+   },
+   "verification": {
+     "routes": "9/9 returned 200",
+     "assets": "2/2 returned 200 image/png",
+     "affectedFlows": "8/8 passed",
+     "closedLoops": "4/4 passed",
+     "runtimeErrors": 0,
+     "runtimeWarnings": 0,
+     "securityHeaders": {
+@@ -34,22 +34,26 @@
+     }
+   },
+   "automationBypassCleanup": {
+     "before": 10,
+     "removedTaskCreated": 2,
+     "after": 8,
+     "defaultPreserved": true,
+     "ssoProtectionChanged": false
+   },
+   "previousKnownGoodProduction": {
+-    "deploymentId": "dpl_JCoM3n81ch8oogaaj85KKLonKaZj",
+-    "url": "https://xingyu-travel-nqssihr6y-lirongouyang522-3492s-projects.vercel.app",
++    "deploymentId": "dpl_E9kpA1gNdjX54Zzu8YheTmTynteT",
++    "url": "https://xingyu-travel-dvjn1hjjq-lirongouyang522-3492s-projects.vercel.app",
+     "status": "READY"
+   },
+   "rejectedPreview": {
+     "deploymentId": "dpl_GCX5hMKpL2fByCRkwf9ttr6rcPQ9",
+     "promoted": false,
+     "reason": "Fresh-browser verification found that failed cross-store compensation changed absent PartnerStore persistence into an empty envelope."
+   },
+-  "rollbackCommand": "pnpm dlx vercel@59.1.4 rollback https://xingyu-travel-nqssihr6y-lirongouyang522-3492s-projects.vercel.app --scope lirongouyang522-3492s-projects",
++  "transientVerifierDiagnostics": {
++    "preview": "One Next-generated CSS preload timing warning did not reproduce in the unique same-artifact full recheck; final evidence has zero warnings.",
++    "production": "One navigation net::ERR_FAILED did not reproduce in an instrumented exact-flow diagnostic or the unique same-artifact full recheck; final evidence has zero errors and warnings."
++  },
++  "rollbackCommand": "pnpm dlx vercel@59.1.4 rollback https://xingyu-travel-dvjn1hjjq-lirongouyang522-3492s-projects.vercel.app --scope lirongouyang522-3492s-projects",
+   "rollbackExecuted": false
+ }
+diff --git a/design-qa.md b/design-qa.md
+index 3f4d71f..8a7bbef 100644
+--- a/design-qa.md
++++ b/design-qa.md
+@@ -71,26 +71,28 @@ No actionable P0, P1, or P2 finding remains in the valid route-ready comparison.
+ ## Comparison history
+ 
+ 1. Evidence preflight found that an early automated homepage capture sampled the 800 ms Motion entrance before the Hero copy settled. This was a capture-readiness defect, not a product finding.
+ 2. The capture script added a computed-opacity readiness condition, then recaptured at the identical route, viewport, density, and state.
+ 3. The rebuilt full and focused same-input boards show the settled implementation. Inspection found no actionable P0/P1/P2 mismatch, so no production source change was made during Design QA.
+ 4. The first final-fix spot script used an overly broad `alert` locator that also matched Next.js's empty route announcer; the locator was narrowed to visible product copy. A subsequent full-page capture retained a prior scroll position and placed the sticky header mid-image; the capture was normalized to `scrollY === 0` and rebuilt. These were evidence-readiness defects, not product defects.
+ 5. The normalized `comparison-affected-surfaces.png` was opened and inspected with both source visual-truth inputs in the same comparison. No actionable P0/P1/P2 difference remained, so no post-comparison production CSS or component change was required.
+ 6. The second-round capture initially matched Next.js's empty route announcer in addition to the product alert; the locator was narrowed to visible product copy. A deliberate HTTP 503 also produced expected browser console noise, so the harness switched to an application-shaped error payload with HTTP 200. These were evidence-harness defects only. The clean rerun recorded three captures with zero runtime errors or warnings.
+ 7. `artifacts/final-fixes-round2-2026-08-21/comparison-affected-surfaces.png` and all three readable captures were opened and inspected. No actionable P0/P1/P2 visual finding remained.
+ 8. The first second-round Preview verifier found a fresh-browser persistence-only defect: compensation changed absent PartnerStore bytes into an empty envelope. `6d10ef2` restores the absent state exactly. The visible workbench failure state and copy are unchanged, so the already-inspected `workbench-second-write-error.png` remains the accurate UI evidence and no redundant recapture was required.
++9. The third-round fix moves the exact persistence snapshot and rollback behind the PartnerStore owner API. TripWorkbench no longer reads a storage key or `localStorage`; its rendered branches, error copy, controls, layout, and styles are unchanged. The existing `workbench-second-write-error.png` therefore remains source-faithful evidence, and another visually identical recapture would add no Design QA signal.
+ 
+ ## Remote release evidence
+ 
+-- Protected Preview `dpl_F8z6cvXmsEEMZ85qfHAz1EudNtXq`, from exact clean commit `a4cd194632577d03414c963fa26eb427dbfd73b7`, passed `preview-round2-final-verification.json`: 9/9 routes, 2/2 assets, 8/8 affected flows, and 4/4 closed loops; zero runtime errors or warnings. A fresh unauthenticated Chrome context still reached Vercel login. The verifier only read the existing official Automation Bypass in process memory and created no bypass entry.
+-- The exact verified artifact was promoted to public Production `dpl_E9kpA1gNdjX54Zzu8YheTmTynteT`. `production-round2-final-verification.json` repeated the same matrix through `https://xingyu-travel.vercel.app` in a fresh Chrome context without credentials or bypass headers and passed with zero runtime errors, warnings, page errors, or HTTP responses >=400.
++- Protected Preview `dpl_7bL9cTHePAJyGgKrJDeQzewJyGoM`, from exact clean commit `cc88e274c628457eb74af587a19e22a2991911b3`, passed `preview-round3-final-verification-clean.json`: 9/9 routes, 2/2 assets, 8/8 affected flows, and 4/4 closed loops; zero runtime errors or warnings. A fresh unauthenticated Chrome context still reached Vercel login. The verifier only read the existing official Automation Bypass in process memory and created no bypass entry.
++- The exact verified artifact was promoted to public Production `dpl_8Cr2HkEChsnCn1Mn6mkaBn7xQYWp`. `production-round3-final-verification-clean.json` repeated the same matrix through `https://xingyu-travel.vercel.app` in a fresh Chrome context without credentials or bypass headers and passed with zero runtime errors, warnings, page errors, or HTTP responses >=400.
+ - The bounded one-hour Production error-log query returned no entry. Security headers remained `nosniff`, strict-origin referrer policy, camera/microphone/geolocation denial, and `SAMEORIGIN` framing. Preview-only SSO was not changed.
++- A first Preview pass recorded one Next-generated CSS preload timing warning; the unique same-artifact full recheck was clean. A first Production pass recorded one navigation `net::ERR_FAILED`; an instrumented exact-flow diagnostic recorded no console or request failure, and the unique same-artifact full recheck was clean. Neither transient produced an HTTP response >=400, page error, repeatable application defect, source change, or verifier suppression.
+ 
+ ## Implementation checklist
+ 
+ - [x] Source and implementation appear in the same full and focused comparison inputs.
+ - [x] Desktop and mobile captures use the required CSS viewports and density.
+ - [x] Route readiness, fonts, visible images, states, interactions, console, accessibility, and overflow are evidenced.
+ - [x] Beijing CTA, assistant no-trip/error/saved, and workbench partner-error states are captured at identical desktop viewport and density with zero runtime errors.
+ - [x] Assistant latest-failure/quota-error and workbench second-write-error states are captured at identical desktop viewport and density with zero runtime errors or warnings.
+ - [x] Objective deviations are classified as required product constraints or P3 follow-up, not silently ignored.
+ - [x] No actionable P0/P1/P2 remains.
+diff --git a/docs/reports/2026-08-19-xingyu-closed-loop.md b/docs/reports/2026-08-19-xingyu-closed-loop.md
+index a5317fc..487d677 100644
+--- a/docs/reports/2026-08-19-xingyu-closed-loop.md
++++ b/docs/reports/2026-08-19-xingyu-closed-loop.md
+@@ -123,10 +123,34 @@ This section supersedes the deployment identifiers above while preserving the ea
+ ### Second final-review release result
+ 
+ - Exact deployed source and evidence commit: `a4cd194632577d03414c963fa26eb427dbfd73b7`; the replacement Preview was created from a clean worktree after all fresh local gates passed.
+ - Protected Preview: `dpl_F8z6cvXmsEEMZ85qfHAz1EudNtXq`, `https://xingyu-travel-abvgvmar8-lirongouyang522-3492s-projects.vercel.app`, READY. `preview-round2-final-verification.json` passed 9/9 routes, 2/2 image assets, 8/8 affected flows, and 4/4 browser-local closed loops with zero runtime errors or warnings. An unauthenticated fresh Chrome context reached Vercel SSO as required.
+ - Exact-artifact promotion created Production `dpl_E9kpA1gNdjX54Zzu8YheTmTynteT`, `https://xingyu-travel-dvjn1hjjq-lirongouyang522-3492s-projects.vercel.app`, READY. No Production rebuild or divergent source deployment was used.
+ - Public Production: `https://xingyu-travel.vercel.app`. `production-round2-final-verification.json` repeated the complete Preview matrix without credentials or bypass headers and passed with zero console errors, console warnings, page errors, or HTTP responses >=400.
+ - The bounded one-hour Production error-log query returned no error-level entry. Security headers passed: `nosniff`, strict-origin referrer policy, camera/microphone/geolocation denial, and `SAMEORIGIN` framing.
+ - Preview-only SSO remained unchanged. The verifier read the pre-existing official Automation Bypass through a read-only lookup and created no new bypass credential or entry.
+ - Previous known-good Production: `dpl_JCoM3n81ch8oogaaj85KKLonKaZj` / `https://xingyu-travel-nqssihr6y-lirongouyang522-3492s-projects.vercel.app`, READY.
+ - Prepared rollback command: `pnpm dlx vercel@59.1.4 rollback https://xingyu-travel-nqssihr6y-lirongouyang522-3492s-projects.vercel.app --scope lirongouyang522-3492s-projects`; recorded only, not executed.
++
++## Third final-review candidate — 2026-08-21
++
++- Production fix commit: `f4ef6f0`. PartnerStore now owns the exact raw persistence snapshot and returns an idempotent rollback handle after a durable intent write. The rollback restores owner memory without semantic reserialization and then restores the original null or non-null bytes verbatim. TripWorkbench only invokes that handle and no longer reads `localStorage`, the PartnerStore storage key, or a semantic restore action.
++- Exact RED: the focused 2-file/67-test run produced two expected failures. The component regression received canonical compact state-first JSON instead of the intentionally formatted valid v2 bytes, and the unit owner-transaction regression received no rollback handle.
++- Focused GREEN: 2/2 files and 67/67 tests passed in 22.43 seconds. Coverage includes a valid distinctive non-null v2 envelope, a forced second TripStore quota failure, byte- and memory-exact rollback, successful owner reload, absent bytes remaining absent, owner first-write failure, and the normal publish/reload path.
++- `pnpm lint`: exit 0.
++- `pnpm typecheck`: exit 0.
++- `pnpm test --maxWorkers=1`: 42/42 files, 359/359 tests, 492.93 seconds.
++- `pnpm test:e2e`: 31/31 passed in 1.1 minutes using local Google Chrome; the task-owned server stopped and port 4173 was free.
++- `pnpm build`: exit 0; Next.js 16.2.12; compile 6.1 seconds, TypeScript 18.2 seconds, and 14/14 static pages generated in 938 ms.
++- Visible UI, copy, interaction state, styles, and responsive behavior are unchanged. The previously passed workbench second-write-error comparison remains accurate; `design-qa.md` records why a visually identical recapture was not repeated and still ends `final result: passed`.
++- The exact-byte distinction cannot be produced through ordinary visible UI because normal user writes intentionally serialize canonical valid JSON. Unit and real-component tests cover byte identity; Preview and Production verification will repeat the visible second-write failure, semantic state, route, closed-loop, security, and runtime contracts.
++
++### Third final-review release result
++
++- Exact deployed source and evidence commit: `cc88e274c628457eb74af587a19e22a2991911b3`; Preview was created from a clean worktree after all fresh local gates passed.
++- Protected Preview: `dpl_7bL9cTHePAJyGgKrJDeQzewJyGoM`, `https://xingyu-travel-fvetaopy2-lirongouyang522-3492s-projects.vercel.app`, READY. `preview-round3-final-verification-clean.json` passed 9/9 routes, 2/2 image assets, 8/8 affected flows, and 4/4 closed loops with zero runtime errors or warnings. Unauthenticated fresh Chrome reached Vercel SSO.
++- Exact-artifact promotion created Production `dpl_8Cr2HkEChsnCn1Mn6mkaBn7xQYWp`, `https://xingyu-travel-fs9wgz522-lirongouyang522-3492s-projects.vercel.app`, READY. Public alias `https://xingyu-travel.vercel.app` resolves to that deployment.
++- `production-round3-final-verification-clean.json` repeated the complete matrix without credentials or bypass headers and passed with zero console errors, console warnings, page errors, or HTTP responses >=400. The bounded one-hour Production error-log query returned no error-level entry.
++- Preview-only SSO remained unchanged. The verifier used only the pre-existing official Automation Bypass through a read-only lookup and created no new bypass credential or entry.
++- One first-pass Preview CSS preload timing warning did not reproduce in the unique same-artifact full recheck. One first-pass Production navigation `net::ERR_FAILED` did not reproduce in an instrumented exact-flow diagnostic or the unique same-artifact full recheck. No source or verifier suppression was introduced; only the clean terminal matrices are retained as release evidence.
++- Previous known-good Production: `dpl_E9kpA1gNdjX54Zzu8YheTmTynteT` / `https://xingyu-travel-dvjn1hjjq-lirongouyang522-3492s-projects.vercel.app`, READY.
++- Prepared rollback command: `pnpm dlx vercel@59.1.4 rollback https://xingyu-travel-dvjn1hjjq-lirongouyang522-3492s-projects.vercel.app --scope lirongouyang522-3492s-projects`; recorded only, not executed.
+diff --git a/src/features/trips/trip-workbench.tsx b/src/features/trips/trip-workbench.tsx
+index f026f3c..64d6bf8 100644
+--- a/src/features/trips/trip-workbench.tsx
++++ b/src/features/trips/trip-workbench.tsx
+@@ -11,33 +11,31 @@ import {
+   useTripStoreHydration,
+ } from '@/stores/trip-store';
+ import { DecisionRoom } from './decision-room';
+ import { ItineraryEditor } from './itinerary-editor';
+ import styles from './trips.module.css';
+ import { demoViewerProfile } from '@/data/partners';
+ import { postHrefForSlug } from '@/data/posts';
+ import { tripToPartnerIntent } from '@/features/partners/trip-to-partner-intent';
+ import {
+   hydratePartnerStore,
+-  partnerStoreStorageKey,
+   usePartnerStore,
+   usePartnerStoreHydration,
+ } from '@/stores/partner-store';
+ 
+ export function TripWorkbench({ slug }: { slug: string }) {
+   const workbenchHydrated = useTripStoreHydration((state) => state.hydrated);
+   const workbenchHydrationError = useTripStoreHydration((state) => state.hydrationError);
+   const partnerHydrated = usePartnerStoreHydration((state) => state.hydrated);
+   const partnerHydrationError = usePartnerStoreHydration((state) => state.hydrationError);
+   const partnerIntent = usePartnerStore((state) => state.intents[demoViewerProfile.id]);
+   const publishPartnerMatchIntent = usePartnerStore((state) => state.publishIntent);
+-  const restorePartnerMatchIntent = usePartnerStore((state) => state.restoreIntent);
+   const tripId = useTripStore((state) =>
+     Object.keys(state.trips).find((id) => state.trips[id].sourcePostSlug === slug),
+   );
+   const trip = useTripStore((state) => tripId ? state.trips[tripId] : undefined);
+   const partnerIntentPublished = useTripStore((state) => tripId ? Boolean(state.partnerIntents[tripId]) : false);
+   const updateTrip = useTripStore((state) => state.updateTrip);
+   const updateItem = useTripStore((state) => state.updateItem);
+   const reorderItem = useTripStore((state) => state.reorderItem);
+   const toggleAlternative = useTripStore((state) => state.toggleAlternative);
+   const vote = useTripStore((state) => state.vote);
+@@ -69,38 +67,34 @@ export function TripWorkbench({ slug }: { slug: string }) {
+ 
+   if (!trip) {
+     return <WorkbenchState title="未找到本地行程" message="行程只保存在创建它的浏览器中。请返回攻略重新保存。" sourceHref={postHrefForSlug(slug)} />;
+   }
+ 
+   const budgetSummary = getBudgetSummary(trip);
+   const partnerPublishingAvailable = partnerHydrated && !partnerHydrationError;
+   const publishPartnerIntentSafely = () => {
+     if (!partnerPublishingAvailable) return;
+     setPartnerPublishingError('');
+-    const previousPartnerIntent = usePartnerStore.getState().intents[demoViewerProfile.id];
+-    const partnerPersistenceWasAbsent = localStorage.getItem(partnerStoreStorageKey) === null;
+-    let ownerIntentCommitted = false;
++    let rollbackPartnerIntent: (() => void) | undefined;
+     try {
+-      publishPartnerMatchIntent(demoViewerProfile, tripToPartnerIntent(trip, partnerIntent));
++      rollbackPartnerIntent = publishPartnerMatchIntent(
++        demoViewerProfile,
++        tripToPartnerIntent(trip, partnerIntent),
++      );
+       if (!usePartnerStore.getState().intents[demoViewerProfile.id]) {
+         throw new Error('PARTNER_INTENT_NOT_COMMITTED');
+       }
+-      ownerIntentCommitted = true;
+       publishPartnerIntent(trip.id);
+     } catch {
+-      if (ownerIntentCommitted) {
++      if (rollbackPartnerIntent) {
+         try {
+-          restorePartnerMatchIntent(
+-            demoViewerProfile.id,
+-            previousPartnerIntent,
+-            partnerPersistenceWasAbsent,
+-          );
++          rollbackPartnerIntent();
+         } catch {
+           setPartnerPublishingError('搭子意愿与行程标记未能一致保存。请暂停重试并前往寻找搭子页检查本地状态。');
+           return;
+         }
+       }
+       setPartnerPublishingError('搭子意愿未能保存，行程未标记为已发布。请稍后重试。');
+     }
+   };
+   return (
+     <main className={styles.page}>
+diff --git a/src/stores/partner-store.ts b/src/stores/partner-store.ts
+index 7f9ce44..95e6227 100644
+--- a/src/stores/partner-store.ts
++++ b/src/stores/partner-store.ts
+@@ -37,22 +37,21 @@ export interface PartnerMatch {
+   tripShared: boolean;
+   checkInStatus: CheckInStatus;
+   demoMode: true;
+ }
+ 
+ export interface PartnerStoreState {
+   intents: Record<string, PartnerIntent>;
+   matches: Record<string, PartnerMatch>;
+   visibleMatchIds: string[];
+   blockedCandidateIds: string[];
+-  publishIntent: (profile: PartnerProfile, intent: PartnerIntent) => void;
+-  restoreIntent: (profileId: string, intent?: PartnerIntent, persistenceWasAbsent?: boolean) => void;
++  publishIntent: (profile: PartnerProfile, intent: PartnerIntent) => () => void;
+   requestMatch: (profile: PartnerProfile, candidateId: string) => string;
+   simulateMutualApproval: (profile: PartnerProfile, matchId: string) => void;
+   sendMessage: (profile: PartnerProfile, matchId: string, body: string) =>
+     | { sent: false; code: 'CONTACT_CONSENT_REQUIRED' }
+     | { sent: true; warning?: string };
+   setContactConsent: (profile: PartnerProfile, matchId: string, side: 'viewer' | 'candidate', consent: boolean) => void;
+   acknowledgeTrustedContact: (profile: PartnerProfile, matchId: string) => void;
+   shareTrip: (profile: PartnerProfile, matchId: string) => void;
+   recordCheckIn: (profile: PartnerProfile, matchId: string, status: Exclude<CheckInStatus, 'none'>) => void;
+   blockMatch: (profile: PartnerProfile, matchId: string) => void;
+@@ -62,21 +61,28 @@ export interface PartnerStoreState {
+ 
+ interface CreatePartnerStoreOptions { onHydrationError?: (error: unknown) => void }
+ interface PartnerStoreHydrationState { hydrated: boolean; hydrationError: boolean }
+ 
+ const initialPartnerState: Pick<
+   PartnerStoreState,
+   'intents' | 'matches' | 'visibleMatchIds' | 'blockedCandidateIds'
+ > = {
+   intents: {}, matches: {}, visibleMatchIds: [], blockedCandidateIds: [],
+ };
+-export const partnerStoreStorageKey = 'xingyu-partner-demo-v1';
++const partnerStoreStorageKey = 'xingyu-partner-demo-v1';
++
++interface PartnerPersistenceOwner {
++  capture: () => string | null;
++  restore: (snapshot: string | null) => void;
++  runWithoutPersistence: <Result>(operation: () => Result) => Result;
++  allowPersistence: () => void;
++}
+ 
+ const allowedTransitions: Readonly<Record<PartnerMatchStatus, readonly PartnerMatchStatus[]>> = {
+   pending_mutual: ['matched', 'blocked', 'reported'],
+   matched: ['blocked', 'reported'],
+   blocked: [],
+   reported: [],
+ };
+ 
+ const messageSchema = z.object({
+   id: z.string().min(1).max(180),
+@@ -166,77 +172,57 @@ function requireActiveMatch(state: PartnerStoreState, profile: PartnerProfile, m
+ function collisionSafeId(prefix: string, existing: Record<string, unknown>) {
+   let id = '';
+   do id = `${prefix}-${crypto.randomUUID()}`;
+   while (existing[id]);
+   return id;
+ }
+ 
+ function stateCreator(
+   set: (recipe: (state: PartnerStoreState) => Partial<PartnerStoreState>) => void,
+   get: () => PartnerStoreState,
+-  allowPersistence: () => void = () => {},
++  persistence: PartnerPersistenceOwner,
+ ): PartnerStoreState {
+   return {
+     ...initialPartnerState,
+     publishIntent: (profile, intent) => {
+       requireEligibility(profile);
+       const parsed = validatePartnerIntent(intent);
+       if (!parsed.success) throw new Error('PARTNER_INVALID_INTENT');
+       const previousIntent = get().intents[profile.id];
+-      try {
+-        set((state) => ({ intents: { ...state.intents, [profile.id]: parsed.data } }));
+-      } catch (error) {
+-        try {
++      const persistenceSnapshot = persistence.capture();
++      const restoreOwnerSnapshot = () => {
++        persistence.runWithoutPersistence(() => {
+           set((state) => {
+             const intents = { ...state.intents };
+             if (previousIntent) intents[profile.id] = previousIntent;
+             else delete intents[profile.id];
+             return { intents };
+           });
+-        } catch {
+-          // State changes before persistence is attempted, so this still restores
+-          // the owner-domain memory when storage fails again during rollback.
+-        }
+-        throw error;
+-      }
+-    },
+-    restoreIntent: (profileId, intent, persistenceWasAbsent = false) => {
+-      const previousIntent = get().intents[profileId];
+-      try {
+-        set((state) => {
+-          const intents = { ...state.intents };
+-          if (intent) intents[profileId] = intent;
+-          else delete intents[profileId];
+-          return { intents };
+         });
++        persistence.restore(persistenceSnapshot);
++      };
++      try {
++        set((state) => ({ intents: { ...state.intents, [profile.id]: parsed.data } }));
+       } catch (error) {
+         try {
+-          set((state) => {
+-            const intents = { ...state.intents };
+-            if (previousIntent) intents[profileId] = previousIntent;
+-            else delete intents[profileId];
+-            return { intents };
+-          });
++          restoreOwnerSnapshot();
+         } catch {
+-          // Memory changes precede persistence, so the original owner snapshot is restored.
++          // Memory is restored before the exact persistence snapshot is attempted.
+         }
+         throw error;
+       }
+-      if (persistenceWasAbsent) {
+-        const restored = get();
+-        const canRestoreAbsentPersistence = Object.keys(restored.intents).length === 0
+-          && Object.keys(restored.matches).length === 0
+-          && restored.visibleMatchIds.length === 0
+-          && restored.blockedCandidateIds.length === 0;
+-        if (!canRestoreAbsentPersistence) throw new Error('PARTNER_COMPENSATION_PERSISTENCE_CONFLICT');
+-        localStorage.removeItem(partnerStoreStorageKey);
+-      }
++      let rolledBack = false;
++      return () => {
++        if (rolledBack) return;
++        restoreOwnerSnapshot();
++        rolledBack = true;
++      };
+     },
+     requestMatch: (profile, candidateId) => {
+       requireEligibility(profile);
+       const state = get();
+       const intent = state.intents[profile.id];
+       if (!intent) throw new Error('PARTNER_INTENT_REQUIRED');
+       const candidates = filterPartnerCandidates(intent, demoPartnerCandidates, {
+         viewerId: profile.id, blockedCandidateIds: state.blockedCandidateIds,
+       });
+       if (!candidates.some((candidate) => candidate.id === candidateId)) throw new Error('PARTNER_HARD_FILTERED');
+@@ -294,21 +280,21 @@ function stateCreator(
+       const match = requireActiveMatch(state, profile, matchId);
+       return { matches: { ...state.matches, [matchId]: { ...match, tripShared: true } } };
+     }),
+     recordCheckIn: (profile, matchId, checkInStatus) => set((state) => {
+       const match = requireActiveMatch(state, profile, matchId);
+       return { matches: { ...state.matches, [matchId]: { ...match, checkInStatus } } };
+     }),
+     blockMatch: (profile, matchId) => set((state) => lockMatch(state, profile, matchId, 'blocked')),
+     reportMatch: (profile, matchId) => set((state) => lockMatch(state, profile, matchId, 'reported')),
+     resetPartnerStore: () => {
+-      allowPersistence();
++      persistence.allowPersistence();
+       set(() => ({ intents: {}, matches: {}, visibleMatchIds: [], blockedCandidateIds: [] }));
+     },
+   };
+ }
+ 
+ function lockMatch(state: PartnerStoreState, profile: PartnerProfile, matchId: string, next: 'blocked' | 'reported') {
+   const match = requireMatch(state, profile, matchId);
+   const status = transitionPartnerMatch(match.status, next);
+   return {
+     matches: { ...state.matches, [matchId]: {
+@@ -366,42 +352,67 @@ function persistenceOptions(options: CreatePartnerStoreOptions = {}) {
+       return migrateV1PersistedState(persistedState);
+     },
+     onRehydrateStorage: () => (_state: PartnerStoreState | undefined, error: unknown) => {
+       if (error) options.onHydrationError?.(error);
+     },
+   };
+ }
+ 
+ function createPersistedPartnerState(options: CreatePartnerStoreOptions = {}) {
+   let preserveMalformedBytes = false;
++  let suppressPersistence = false;
+   const allowPersistence = () => { preserveMalformedBytes = false; };
++  const rawStorage = () => typeof window === 'undefined' ? undefined : window.localStorage;
++  const persistenceOwner: PartnerPersistenceOwner = {
++    capture: () => rawStorage()?.getItem(partnerStoreStorageKey) ?? null,
++    restore: (snapshot) => {
++      const storage = rawStorage();
++      if (!storage) return;
++      if (snapshot === null) storage.removeItem(partnerStoreStorageKey);
++      else storage.setItem(partnerStoreStorageKey, snapshot);
++    },
++    runWithoutPersistence: (operation) => {
++      const previous = suppressPersistence;
++      suppressPersistence = true;
++      try {
++        return operation();
++      } finally {
++        suppressPersistence = previous;
++      }
++    },
++    allowPersistence,
++  };
+   const jsonStorage = createJSONStorage<PersistedPartnerState>(() => localStorage) ?? {
+     getItem: () => null,
+     setItem: () => {},
+     removeItem: () => {},
+   };
+   const safeOptions = {
+     ...options,
+     onHydrationError: (error: unknown) => {
+       preserveMalformedBytes = true;
+       options.onHydrationError?.(error);
+     },
+   };
+ 
+   return persist<PartnerStoreState, [], [], PersistedPartnerState>(
+-    (set, get) => stateCreator(set, get, allowPersistence),
++    (set, get) => stateCreator(set, get, persistenceOwner),
+     {
+       ...persistenceOptions(safeOptions),
+       storage: {
+         getItem: (name) => jsonStorage.getItem(name),
+-        setItem: (name, value) => preserveMalformedBytes ? undefined : jsonStorage.setItem(name, value),
+-        removeItem: (name) => preserveMalformedBytes ? undefined : jsonStorage.removeItem(name),
++        setItem: (name, value) => preserveMalformedBytes || suppressPersistence
++          ? undefined
++          : jsonStorage.setItem(name, value),
++        removeItem: (name) => preserveMalformedBytes || suppressPersistence
++          ? undefined
++          : jsonStorage.removeItem(name),
+       },
+     },
+   );
+ }
+ 
+ export function createPartnerStore(options: CreatePartnerStoreOptions = {}) {
+   return createStore<PartnerStoreState>()(createPersistedPartnerState(options));
+ }
+ 
+ export const usePartnerStoreHydration = create<PartnerStoreHydrationState>(() => ({ hydrated: false, hydrationError: false }));
+diff --git a/tests/component/trip-workbench.test.tsx b/tests/component/trip-workbench.test.tsx
+index e9c49ba..a5bfb8b 100644
+--- a/tests/component/trip-workbench.test.tsx
++++ b/tests/component/trip-workbench.test.tsx
+@@ -3,21 +3,21 @@ import userEvent from '@testing-library/user-event';
+ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+ import { postsBySlug } from '@/data/posts';
+ import { extractTripDraft } from '@/domain/trips/extract-draft';
+ import { TripWorkbench } from '@/features/trips/trip-workbench';
+ import { createTripStore, useTripStore, useTripStoreHydration } from '@/stores/trip-store';
+ import {
+   createPartnerStore,
+   usePartnerStore,
+   usePartnerStoreHydration,
+ } from '@/stores/partner-store';
+-import { demoViewerProfile } from '@/data/partners';
++import { defaultPartnerIntent, demoViewerProfile } from '@/data/partners';
+ 
+ const draft = extractTripDraft(postsBySlug['dali-slow-5d']);
+ 
+ function readyStores() {
+   usePartnerStore.getState().resetPartnerStore();
+   useTripStore.setState({ trips: {}, partnerIntents: {}, guardianPlans: {} });
+   useTripStore.getState().savePostAsTrip(draft, postsBySlug['dali-slow-5d'].media[0].src);
+   useTripStoreHydration.setState({ hydrated: true, hydrationError: false });
+   usePartnerStoreHydration.setState({ hydrated: true, hydrationError: false });
+ }
+@@ -219,20 +219,71 @@ describe('TripWorkbench', () => {
+     await user.click(screen.getByRole('button', { name: '发布搭子意愿' }));
+ 
+     expect(screen.getByRole('alert')).toHaveTextContent('搭子意愿未能保存');
+     expect(usePartnerStore.getState().intents[demoViewerProfile.id]).toBeUndefined();
+     expect(useTripStore.getState().partnerIntents[draft.id]).toBeUndefined();
+     expect(useTripStore.getState().trips[draft.id]).toEqual(tripBefore);
+     expect(window.localStorage.getItem('xingyu-partner-demo-v1')).toBe(partnerBytesBefore);
+     expect(window.localStorage.getItem('xingyu-demo-v1')).toBe(tripBytesBefore);
+   });
+ 
++  it('restores distinctive existing partner bytes exactly when the trip marker write fails second', async () => {
++    const user = userEvent.setup();
++    const previousIntent = { ...defaultPartnerIntent, destination: '杭州', route: '西湖—龙井村' };
++    const previousPartnerState = {
++      intents: { [demoViewerProfile.id]: previousIntent },
++      matches: {},
++      visibleMatchIds: [],
++      blockedCandidateIds: [],
++    };
++    const partnerBytesBefore = `{
++  "version": 2,
++  "state": ${JSON.stringify({
++    blockedCandidateIds: [],
++    visibleMatchIds: [],
++    matches: {},
++    intents: previousPartnerState.intents,
++  }, null, 4)}
++}`;
++    usePartnerStore.setState(previousPartnerState);
++    window.localStorage.setItem('xingyu-partner-demo-v1', partnerBytesBefore);
++    const tripBytesBefore = window.localStorage.getItem('xingyu-demo-v1');
++    const tripBefore = structuredClone(useTripStore.getState().trips[draft.id]);
++    const originalSetItem = window.localStorage.setItem.bind(window.localStorage);
++    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation((key, value) => {
++      if (key === 'xingyu-demo-v1') throw new Error('TRIP_QUOTA_EXCEEDED');
++      originalSetItem(key, value);
++    });
++    render(<TripWorkbench slug="dali-slow-5d" />);
++    await screen.findByRole('heading', { name: /大理慢行计划/ });
++
++    await user.click(screen.getByRole('button', { name: '发布搭子意愿' }));
++
++    expect(screen.getByRole('alert')).toHaveTextContent('搭子意愿未能保存');
++    expect({
++      intents: usePartnerStore.getState().intents,
++      matches: usePartnerStore.getState().matches,
++      visibleMatchIds: usePartnerStore.getState().visibleMatchIds,
++      blockedCandidateIds: usePartnerStore.getState().blockedCandidateIds,
++    }).toEqual(previousPartnerState);
++    expect(useTripStore.getState().partnerIntents[draft.id]).toBeUndefined();
++    expect(useTripStore.getState().trips[draft.id]).toEqual(tripBefore);
++    expect(window.localStorage.getItem('xingyu-partner-demo-v1')).toBe(partnerBytesBefore);
++    expect(window.localStorage.getItem('xingyu-demo-v1')).toBe(tripBytesBefore);
++
++    setItem.mockRestore();
++    const reloadedPartner = createPartnerStore();
++    await reloadedPartner.persist.rehydrate();
++    expect(reloadedPartner.getState().intents[demoViewerProfile.id]).toEqual(previousIntent);
++    expect(window.localStorage.getItem('xingyu-partner-demo-v1')).toBe(partnerBytesBefore);
++  });
++
+   it('disables partner publishing after malformed partner hydration without mutating the trip marker', async () => {
+     const user = userEvent.setup();
+     const malformedBytes = '{broken-partner-store';
+     usePartnerStore.setState({
+       intents: {}, matches: {}, visibleMatchIds: [], blockedCandidateIds: [],
+     });
+     usePartnerStoreHydration.setState({ hydrated: false, hydrationError: false });
+     window.localStorage.setItem('xingyu-partner-demo-v1', malformedBytes);
+ 
+     render(<TripWorkbench slug="dali-slow-5d" />);
+diff --git a/tests/unit/partner-eligibility.test.ts b/tests/unit/partner-eligibility.test.ts
+index ebf67c7..3ff2a80 100644
+--- a/tests/unit/partner-eligibility.test.ts
++++ b/tests/unit/partner-eligibility.test.ts
+@@ -57,20 +57,52 @@ describe('partner intent and hard filters', () => {
+       if (key === 'xingyu-partner-demo-v1') throw new Error('QUOTA_EXCEEDED');
+       originalSetItem(key, value);
+     });
+ 
+     expect(() => store.getState().publishIntent(eligibleProfile, daliPartnerIntent)).toThrow('QUOTA_EXCEEDED');
+     expect(store.getState().intents[eligibleProfile.id]).toBeUndefined();
+ 
+     setItem.mockRestore();
+   });
+ 
++  it('restores an exact owner snapshot without a semantic rollback persistence write', async () => {
++    const previousIntent = { ...defaultPartnerIntent, destination: '杭州', route: '西湖—龙井村' };
++    const previousBytes = `{
++  "version": 2,
++  "state": ${JSON.stringify({
++    blockedCandidateIds: [],
++    visibleMatchIds: [],
++    matches: {},
++    intents: { [eligibleProfile.id]: previousIntent },
++  }, null, 4)}
++}`;
++    window.localStorage.setItem('xingyu-partner-demo-v1', previousBytes);
++    const store = createPartnerStore();
++    await store.persist.rehydrate();
++
++    const rollback = store.getState().publishIntent(eligibleProfile, daliPartnerIntent);
++    expect(typeof rollback).toBe('function');
++    const originalSetItem = window.localStorage.setItem.bind(window.localStorage);
++    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation((key, value) => {
++      if (key === 'xingyu-partner-demo-v1' && value !== previousBytes) {
++        throw new Error('SEMANTIC_ROLLBACK_PERSISTENCE_BLOCKED');
++      }
++      originalSetItem(key, value);
++    });
++
++    if (typeof rollback === 'function') rollback();
++
++    expect(store.getState().intents[eligibleProfile.id]).toEqual(previousIntent);
++    expect(window.localStorage.getItem('xingyu-partner-demo-v1')).toBe(previousBytes);
++    setItem.mockRestore();
++  });
++
+   it('requires every intent field and a valid date, budget, interest, and capacity', () => {
+     expect(validatePartnerIntent({
+       ...defaultPartnerIntent,
+       destination: '',
+       endDate: '2026-09-01',
+       budget: 0,
+       interests: [],
+       capacity: 0,
+     })).toEqual({
+       success: false,

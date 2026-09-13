@@ -1,0 +1,4 @@
+# Archive evidence is byte-preserved, including original CRLF log files.
+archive/** -text
+ASSETS.md text eol=lf
+scripts/verify-assets-archive.mjs text eol=lf

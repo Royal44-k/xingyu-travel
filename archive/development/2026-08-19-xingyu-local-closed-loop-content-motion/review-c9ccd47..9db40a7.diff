@@ -1,0 +1,970 @@
+# Review package: c9ccd47..9db40a7
+
+## Commits
+9db40a7 fix: harden cinematic discovery controls
+
+## Files changed
+ .../task-8-report.md                               |  60 ++++++++-
+ .../home-film/beijing-forbidden-city-dawn.png      | Bin 0 -> 2479978 bytes
+ .../home-film/chongqing-river-city-blue-hour.png   | Bin 0 -> 2664804 bytes
+ .../assets/home-film/xiamen-gulangyu-morning.png   | Bin 0 -> 2609192 bytes
+ public/assets/home-film/xian-city-wall-dusk.png    | Bin 0 -> 2516439 bytes
+ src/features/home/destination-film-carousel.tsx    | 120 ++++++++++++------
+ src/features/home/featured-destinations.module.css |  25 +++-
+ src/features/home/featured-destinations.tsx        |  68 +++++++++-
+ src/features/home/home-story-sections.tsx          |   2 +-
+ tests/component/destination-film-carousel.test.tsx | 139 ++++++++++++++++++++-
+ tests/component/home-shell.test.tsx                |  19 +++
+ 11 files changed, 381 insertions(+), 52 deletions(-)
+
+## Diff
+diff --git a/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/task-8-report.md b/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/task-8-report.md
+index a454d42..3eaf5f6 100644
+--- a/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/task-8-report.md
++++ b/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/task-8-report.md
+@@ -1,63 +1,111 @@
+ # Task 8 Report: Signature Destination Film and Rich Home Story
+ 
+ ## Result
+ 
+ Implemented the Task 8 homepage scope without changing persisted schemas, running a browser/E2E session, touching the ledger, or deploying:
+ 
+-- Replaced the two-card seasonal strip with a real eight-guide destination film sourced from the Task 6 post and destination-image registries.
++- Replaced the two-card seasonal strip with a 12-stop destination film: all eight Task 6 guide cities plus Beijing, Xi’an, Chongqing, and Xiamen discovery stops.
+ - Enlarged the active destination while keeping both adjacent photographs partially visible.
+ - Added 6-second autoplay, hover/focus-within/page-hidden/drag pause behavior, pointer drag, previous/next controls, pagination, Home/End/Arrow keys, an accessible live position, and reduced-motion autoplay/parallax removal.
++- Hardened pointer handling so nested destination links keep native tap activation: interactive targets are excluded and pointer capture begins only after horizontal drag intent.
++- Replaced the perpetual interval with one restartable timeout, giving resume, controls, pagination, and drag selection a new full six-second dwell without duplicate autoplay deadlines.
++- Kept only the active slide accessible and interactive while adjacent images remain visual peeks; only the active and adjacent images mount with high fetch priority.
+ - Added four guide themes, true-total-price explanation, guide-to-trip example, AI/guardian scenario, trusted-partner boundary, and browser-local recent-trip/liked-guide content.
+ - Kept the local shelf server/client neutral until the client snapshot and both owning stores are hydrated, then derived content through store selectors without direct `localStorage` access.
+ - Kept every CTA on an existing route and every photograph tied to real destination metadata.
+ 
+ ## TDD Evidence
+ 
+ Production files were unchanged when the Task 8 component contract was added.
+ 
+ Initial RED:
+ 
+ - Command: `pnpm test tests/component/destination-film-carousel.test.tsx tests/component/home-shell.test.tsx`
+ - Test files: 2 failed.
+ - Existing home checks: 2 passed.
+ - Expected missing behavior: the carousel module did not exist; the home shell lacked the destination region, narrative modules, and local hydration status.
+ 
+ Focused GREEN:
+ 
+ - Command: `pnpm test tests/component/destination-film-carousel.test.tsx tests/component/home-shell.test.tsx tests/component/search-composer.test.tsx`
+ - Test files: 3 passed.
+-- Tests: 16 passed.
++- Tests: 23 passed after review hardening.
+ - Covered timing, every pause source, pointer drag and cancellation, keyboard endpoints, pagination, reduced motion, real image/route metadata, all narrative CTAs, neutral hydration, local trip/like reveal, and the unchanged search composer.
+ 
++Review round 1 RED/GREEN:
++
++- Initial RED command: `pnpm test tests/component/destination-film-carousel.test.tsx tests/component/home-shell.test.tsx`
++- Initial RED result: 7 expected failures and 10 existing passes. Failures demonstrated the premature nested-link pointer capture, non-restartable interval, adjacent tabbability, eager image mounting, eight-item production mapping, and oldest-first liked-guide selection.
++- Additional interaction-boundary RED: the inactive-slide `inert` assertion failed 1 of 12 carousel tests before production added the inert boundary.
++- GREEN command: `pnpm test tests/component/destination-film-carousel.test.tsx tests/component/home-shell.test.tsx tests/component/search-composer.test.tsx`
++- GREEN result: 3 files and 23 tests passed.
++
++## ImageGen Assets and Provenance
++
++Each discovery-only city used exactly one call to the built-in `image_gen` tool. Generation was not performed through a CLI. Originals remain in the generated-image directory; copies live at clear production paths. All four copies were individually opened with `view_image`, confirmed as 1536×1024, and accepted for destination geography, natural photographic treatment, responsive crop, and absence of overlay text, readable signs, logos, watermarks, or recognizable faces.
++
++### Beijing
++
++- Exact prompt: `Create one photorealistic natural editorial travel photograph at exactly 1536×1024 pixels (3:2 landscape) for a premium China destination carousel. Beijing at dawn: a geographically accurate elevated long-lens view along Beijing’s historic central axis with the Forbidden City palace roofs and Meridian Gate architecture recognizable in warm first light, subtle morning haze, restrained cinematic color, believable stone and glazed-tile texture, calm spacious composition with the visual subject centered for responsive cropping. No gradients or illustration styling. No text, no readable signs, no logos, no watermark, no borders, no UI, no recognizable faces; any people must be tiny anonymous background silhouettes.`
++- Generated original: `C:/Users/lenovo/.codex/generated_images/01a01db4-a504-7232-95e8-d3187a66dcad/exec-a64474ac-73bc-4457-afaa-96afde3dbb27.png`
++- Workspace copy: `public/assets/home-film/beijing-forbidden-city-dawn.png`
++- SHA-256: `61FF2127073A3320233C1431C4D4D85062BA0C18693014DCBBF69211174CDCA3`
++- Inspection: accepted; Forbidden City palace roofs and Beijing axis read correctly at dawn, with no readable sign, overlay, logo, watermark, or identifiable person.
++
++### Xi’an
++
++- Exact prompt: `Create one photorealistic natural editorial travel photograph at exactly 1536×1024 pixels (3:2 landscape) for a premium China destination carousel. Xi’an at dusk: a geographically accurate wide view of the intact Xi’an Ming city wall with a traditional corner/watch tower, crenellated brick ramparts and the surrounding modern city held quietly beyond, blue-and-amber twilight after sunset, believable masonry and soft practical lantern light, restrained cinematic color, calm spacious composition with the historic wall centered for responsive cropping. No gradients or illustration styling. No text, no readable signs, no logos, no watermark, no borders, no UI, no recognizable faces; any people must be tiny anonymous background silhouettes.`
++- Generated original: `C:/Users/lenovo/.codex/generated_images/01a01db4-a504-7232-95e8-d3187a66dcad/exec-f5335e32-ac1f-4aff-845f-03b72b6608e8.png`
++- Workspace copy: `public/assets/home-film/xian-city-wall-dusk.png`
++- SHA-256: `537E60285AB987A0B5968BFB8F9959416BF1FA4CF0F9AE63F329540B1A27DF6D`
++- Inspection: accepted; the Ming wall, brick ramparts, tower, and dusk city context are geographically coherent with no prohibited marks or faces.
++
++### Chongqing
++
++- Exact prompt: `Create one photorealistic natural editorial travel photograph at exactly 1536×1024 pixels (3:2 landscape) for a premium China destination carousel. Chongqing at blue hour: a geographically convincing wide view of the steep layered mountain city rising beside the meeting of broad rivers, dense illuminated towers and hillside neighborhoods, a bridge crossing the water, humid blue atmosphere and subtle reflections, emphasizing Chongqing’s vertical river-city terrain rather than a generic skyline, restrained cinematic color, calm composition centered for responsive cropping. No gradients or illustration styling. No text, no readable signs, no logos, no watermark, no borders, no UI, no recognizable faces; any people must be tiny anonymous background silhouettes.`
++- Generated original: `C:/Users/lenovo/.codex/generated_images/01a01db4-a504-7232-95e8-d3187a66dcad/exec-05141445-2203-4a31-a3e0-787d80995e55.png`
++- Workspace copy: `public/assets/home-film/chongqing-river-city-blue-hour.png`
++- SHA-256: `A5F538F8BDEAB2CE3A2B865D32E65E8197AC726BE63F5848DCEE6C879BB6AB97`
++- Inspection: accepted; layered hillside construction, broad river, bridge, and blue-hour atmosphere clearly communicate Chongqing without prohibited marks or faces.
++
++### Xiamen
++
++- Exact prompt: `Create one photorealistic natural editorial travel photograph at exactly 1536×1024 pixels (3:2 landscape) for a premium China destination carousel. Xiamen in soft morning light: a geographically convincing coastal view from Gulangyu with subtropical greenery, weathered red-roofed historic villas, calm blue water and the Xiamen island skyline across the channel, gentle sea haze, natural Fujian coast atmosphere, restrained cinematic color, spacious composition centered for responsive cropping. No gradients or illustration styling. No text, no readable signs, no logos, no watermark, no borders, no UI, no recognizable faces; any people must be tiny anonymous background silhouettes.`
++- Generated original: `C:/Users/lenovo/.codex/generated_images/01a01db4-a504-7232-95e8-d3187a66dcad/exec-e9598c60-12c1-4956-ab50-125a8b67d4f7.png`
++- Workspace copy: `public/assets/home-film/xiamen-gulangyu-morning.png`
++- SHA-256: `C9A83BDE2B7D1043B59D80B71432DBEDD85BB2D3D60FE801E7124787459D01AB`
++- Inspection: accepted; Gulangyu’s red-roof villas, subtropical shore, channel, and Xiamen skyline read correctly with no prohibited marks or recognizable faces.
++
+ ## Design Evidence
+ 
+ - Read and followed the approved homepage target `docs/design/selected-homepage-option-1.png`, the content target `docs/design/xingyu-content-hub-target.png`, the full Task 8 brief, and the homepage/motion sections of the approved plan and spec.
+ - Followed the Product Design critical override at `C:/Users/lenovo/.codex/plugins/cache/openai-curated-remote/product-design/0.1.52/references/critical-overrides.md` and the local frontend-design guidance.
+ - Reused the approved tokens `#10100F`, `#F4F0E8`, `#B79A68`, `#26312B`, `#4D6B63`, and `#A94032`, plus the existing Noto Serif/Sans roles.
+ - Kept the moving travel viewfinder as the single new signature motion surface. Supporting cards use only state-driven focus/hover treatment; lift is 6px and image scale is capped at 1.035.
+ - Sand glow appears only on the active carousel card, active pagination, and hovered controls. No gradient, CSS drawing, inline/handcrafted SVG, fake map line, decorative numbering, or generic metric dashboard was added.
+ - The 390px rules collapse all grids, keep adjacent film edges visible inside an overflow-clipped viewport, preserve readable copy and focus, and remove large transforms under reduced motion.
++- Twelve 44px pagination targets wrap within a 354px mobile content width while their visual pills stay restrained; no horizontal overflow is introduced.
+ 
+ ## React Review Evidence
+ 
+ - Direct imports keep the client bundle boundary explicit; the static post-to-film mapping remains in the server composition.
+-- Transient pointer and pause state lives in refs so high-frequency movement and timer checks do not cause avoidable rerenders.
++- High-frequency pointer origin and drag intent stay in a ref; pause booleans live in state because they own timeout lifecycle and must synchronously clear/restart the single autoplay deadline.
+ - Store subscriptions select only the liked slugs, trip records, and individual hydration booleans they render.
+-- Derived recent-trip and liked-guide data is memoized; no effect mirrors derived render state.
++- Derived recent-trip and newest-valid liked-guide data is memoized; reversing a copy preserves store order and no effect mirrors derived render state.
+ - `useSyncExternalStore` provides a stable false server snapshot and true client snapshot for hydration-safe local content without `setState` inside an effect.
+ - All controls are DOM-native buttons/links with Phosphor icons, visible focus, semantic grouping, and no child-key hijacking.
+ 
+ ## Fresh Verification
+ 
+-- Focused home/search: 3 files, 16 tests passed.
+-- Full Vitest: 40 files, 316 tests passed; exit 0.
++- Focused home/search: 3 files, 23 tests passed.
++- Full Vitest: 40 files, 323 tests passed; exit 0.
+ - `pnpm lint`: exit 0.
+ - `pnpm typecheck`: exit 0.
+ - `pnpm build`: exit 0; Next.js 16.2.12 compiled successfully and generated 14/14 static pages.
+ - `git diff --check`: no whitespace errors; only the repository's existing LF-to-CRLF notices were printed.
+ - No browser, Playwright/E2E, ledger, deployment, or unrelated MasterGo process action was performed.
+ 
+ ## Files
+ 
+ Created:
+ 
+diff --git a/public/assets/home-film/beijing-forbidden-city-dawn.png b/public/assets/home-film/beijing-forbidden-city-dawn.png
+new file mode 100644
+index 0000000..4ec883c
+Binary files /dev/null and b/public/assets/home-film/beijing-forbidden-city-dawn.png differ
+diff --git a/public/assets/home-film/chongqing-river-city-blue-hour.png b/public/assets/home-film/chongqing-river-city-blue-hour.png
+new file mode 100644
+index 0000000..07204f6
+Binary files /dev/null and b/public/assets/home-film/chongqing-river-city-blue-hour.png differ
+diff --git a/public/assets/home-film/xiamen-gulangyu-morning.png b/public/assets/home-film/xiamen-gulangyu-morning.png
+new file mode 100644
+index 0000000..13510be
+Binary files /dev/null and b/public/assets/home-film/xiamen-gulangyu-morning.png differ
+diff --git a/public/assets/home-film/xian-city-wall-dusk.png b/public/assets/home-film/xian-city-wall-dusk.png
+new file mode 100644
+index 0000000..f1025aa
+Binary files /dev/null and b/public/assets/home-film/xian-city-wall-dusk.png differ
+diff --git a/src/features/home/destination-film-carousel.tsx b/src/features/home/destination-film-carousel.tsx
+index 2e342d3..7ab82fe 100644
+--- a/src/features/home/destination-film-carousel.tsx
++++ b/src/features/home/destination-film-carousel.tsx
+@@ -26,150 +26,194 @@ export interface DestinationFilmItem {
+   image: PostMedia;
+   href: string;
+ }
+ 
+ interface DestinationFilmCarouselProps {
+   destinations: readonly DestinationFilmItem[];
+   intervalMs?: number;
+ }
+ 
+ interface DragOrigin {
++  captured: boolean;
+   pointerId: number;
+   x: number;
+   y: number;
+ }
+ 
++interface PauseState {
++  documentHidden: boolean;
++  dragging: boolean;
++  focusWithin: boolean;
++  hovered: boolean;
++}
++
+ const dragThreshold = 64;
+ const maxDragParallax = 36;
+ 
+ function circularOffset(index: number, activeIndex: number, length: number) {
+   let offset = index - activeIndex;
+   if (offset > length / 2) offset -= length;
+   if (offset < -length / 2) offset += length;
+   return offset;
+ }
+ 
+ export function DestinationFilmCarousel({
+   destinations,
+   intervalMs = 6000,
+ }: DestinationFilmCarouselProps) {
+   const reduceMotion = Boolean(useReducedMotion());
+   const [activeIndex, setActiveIndex] = useState(0);
+   const [dragOffset, setDragOffset] = useState(0);
+-  const dragOrigin = useRef<DragOrigin | null>(null);
+-  const pauseState = useRef({
++  const [deadlineVersion, setDeadlineVersion] = useState(0);
++  const [pauseState, setPauseState] = useState<PauseState>({
+     documentHidden: typeof document !== 'undefined' && document.hidden,
+     dragging: false,
+     focusWithin: false,
+     hovered: false,
+   });
++  const dragOrigin = useRef<DragOrigin | null>(null);
+   const count = destinations.length;
+ 
++  const setPaused = useCallback((source: keyof PauseState, paused: boolean) => {
++    setPauseState((current) => current[source] === paused
++      ? current
++      : { ...current, [source]: paused });
++  }, []);
++
++  const restartDeadline = useCallback(() => {
++    setDeadlineVersion((version) => version + 1);
++  }, []);
++
+   const select = useCallback((index: number) => {
+     if (count === 0) return;
+     setActiveIndex((index + count) % count);
+-  }, [count]);
++    restartDeadline();
++  }, [count, restartDeadline]);
+ 
+   const selectRelative = useCallback((step: number) => {
+     if (count === 0) return;
+     setActiveIndex((current) => (current + step + count) % count);
+-  }, [count]);
++    restartDeadline();
++  }, [count, restartDeadline]);
+ 
+   useEffect(() => {
+     function onVisibilityChange() {
+-      pauseState.current.documentHidden = document.hidden;
++      setPaused('documentHidden', document.hidden);
+     }
+ 
+     document.addEventListener('visibilitychange', onVisibilityChange);
+     return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+-  }, []);
++  }, [setPaused]);
+ 
+   useEffect(() => {
+     if (
+       reduceMotion ||
+-      count < 2
++      count < 2 ||
++      Object.values(pauseState).some(Boolean)
+     ) return;
+ 
+-    const timer = window.setInterval(() => {
+-      const paused = Object.values(pauseState.current).some(Boolean);
+-      if (!paused) selectRelative(1);
++    const timer = window.setTimeout(() => {
++      setActiveIndex((current) => (current + 1) % count);
+     }, intervalMs);
+-    return () => window.clearInterval(timer);
+-  }, [count, intervalMs, reduceMotion, selectRelative]);
++    return () => window.clearTimeout(timer);
++  }, [activeIndex, count, deadlineVersion, intervalMs, pauseState, reduceMotion]);
+ 
+   if (count === 0) return null;
+ 
+   function onKeyDown(event: KeyboardEvent<HTMLElement>) {
+     if (event.target !== event.currentTarget) return;
+     if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+     event.preventDefault();
+     if (event.key === 'ArrowLeft') selectRelative(-1);
+     if (event.key === 'ArrowRight') selectRelative(1);
+     if (event.key === 'Home') select(0);
+     if (event.key === 'End') select(count - 1);
+   }
+ 
+   function onBlur(event: FocusEvent<HTMLElement>) {
+     if (!event.currentTarget.contains(event.relatedTarget)) {
+-      pauseState.current.focusWithin = false;
++      setPaused('focusWithin', false);
+     }
+   }
+ 
+   function onPointerDown(event: PointerEvent<HTMLDivElement>) {
+-    dragOrigin.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY };
+-    pauseState.current.dragging = true;
+-    event.currentTarget.setPointerCapture?.(event.pointerId);
++    if (
++      event.target instanceof Element &&
++      event.target.closest('a, button, input, select, textarea, [role="button"]')
++    ) return;
++
++    dragOrigin.current = {
++      captured: false,
++      pointerId: event.pointerId,
++      x: event.clientX,
++      y: event.clientY,
++    };
++    setPaused('dragging', true);
+   }
+ 
+   function onPointerMove(event: PointerEvent<HTMLDivElement>) {
+     const origin = dragOrigin.current;
+-    if (!origin || origin.pointerId !== event.pointerId || reduceMotion) return;
++    if (!origin || origin.pointerId !== event.pointerId) return;
+     const distance = event.clientX - origin.x;
+-    setDragOffset(Math.max(-maxDragParallax, Math.min(maxDragParallax, distance * 0.18)));
++    const verticalDistance = event.clientY - origin.y;
++    if (
++      !origin.captured &&
++      Math.abs(distance) >= 8 &&
++      Math.abs(distance) > Math.abs(verticalDistance)
++    ) {
++      event.currentTarget.setPointerCapture?.(event.pointerId);
++      origin.captured = true;
++    }
++    if (!reduceMotion) {
++      setDragOffset(Math.max(-maxDragParallax, Math.min(maxDragParallax, distance * 0.18)));
++    }
+   }
+ 
+   function finishDrag(event: PointerEvent<HTMLDivElement>) {
+     const origin = dragOrigin.current;
+     dragOrigin.current = null;
+-    pauseState.current.dragging = false;
++    setPaused('dragging', false);
+     setDragOffset(0);
+     if (!origin || origin.pointerId !== event.pointerId) return;
++    if (origin.captured) event.currentTarget.releasePointerCapture?.(event.pointerId);
+ 
+     const horizontalDistance = event.clientX - origin.x;
+     const verticalDistance = event.clientY - origin.y;
+     if (
+       Math.abs(horizontalDistance) >= dragThreshold &&
+       Math.abs(horizontalDistance) > Math.abs(verticalDistance)
+     ) {
+       selectRelative(horizontalDistance < 0 ? 1 : -1);
+     }
+   }
+ 
+-  function cancelDrag() {
++  function cancelDrag(event: PointerEvent<HTMLDivElement>) {
++    const origin = dragOrigin.current;
+     dragOrigin.current = null;
+-    pauseState.current.dragging = false;
++    setPaused('dragging', false);
+     setDragOffset(0);
++    if (origin?.captured) event.currentTarget.releasePointerCapture?.(origin.pointerId);
+   }
+ 
+   const viewportStyle = {
+     '--film-drag-x': reduceMotion ? '0px' : `${dragOffset}px`,
+   } as CSSProperties;
+ 
+   return (
+     <section
+       aria-label="目的地旅行取景窗"
+       className={styles.filmCarousel}
+       onBlurCapture={onBlur}
+-      onFocusCapture={() => { pauseState.current.focusWithin = true; }}
++      onFocusCapture={() => setPaused('focusWithin', true)}
+       onKeyDown={onKeyDown}
+-      onMouseEnter={() => { pauseState.current.hovered = true; }}
+-      onMouseLeave={() => { pauseState.current.hovered = false; }}
++      onMouseEnter={() => setPaused('hovered', true)}
++      onMouseLeave={() => setPaused('hovered', false)}
+       tabIndex={0}
+     >
+       <div
+         className={styles.filmViewport}
+         data-parallax={reduceMotion ? 'disabled' : 'enabled'}
+         data-testid="destination-film-viewport"
+         onPointerCancel={cancelDrag}
+         onPointerDown={onPointerDown}
+         onPointerMove={onPointerMove}
+         onPointerUp={finishDrag}
+@@ -182,44 +226,48 @@ export function DestinationFilmCarousel({
+             const adjacent = Math.abs(offset) === 1;
+             const visible = active || adjacent;
+ 
+             return (
+               <motion.article
+                 animate={{
+                   opacity: active ? 1 : adjacent ? 0.62 : 0,
+                   scale: active ? 1 : 0.88,
+                   x: `${offset * 100 - 50}%`,
+                 }}
+-                aria-hidden={visible ? undefined : true}
++                aria-hidden={active ? undefined : true}
+                 className={styles.filmCard}
+                 data-active={active ? 'true' : 'false'}
++                inert={active ? undefined : true}
+                 key={destination.href}
+                 transition={reduceMotion
+                   ? { duration: 0 }
+-                  : { duration: 0.62, ease: [0.22, 0.61, 0.36, 1] }}
++                  : { duration: 0.32, ease: [0.22, 0.61, 0.36, 1] }}
+               >
+-                <Image
+-                  alt={destination.image.alt}
+-                  className={styles.filmImage}
+-                  fill
+-                  sizes="(max-width: 720px) 86vw, 60vw"
+-                  src={destination.image.src}
+-                />
++                {visible ? (
++                  <Image
++                    alt={destination.image.alt}
++                    className={styles.filmImage}
++                    fetchPriority="high"
++                    fill
++                    sizes="(max-width: 720px) 86vw, 60vw"
++                    src={destination.image.src}
++                  />
++                ) : null}
+                 <div aria-hidden className={styles.filmScrim} />
+                 <div className={styles.filmCopy}>
+                   <p>{destination.days} 天 · {destination.season}</p>
+                   <h3>{destination.destination}</h3>
+                   <span>{destination.description}</span>
+                   <Link
+                     aria-current={active ? 'true' : undefined}
+                     href={destination.href}
+-                    tabIndex={visible ? 0 : -1}
++                    tabIndex={active ? 0 : -1}
+                   >
+                     打开{destination.destination}攻略
+                     <CaretRight aria-hidden size={18} weight="light" />
+                   </Link>
+                 </div>
+               </motion.article>
+             );
+           })}
+         </div>
+       </div>
+@@ -238,16 +286,18 @@ export function DestinationFilmCarousel({
+       </div>
+ 
+       <div aria-label="选择目的地" className={styles.filmPagination} role="group">
+         {destinations.map((destination, index) => (
+           <button
+             aria-label={`查看${destination.destination}`}
+             aria-pressed={index === activeIndex}
+             key={destination.href}
+             onClick={() => select(index)}
+             type="button"
+-          />
++          >
++            <span aria-hidden className={styles.filmPaginationPill} />
++          </button>
+         ))}
+       </div>
+     </section>
+   );
+ }
+diff --git a/src/features/home/featured-destinations.module.css b/src/features/home/featured-destinations.module.css
+index 2fc4831..db7278e 100644
+--- a/src/features/home/featured-destinations.module.css
++++ b/src/features/home/featured-destinations.module.css
+@@ -183,20 +183,21 @@
+   display: grid;
+   width: 42px;
+   height: 42px;
+   padding: 0;
+   place-items: center;
+   color: var(--ivory);
+   border: 1px solid rgb(244 240 232 / 24%);
+   border-radius: 50%;
+   background: transparent;
+   cursor: pointer;
++  transition: color 320ms ease, border-color 320ms ease, background-color 320ms ease, box-shadow 320ms ease;
+ }
+ 
+ .filmControls button:hover {
+   color: var(--ink);
+   border-color: var(--sand);
+   background: var(--sand);
+   box-shadow: 0 0 22px rgb(183 154 104 / 18%);
+ }
+ 
+ .filmControls p {
+@@ -204,38 +205,50 @@
+   margin: 0;
+   color: rgb(244 240 232 / 70%);
+   font-size: 12px;
+   font-variant-numeric: tabular-nums;
+   letter-spacing: 0.1em;
+   text-align: center;
+ }
+ 
+ .filmPagination {
+   display: flex;
++  flex-wrap: wrap;
+   align-items: center;
+   justify-content: center;
+   gap: 8px;
++  width: min(calc(100% - 36px), 640px);
+   margin-top: 15px;
++  margin-right: auto;
++  margin-left: auto;
+ }
+ 
+ .filmPagination button {
+-  width: 20px;
+-  height: 8px;
++  display: grid;
++  width: 44px;
++  height: 44px;
+   padding: 0;
+   border: 0;
++  place-items: center;
++  background: transparent;
++  cursor: pointer;
++}
++
++.filmPaginationPill {
++  width: 20px;
++  height: 8px;
+   border-radius: 999px;
+   background: rgb(244 240 232 / 28%);
+-  cursor: pointer;
+-  transition: width var(--motion-standard) ease, background-color var(--motion-fast) ease;
++  transition: width 320ms ease, background-color 320ms ease, box-shadow 320ms ease;
+ }
+ 
+-.filmPagination button[aria-pressed='true'] {
++.filmPagination button[aria-pressed='true'] .filmPaginationPill {
+   width: 40px;
+   background: var(--sand);
+   box-shadow: 0 0 18px rgb(183 154 104 / 24%);
+ }
+ 
+ .srOnly {
+   position: absolute;
+   width: 1px;
+   height: 1px;
+   padding: 0;
+@@ -449,21 +462,21 @@
+   .themeGrid { gap: 12px; }
+   .proofImage,
+   .tripStoryImage { min-height: 310px; }
+   .scenarioGrid article { padding: 24px 20px; }
+ }
+ 
+ @media (prefers-reduced-motion: reduce) {
+   .filmScene,
+   .filmImage,
+   .filmCopy,
+-  .filmPagination button,
++  .filmPaginationPill,
+   .themeCard,
+   .themeImage img {
+     transition: none;
+   }
+ 
+   .filmScene { transform: none; }
+   .themeCard:hover,
+   .themeCard:focus-within { transform: none; }
+   .filmCard[data-active='true']:hover .filmImage,
+   .filmCard[data-active='true']:focus-within .filmImage,
+diff --git a/src/features/home/featured-destinations.tsx b/src/features/home/featured-destinations.tsx
+index 1d4f53a..371aab9 100644
+--- a/src/features/home/featured-destinations.tsx
++++ b/src/features/home/featured-destinations.tsx
+@@ -9,32 +9,96 @@ const seasons: Record<string, string> = {
+   大理: '秋日',
+   桂林: '初秋',
+   川西: '金秋',
+   三亚: '晚夏',
+   杭州: '初秋',
+   南京: '深秋',
+   上海: '四季',
+   贵州: '雨后',
+ };
+ 
+-const destinations: readonly DestinationFilmItem[] = posts.map((post) => ({
++const guideDestinations: readonly DestinationFilmItem[] = posts.map((post) => ({
+   destination: post.destination,
+   title: post.title,
+   description: post.excerpt,
+   days: post.days,
+   season: seasons[post.destination] ?? '当季',
+   image: post.media[0],
+   href: `/square/${post.slug}`,
+ }));
+ 
++const discoveryDestinations: readonly DestinationFilmItem[] = [
++  {
++    destination: '北京',
++    title: '沿中轴线读懂北京的清晨',
++    description: '从景山晨光望向故宫，再沿中轴线走进胡同与城门之间的历史层次。',
++    days: 4,
++    season: '春秋',
++    image: {
++      src: '/assets/home-film/beijing-forbidden-city-dawn.png',
++      width: 1536,
++      height: 1024,
++      alt: '晨光中的北京故宫建筑群与城市中轴线',
++    },
++    href: '/square?destination=%E5%8C%97%E4%BA%AC',
++  },
++  {
++    destination: '西安',
++    title: '在城墙暮色里走近长安',
++    description: '从明城墙的砖石与角楼出发，把博物馆、坊巷和关中味道放进四天。',
++    days: 4,
++    season: '暮春',
++    image: {
++      src: '/assets/home-film/xian-city-wall-dusk.png',
++      width: 1536,
++      height: 1024,
++      alt: '蓝调暮色中的西安明城墙与角楼',
++    },
++    href: '/square?destination=%E8%A5%BF%E5%AE%89',
++  },
++  {
++    destination: '重庆',
++    title: '顺着山城的高低与江流穿行',
++    description: '用轨道、步道和轮渡连接立体街区，在蓝调时刻看两江与山城亮起。',
++    days: 4,
++    season: '初冬',
++    image: {
++      src: '/assets/home-film/chongqing-river-city-blue-hour.png',
++      width: 1536,
++      height: 1024,
++      alt: '蓝调时刻的重庆山城建筑与江面桥梁',
++    },
++    href: '/square?destination=%E9%87%8D%E5%BA%86',
++  },
++  {
++    destination: '厦门',
++    title: '把海风留在鼓浪屿的早晨',
++    description: '从鼓浪屿老别墅与树影慢慢走到海边，隔着鹭江看城市在晨雾里醒来。',
++    days: 4,
++    season: '晚秋',
++    image: {
++      src: '/assets/home-film/xiamen-gulangyu-morning.png',
++      width: 1536,
++      height: 1024,
++      alt: '晨光中的厦门鼓浪屿红屋顶与鹭江海岸',
++    },
++    href: '/square?destination=%E5%8E%A6%E9%97%A8',
++  },
++];
++
++const destinations: readonly DestinationFilmItem[] = [
++  ...guideDestinations,
++  ...discoveryDestinations,
++];
++
+ export function FeaturedDestinations() {
+   return (
+     <section className={styles.section} aria-labelledby="featured-title">
+       <div className={styles.intro}>
+         <p>DESTINATION FILM</p>
+         <h2 id="featured-title">把下一程，放进取景窗</h2>
+-        <span>八座山海与城市，来自可以继续阅读、收藏和转成行程的完整攻略。</span>
++        <span>八篇完整攻略与四座新发现城市，都能继续进入灵感广场或旅行工具。</span>
+       </div>
+       <DestinationFilmCarousel destinations={destinations} />
+     </section>
+   );
+ }
+diff --git a/src/features/home/home-story-sections.tsx b/src/features/home/home-story-sections.tsx
+index c353514..1ede96a 100644
+--- a/src/features/home/home-story-sections.tsx
++++ b/src/features/home/home-story-sections.tsx
+@@ -52,21 +52,21 @@ export function HomeStorySections() {
+   const tripHydrated = useTripStoreHydration((state) => state.hydrated);
+   const tripHydrationError = useTripStoreHydration((state) => state.hydrationError);
+ 
+   useEffect(() => {
+     void Promise.all([hydrateLibraryStore(), hydrateWorkbenchTripStore()]);
+   }, []);
+ 
+   const recentTrip = useMemo(() => Object.values(trips)
+     .filter((trip) => acceptedStatuses.has(trip.status))
+     .sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt))[0], [trips]);
+-  const likedPost = useMemo(() => likedPostSlugs
++  const likedPost = useMemo(() => [...likedPostSlugs].reverse()
+     .map((slug) => postsBySlug[slug])
+     .find((post): post is TravelPost => Boolean(post)), [likedPostSlugs]);
+   const hydrationReady = clientReady && libraryHydrated && tripHydrated;
+   const hydrationFailed = libraryHydrationError || tripHydrationError;
+ 
+   return (
+     <>
+       <section aria-labelledby="guide-themes-title" className={styles.guideThemes}>
+         <div className={styles.storyHeading}>
+           <p>GUIDES FOR REAL DAYS</p>
+diff --git a/tests/component/destination-film-carousel.test.tsx b/tests/component/destination-film-carousel.test.tsx
+index d68b158..d102d1c 100644
+--- a/tests/component/destination-film-carousel.test.tsx
++++ b/tests/component/destination-film-carousel.test.tsx
+@@ -1,24 +1,38 @@
+ import { act, fireEvent, render, screen, within } from '@testing-library/react';
+ import userEvent from '@testing-library/user-event';
++import type { ComponentProps } from 'react';
+ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+ import { posts } from '@/data/posts';
+ import {
+   DestinationFilmCarousel,
+   type DestinationFilmItem,
+ } from '@/features/home/destination-film-carousel';
++import { FeaturedDestinations } from '@/features/home/featured-destinations';
+ 
+ let reduceMotion = false;
+ 
+ vi.mock('motion/react', async (importOriginal) => {
+   const actual = await importOriginal<typeof import('motion/react')>();
+-  return { ...actual, useReducedMotion: () => reduceMotion };
++  function MotionArticle({ animate, transition, ...properties }: ComponentProps<'article'> & {
++    animate?: unknown;
++    transition?: unknown;
++  }) {
++    void animate;
++    void transition;
++    return <article {...properties} />;
++  }
++  return {
++    ...actual,
++    motion: { article: MotionArticle },
++    useReducedMotion: () => reduceMotion,
++  };
+ });
+ 
+ const destinations: readonly DestinationFilmItem[] = posts.slice(0, 4).map((post) => ({
+   destination: post.destination,
+   title: post.title,
+   description: post.excerpt,
+   days: post.days,
+   season: '初秋',
+   image: post.media[0],
+   href: `/square/${post.slug}`,
+@@ -28,41 +42,93 @@ function position() {
+   return screen.getByRole('status', { name: '目的地位置' });
+ }
+ 
+ beforeEach(() => {
+   reduceMotion = false;
+   vi.useRealTimers();
+   Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+ });
+ 
+ afterEach(() => {
++  vi.restoreAllMocks();
+   vi.useRealTimers();
+ });
+ 
+ describe('DestinationFilmCarousel', () => {
+   it('advances every six seconds and pauses while focus remains inside', () => {
+     vi.useFakeTimers();
+     render(<DestinationFilmCarousel destinations={destinations} intervalMs={6000} />);
+ 
+     act(() => vi.advanceTimersByTime(6000));
+     expect(position()).toHaveTextContent('2 / 4');
+ 
+     const guilinLink = screen.getByRole('link', { name: /桂林/ });
+-    guilinLink.focus();
++    fireEvent.focus(guilinLink);
+     act(() => vi.advanceTimersByTime(12_000));
+     expect(position()).toHaveTextContent('2 / 4');
+ 
+     fireEvent.blur(guilinLink, { relatedTarget: null });
+     act(() => vi.advanceTimersByTime(6000));
+     expect(position()).toHaveTextContent('3 / 4');
+   });
+ 
++  it('gives every resume a fresh six-second dwell without duplicate timers', () => {
++    vi.useFakeTimers();
++    const timeoutSpy = vi.spyOn(window, 'setTimeout');
++    render(<DestinationFilmCarousel destinations={destinations} intervalMs={6000} />);
++    const carousel = screen.getByRole('region', { name: '目的地旅行取景窗' });
++    const autoplayDeadlineCount = () => timeoutSpy.mock.calls
++      .filter(([, delay]) => delay === 6000).length;
++
++    expect(autoplayDeadlineCount()).toBe(1);
++    act(() => vi.advanceTimersByTime(5900));
++    fireEvent.mouseEnter(carousel);
++    act(() => vi.advanceTimersByTime(12_000));
++    expect(position()).toHaveTextContent('1 / 4');
++
++    fireEvent.mouseLeave(carousel);
++    expect(autoplayDeadlineCount()).toBe(2);
++    act(() => vi.advanceTimersByTime(5999));
++    expect(position()).toHaveTextContent('1 / 4');
++    act(() => vi.advanceTimersByTime(1));
++    expect(position()).toHaveTextContent('2 / 4');
++    expect(autoplayDeadlineCount()).toBe(3);
++  });
++
++  it('restarts the autoplay deadline after controls, pagination, and drag selection', () => {
++    vi.useFakeTimers();
++    render(<DestinationFilmCarousel destinations={destinations} intervalMs={6000} />);
++    const viewport = screen.getByTestId('destination-film-viewport');
++
++    act(() => vi.advanceTimersByTime(5900));
++    fireEvent.click(screen.getByRole('button', { name: '下一个目的地' }));
++    act(() => vi.advanceTimersByTime(5999));
++    expect(position()).toHaveTextContent('2 / 4');
++    act(() => vi.advanceTimersByTime(1));
++    expect(position()).toHaveTextContent('3 / 4');
++
++    act(() => vi.advanceTimersByTime(5900));
++    fireEvent.click(screen.getByRole('button', { name: /查看大理/ }));
++    act(() => vi.advanceTimersByTime(5999));
++    expect(position()).toHaveTextContent('1 / 4');
++
++    fireEvent.pointerDown(viewport, { clientX: 280, clientY: 120, pointerId: 7 });
++    fireEvent.pointerMove(viewport, { clientX: 120, clientY: 126, pointerId: 7 });
++    fireEvent.pointerUp(viewport, { clientX: 120, clientY: 126, pointerId: 7 });
++    expect(position()).toHaveTextContent('2 / 4');
++    act(() => vi.advanceTimersByTime(5999));
++    expect(position()).toHaveTextContent('2 / 4');
++    act(() => vi.advanceTimersByTime(1));
++    expect(position()).toHaveTextContent('3 / 4');
++    expect(vi.getTimerCount()).toBe(1);
++  });
++
+   it('pauses on hover and while the document is hidden', () => {
+     vi.useFakeTimers();
+     render(<DestinationFilmCarousel destinations={destinations} intervalMs={6000} />);
+     const carousel = screen.getByRole('region', { name: '目的地旅行取景窗' });
+ 
+     fireEvent.mouseEnter(carousel);
+     act(() => vi.advanceTimersByTime(12_000));
+     expect(position()).toHaveTextContent('1 / 4');
+ 
+     fireEvent.mouseLeave(carousel);
+@@ -92,20 +158,46 @@ describe('DestinationFilmCarousel', () => {
+     expect(position()).toHaveTextContent('1 / 4');
+     await user.click(screen.getByRole('button', { name: /查看川西/ }));
+     expect(position()).toHaveTextContent('3 / 4');
+ 
+     carousel.focus();
+     await user.keyboard('{Home}{ArrowRight}{End}{ArrowLeft}');
+     expect(position()).toHaveTextContent('3 / 4');
+     expect(screen.getByRole('button', { name: /查看川西/ })).toHaveAttribute('aria-pressed', 'true');
+   });
+ 
++  it('lets a nested destination link activate without its pointer being captured', async () => {
++    const user = userEvent.setup();
++    render(<DestinationFilmCarousel destinations={destinations} intervalMs={6000} />);
++    const viewport = screen.getByTestId('destination-film-viewport');
++    const setPointerCapture = vi.fn();
++    Object.defineProperty(viewport, 'setPointerCapture', {
++      configurable: true,
++      value: setPointerCapture,
++    });
++    const link = screen.getByRole('link', { name: /打开大理攻略/ });
++    const activated = vi.fn((event: Event) => event.preventDefault());
++    link.addEventListener('click', activated);
++
++    await user.pointer({ keys: '[MouseLeft]', target: link });
++
++    expect(setPointerCapture).not.toHaveBeenCalled();
++    expect(activated).toHaveBeenCalledOnce();
++    expect(link).toHaveAttribute('href', '/square/dali-slow-5d');
++
++    fireEvent.pointerDown(viewport, { clientX: 280, clientY: 120, pointerId: 9 });
++    fireEvent.pointerMove(viewport, { clientX: 120, clientY: 126, pointerId: 9 });
++    fireEvent.pointerUp(viewport, { clientX: 120, clientY: 126, pointerId: 9 });
++    expect(setPointerCapture).toHaveBeenCalledWith(9);
++    expect(position()).toHaveTextContent('2 / 4');
++  });
++
+   it('cancels an interrupted pointer gesture without changing destination', () => {
+     render(<DestinationFilmCarousel destinations={destinations} intervalMs={6000} />);
+     const viewport = screen.getByTestId('destination-film-viewport');
+ 
+     fireEvent.pointerDown(viewport, { clientX: 280, clientY: 120, pointerId: 1 });
+     fireEvent.pointerMove(viewport, { clientX: 120, clientY: 126, pointerId: 1 });
+     fireEvent.pointerCancel(viewport, { clientX: 0, clientY: 0, pointerId: 1 });
+ 
+     expect(position()).toHaveTextContent('1 / 4');
+     expect(viewport.style.getPropertyValue('--film-drag-x')).toBe('0px');
+@@ -134,11 +226,54 @@ describe('DestinationFilmCarousel', () => {
+       '/square/dali-slow-5d',
+     );
+     expect(screen.getByRole('img', { name: destinations[0].image.alt })).toHaveAttribute(
+       'src',
+       expect.stringContaining('dali'),
+     );
+     const activeGuide = screen.getByRole('link', { name: /大理/ }).closest('article');
+     expect(activeGuide).not.toBeNull();
+     expect(within(activeGuide as HTMLElement).getByText('5 天 · 初秋')).toBeInTheDocument();
+   });
++
++  it('keeps only the active slide accessible while adjacent image peeks stay visual', () => {
++    render(<DestinationFilmCarousel destinations={destinations} />);
++
++    const links = screen.getAllByRole('link', { hidden: true });
++    expect(links.filter((link) => link.tabIndex === 0)).toHaveLength(1);
++    expect(links[0]).toHaveAttribute('aria-current', 'true');
++    expect(links[0].closest('article')).not.toHaveAttribute('aria-hidden');
++    for (const link of links.slice(1)) {
++      expect(link).toHaveAttribute('tabindex', '-1');
++      expect(link.closest('article')).toHaveAttribute('aria-hidden', 'true');
++      expect(link.closest('article')).toHaveAttribute('inert');
++    }
++  });
++
++  it('mounts and prioritizes only the active and adjacent destination images', () => {
++    render(<DestinationFilmCarousel destinations={destinations} />);
++
++    const images = screen.getAllByRole('img', { hidden: true });
++    expect(images).toHaveLength(3);
++    for (const image of images) {
++      expect(image).toHaveAttribute('fetchpriority', 'high');
++    }
++  });
++
++  it('maps eight guides and four discovery cities to complete valid routes', () => {
++    render(<FeaturedDestinations />);
++
++    const destinationNames = [
++      '大理', '桂林', '川西', '三亚', '杭州', '南京', '上海', '贵州',
++      '北京', '西安', '重庆', '厦门',
++    ];
++    expect(screen.getByRole('status', { name: '目的地位置' })).toHaveTextContent('1 / 12');
++    for (const destination of destinationNames) {
++      expect(screen.getByRole('button', { name: `查看${destination}` })).toBeInTheDocument();
++      const link = screen.getByRole('link', { name: `打开${destination}攻略`, hidden: true });
++      expect(link.getAttribute('href')).toMatch(/^\/(square(?:\/[^?]+|\?destination=)|compare\?)/);
++      const article = link.closest('article');
++      expect(article).not.toBeNull();
++      expect(within(article as HTMLElement).getByText(/\d+ 天 · \S+/)).toBeInTheDocument();
++      expect(within(article as HTMLElement).getByText(/。$/)).toBeInTheDocument();
++    }
++  });
+ });
+diff --git a/tests/component/home-shell.test.tsx b/tests/component/home-shell.test.tsx
+index dd2b998..99d4bb3 100644
+--- a/tests/component/home-shell.test.tsx
++++ b/tests/component/home-shell.test.tsx
+@@ -73,10 +73,29 @@ it('keeps local home content neutral until both stores hydrate, then reveals rec
+   expect(screen.getByRole('heading', { name: trip.title })).toBeInTheDocument();
+   expect(screen.getByRole('link', { name: `继续${trip.title}` })).toHaveAttribute(
+     'href',
+     `/trips/${trip.sourcePostSlug}`,
+   );
+   expect(screen.getByRole('link', { name: `再读${post.title}` })).toHaveAttribute(
+     'href',
+     `/square/${post.slug}`,
+   );
+ });
++
++it('shows the newest available liked guide without mutating the stored order', () => {
++  const likedPostSlugs = [
++    'dali-slow-5d',
++    'guilin-river-morning',
++    'unavailable-newest-guide',
++  ];
++  useLibraryStore.setState({ likedPostSlugs });
++
++  render(<HomePage />);
++
++  const newestAvailable = postsBySlug['guilin-river-morning'];
++  expect(screen.getByText(`最近喜欢 · ${newestAvailable.destination}`)).toBeInTheDocument();
++  expect(screen.getByRole('link', { name: `再读${newestAvailable.title}` })).toHaveAttribute(
++    'href',
++    `/square/${newestAvailable.slug}`,
++  );
++  expect(useLibraryStore.getState().likedPostSlugs).toEqual(likedPostSlugs);
++});

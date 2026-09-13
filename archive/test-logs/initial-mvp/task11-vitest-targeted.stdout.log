@@ -1,0 +1,12 @@
+
+ RUN  v4.1.10 D:/Codex-chat/xingyu-travel/.worktrees/xingyu-public-mvp
+
+ ✓ tests/component/site-header.test.tsx > renders usable primary navigation with the homepage marked current 195ms
+ ✓ tests/component/site-header.test.tsx > marks only the matching route as current 28ms
+ ✓ tests/component/risk-timeline.test.tsx > RiskTimeline > makes demo risk freshness explicit and records a Plan A choice only in local trip decisions 203ms
+
+ Test Files  2 passed (2)
+      Tests  3 passed (3)
+   Start at  14:35:44
+   Duration  26.18s (transform 284ms, setup 1.28s, import 18.46s, tests 430ms, environment 5.30s)
+

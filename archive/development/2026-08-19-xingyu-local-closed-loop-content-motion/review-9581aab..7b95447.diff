@@ -1,0 +1,92 @@
+# Review package: 9581aab..7b95447
+
+## Commits
+7b95447 fix: remove no-op guide duration filters
+
+## Files changed
+ src/features/square/destination-filters.tsx |  2 +-
+ tests/component/square-feed.test.tsx        | 13 +++++++++++--
+ 2 files changed, 12 insertions(+), 3 deletions(-)
+
+## Diff
+diff --git a/src/features/square/destination-filters.tsx b/src/features/square/destination-filters.tsx
+index 78ec23e..ccb4178 100644
+--- a/src/features/square/destination-filters.tsx
++++ b/src/features/square/destination-filters.tsx
+@@ -60,21 +60,21 @@ export function DestinationFilters({
+       <label className={styles.filterField}>
+         <span>最多天数</span>
+         <select
+           onChange={(event) => onChange({
+             ...values,
+             maxDays: event.target.value ? Number(event.target.value) : null,
+           })}
+           value={values.maxDays ?? ''}
+         >
+           <option value="">不限天数</option>
+-          {[3, 4, 5, 6].map((days) => (
++          {[3, 4, 5].map((days) => (
+             <option key={days} value={days}>{days} 天以内</option>
+           ))}
+         </select>
+       </label>
+ 
+       <div className={styles.themeFilters}>
+         <span>主题</span>
+         <div>
+           {themes.map((theme) => (
+             <button
+diff --git a/tests/component/square-feed.test.tsx b/tests/component/square-feed.test.tsx
+index a1db285..427dcff 100644
+--- a/tests/component/square-feed.test.tsx
++++ b/tests/component/square-feed.test.tsx
+@@ -1,13 +1,14 @@
+ import { act, render, screen } from '@testing-library/react';
+ import userEvent from '@testing-library/user-event';
+ import { beforeEach, describe, expect, it, vi } from 'vitest';
++import { posts } from '@/data/posts';
+ import { FeedControls } from '@/features/square/feed-controls';
+ import SquarePage from '@/app/square/page';
+ import { useProfileStore, useProfileStoreHydration } from '@/stores/profile-store';
+ 
+ beforeEach(() => {
+   window.localStorage.clear();
+   useProfileStore.setState({
+     personalizedFeed: true,
+     interestTags: ['山野', '人文', '慢旅行'],
+   });
+@@ -38,24 +39,32 @@ describe('FeedControls', () => {
+     render(<SquarePage />);
+ 
+     await user.click(screen.getByRole('button', { name: '山水' }));
+     await user.selectOptions(screen.getByRole('combobox', { name: '最多天数' }), '5');
+ 
+     expect(screen.getByRole('heading', { name: /桂林 4 日/ })).toBeInTheDocument();
+     expect(screen.queryByRole('heading', { name: /上海 3 日/ })).not.toBeInTheDocument();
+     expect(screen.queryByRole('heading', { name: /贵州 6 日/ })).not.toBeInTheDocument();
+   });
+ 
+-  it('omits a seven-day maximum that cannot narrow the six-day guide catalog', () => {
++  it('offers only numeric maximum-day thresholds that exclude at least one current guide', () => {
+     render(<SquarePage />);
+ 
+-    expect(screen.queryByRole('option', { name: '7 天以内' })).not.toBeInTheDocument();
++    const options = screen.getByRole('combobox', { name: '最多天数' }).querySelectorAll('option');
++    const thresholds = Array.from(options)
++      .filter((option) => option.value !== '')
++      .map((option) => Number(option.value));
++
++    expect(thresholds).toEqual([3, 4, 5]);
++    for (const threshold of thresholds) {
++      expect(posts.some((post) => post.days > threshold)).toBe(true);
++    }
+   });
+ 
+   it('clears only session filters while preserving chronological mode and interests', async () => {
+     useProfileStore.setState({ personalizedFeed: false, interestTags: ['海岛', '慢旅行'] });
+     const user = userEvent.setup();
+     render(<SquarePage />);
+ 
+     await user.type(screen.getByRole('searchbox', { name: '搜索攻略' }), '三亚');
+     await user.click(screen.getByRole('button', { name: '海岛' }));
+     await user.click(screen.getByRole('button', { name: '清除筛选' }));

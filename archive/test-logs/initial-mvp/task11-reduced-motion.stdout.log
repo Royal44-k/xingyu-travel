@@ -1,0 +1,6 @@
+
+Running 1 test using 1 worker
+
+  ok 1 [chromium] › tests\e2e\accessibility.spec.ts:78:1 › reduced motion removes smooth scrolling and motion transitions (1.0s)
+
+  1 passed (3.3s)

@@ -1,0 +1,78 @@
+# COMMITS
+eb044c3 fix: reject overflowing offer totals
+
+# STAT
+ src/domain/comparison/normalize-offer.ts |  7 ++++++-
+ tests/unit/normalize-offer.test.ts       | 13 +++++++++++++
+ 2 files changed, 19 insertions(+), 1 deletion(-)
+
+# DIFF
+diff --git a/src/domain/comparison/normalize-offer.ts b/src/domain/comparison/normalize-offer.ts
+index 1fa8df1..835903d 100644
+--- a/src/domain/comparison/normalize-offer.ts
++++ b/src/domain/comparison/normalize-offer.ts
+@@ -10,20 +10,25 @@ function assertValidPriceComponent(
+ }
+ 
+ export function normalizeOffer(raw: RawOffer): NormalizedOffer {
+   const taxes = raw.taxes ?? 0;
+   const mandatoryFees = raw.mandatoryFees ?? 0;
+ 
+   assertValidPriceComponent('basePrice', raw.basePrice);
+   assertValidPriceComponent('taxes', taxes);
+   assertValidPriceComponent('mandatoryFees', mandatoryFees);
+ 
++  const totalPrice = raw.basePrice + taxes + mandatoryFees;
++  if (!Number.isFinite(totalPrice)) {
++    throw new RangeError('totalPrice must be a finite number');
++  }
++
+   return {
+     ...raw,
+     taxes,
+     mandatoryFees,
+     demoMode: raw.demoMode ?? false,
+     currency: 'CNY',
+-    totalPrice: raw.basePrice + taxes + mandatoryFees,
++    totalPrice,
+     priceExplanation: `基础价 ¥${raw.basePrice} · 税费 ¥${taxes} · 必付费用 ¥${mandatoryFees}`,
+   };
+ }
+diff --git a/tests/unit/normalize-offer.test.ts b/tests/unit/normalize-offer.test.ts
+index 59cc4dd..116d1c6 100644
+--- a/tests/unit/normalize-offer.test.ts
++++ b/tests/unit/normalize-offer.test.ts
+@@ -64,20 +64,33 @@ describe('normalizeOffer', () => {
+     { field: 'mandatoryFees', value: Number.NaN },
+     { field: 'mandatoryFees', value: Number.POSITIVE_INFINITY },
+     { field: 'mandatoryFees', value: Number.NEGATIVE_INFINITY },
+     { field: 'mandatoryFees', value: -1 },
+   ] as const)('rejects invalid $field value $value before price arithmetic', ({ field, value }) => {
+     const normalize = () => normalizeOffer({ ...validRawOffer, [field]: value });
+ 
+     expect(normalize).toThrow(RangeError);
+     expect(normalize).toThrow(`${field} must be a finite non-negative number`);
+   });
++
++  it('rejects a comparable total that overflows finite price components', () => {
++    const normalize = () =>
++      normalizeOffer({
++        ...validRawOffer,
++        basePrice: Number.MAX_VALUE,
++        taxes: Number.MAX_VALUE,
++        mandatoryFees: 0,
++      });
++
++    expect(normalize).toThrow(RangeError);
++    expect(normalize).toThrow('totalPrice must be a finite number');
++  });
+ });
+ 
+ describe('MockInventoryProvider', () => {
+   it('returns only fixed sandbox offers that match the search', async () => {
+     const provider = new MockInventoryProvider();
+     const offers = [];
+ 
+     for await (const offer of provider.search({ destination: '大理', kind: 'flight' })) {
+       offers.push(offer);
+     }

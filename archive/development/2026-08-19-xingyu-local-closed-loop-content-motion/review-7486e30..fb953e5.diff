@@ -1,0 +1,1210 @@
+# Review package: 7486e30..fb953e5
+
+## Commits
+fb953e5 feat: build the local travel profile hub
+
+## Files changed
+ src/app/globals.css                     |  55 ++++
+ src/app/profile/page.tsx                |  31 +-
+ src/components/hydration-boundary.tsx   |  55 ++++
+ src/features/profile/profile-hub.tsx    | 551 ++++++++++++++++++++++++++++++++
+ src/features/profile/profile.module.css | 199 ++++++++++++
+ tests/component/profile-hub.test.tsx    | 198 ++++++++++++
+ 6 files changed, 1071 insertions(+), 18 deletions(-)
+
+## Diff
+diff --git a/src/app/globals.css b/src/app/globals.css
+index c4f94a3..fa40620 100644
+--- a/src/app/globals.css
++++ b/src/app/globals.css
+@@ -1,16 +1,21 @@
+ :root {
+   --ink: #10100f;
+   --ivory: #f4f0e8;
+   --sand: #b79a68;
+   --mist: #d8d3ca;
+   --pine: #26312b;
++  --lake-jade: #4d6b63;
++  --cinnabar: #a94032;
++  --motion-fast: 160ms;
++  --motion-standard: 320ms;
++  --motion-reveal: 620ms;
+   --font-display: var(--font-noto-serif-sc), "Songti SC", serif;
+   --font-ui: var(--font-noto-sans-sc), "PingFang SC", sans-serif;
+   --content-max: 1320px;
+   --radius-control: 10px;
+   --radius-panel: 18px;
+ }
+ 
+ * { box-sizing: border-box; }
+ 
+ html {
+@@ -27,20 +32,63 @@ body {
+   -webkit-font-smoothing: antialiased;
+ }
+ 
+ a { color: inherit; }
+ 
+ button,
+ input,
+ select,
+ textarea { font: inherit; }
+ 
++.hydrationBoundaryState {
++  display: grid;
++  place-content: center;
++  justify-items: center;
++  min-height: calc(100vh - 78px);
++  padding: 48px 24px;
++  color: var(--ivory);
++  background: var(--ink);
++  text-align: center;
++}
++
++.hydrationBoundaryPulse {
++  width: 24px;
++  height: 24px;
++  border: 1px solid rgb(183 154 104 / 42%);
++  border-top-color: var(--sand);
++  border-radius: 50%;
++  animation: hydration-pulse 900ms linear infinite;
++}
++
++.hydrationBoundaryState p { margin: 22px 0 7px; font-family: var(--font-display); font-size: 23px; }
++.hydrationBoundaryState small { color: rgb(244 240 232 / 58%); }
++
++.hydrationBoundaryErrors {
++  display: grid;
++  grid-template-columns: minmax(230px, 1fr) minmax(280px, 1.4fr);
++  gap: 28px;
++  width: min(calc(100% - 64px), var(--content-max));
++  margin: 24px auto;
++  padding: 18px 20px;
++  color: var(--ivory);
++  background: var(--ink);
++}
++
++.hydrationBoundaryErrors strong { font-family: var(--font-display); font-size: 17px; font-weight: 500; }
++.hydrationBoundaryErrors p { margin: 5px 0 0; color: rgb(244 240 232 / 62%); font-size: 11px; line-height: 1.6; }
++.hydrationBoundaryErrors ul { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
++.hydrationBoundaryErrors li { display: flex; justify-content: space-between; gap: 12px; align-items: center; color: rgb(244 240 232 / 78%); font-size: 12px; }
++.hydrationBoundaryErrors button { padding: 6px 9px; color: var(--ivory); border: 1px solid rgb(183 154 104 / 62%); background: transparent; cursor: pointer; }
++.hydrationBoundaryErrors button:focus-visible { outline: 2px solid var(--sand); outline-offset: 3px; }
++
++@keyframes hydration-pulse { to { transform: rotate(360deg); } }
++
+ .demoBanner {
+   position: absolute;
+   z-index: 20;
+   top: 82px;
+   left: 50%;
+   width: min(calc(100% - 64px), var(--content-max));
+   margin: 0;
+   padding: 8px 14px;
+   color: rgb(244 240 232 / 78%);
+   border-top: 1px solid rgb(244 240 232 / 16%);
+@@ -143,23 +191,30 @@ textarea { font: inherit; }
+ .interestPickerStatus { min-height: 20px; margin: 12px 0 0; color: rgb(16 16 15 / 68%); font-size: 12px; }
+ 
+ @media (prefers-reduced-motion: reduce) {
+   *,
+   *::before,
+   *::after {
+     scroll-behavior: auto !important;
+     animation-duration: 0.01ms !important;
+     transition-duration: 0.01ms !important;
+   }
++
++  .hydrationBoundaryPulse { animation: none; }
+ }
+ 
+ @media (max-width: 600px) {
++  .hydrationBoundaryErrors {
++    grid-template-columns: 1fr;
++    width: calc(100% - 28px);
++    margin: 14px auto;
++  }
+   .demoBanner {
+     top: 80px;
+     width: calc(100% - 32px);
+     padding: 8px 12px;
+     font-size: 10px;
+     text-align: left;
+   }
+ 
+   body > main:not(.homePage) {
+     padding-top: 154px;
+diff --git a/src/app/profile/page.tsx b/src/app/profile/page.tsx
+index cb5e77a..81c0042 100644
+--- a/src/app/profile/page.tsx
++++ b/src/app/profile/page.tsx
+@@ -1,29 +1,24 @@
+ import type { Metadata } from 'next';
+ import { SiteHeader } from '@/components/site-header';
+-import { PreferenceSettings } from '@/features/profile/preference-settings';
++import { ProfileHub } from '@/features/profile/profile-hub';
+ 
+ export const metadata: Metadata = {
+-  title: '演示账户与偏好',
+-  description: '管理浏览器本地保存的演示推荐偏好与透明度说明。',
++  title: '个人中心',
++  description: '继续当前浏览器中保存的行程、喜欢、报价、搭子安全与兴趣偏好。',
+ };
+ 
+-export default function ProfilePage() {
++export default async function ProfilePage({
++  searchParams,
++}: {
++  searchParams: Promise<{ tab?: string | string[] }>;
++}) {
++  const params = await searchParams;
++  const initialTab = Array.isArray(params.tab) ? params.tab[0] : params.tab;
++
+   return (
+     <>
+-        <SiteHeader activePath="/profile" variant="solid" />
+-      <main className="profilePage">
+-        <section aria-labelledby="profile-title" className="profileIntro">
+-          <p>XINGYU · DEMO PROFILE</p>
+-          <h1 id="profile-title">演示账户与偏好</h1>
+-          <p>演示身份状态仅用于说明安全边界，不等同于实名核验，也不收集证件、人脸、联系方式或支付信息。</p>
+-          <dl className="profileStatusList">
+-            <div><dt>年龄边界</dt><dd>26 岁演示账户（仅作 18+ 功能边界展示）</dd></div>
+-            <div><dt>身份状态</dt><dd>演示已验证，不是实名认证结果</dd></div>
+-            <div><dt>风险状态</dt><dd>演示状态清晰，不构成安全担保</dd></div>
+-          </dl>
+-        </section>
+-        <PreferenceSettings />
+-      </main>
++      <SiteHeader activePath="/profile" variant="solid" />
++      <ProfileHub initialTab={initialTab} />
+     </>
+   );
+ }
+diff --git a/src/components/hydration-boundary.tsx b/src/components/hydration-boundary.tsx
+new file mode 100644
+index 0000000..c75a2c8
+--- /dev/null
++++ b/src/components/hydration-boundary.tsx
+@@ -0,0 +1,55 @@
++import type { ReactNode } from 'react';
++
++export interface HydrationDomain {
++  id: string;
++  label: string;
++  hydrated: boolean;
++  hydrationError: boolean;
++  onReset?: () => void;
++}
++
++interface HydrationBoundaryProps {
++  children: ReactNode;
++  domains: readonly HydrationDomain[];
++  loadingMessage?: string;
++}
++
++export function HydrationBoundary({
++  children,
++  domains,
++  loadingMessage = '正在读取当前浏览器中的资料…',
++}: HydrationBoundaryProps) {
++  if (domains.some((domain) => !domain.hydrated)) {
++    return (
++      <section aria-live="polite" className="hydrationBoundaryState" role="status">
++        <span aria-hidden className="hydrationBoundaryPulse" />
++        <p>{loadingMessage}</p>
++        <small>完成校验前，资料与操作会保持静止。</small>
++      </section>
++    );
++  }
++
++  const failedDomains = domains.filter((domain) => domain.hydrationError);
++
++  return (
++    <>
++      {failedDomains.length > 0 ? (
++        <aside className="hydrationBoundaryErrors" role="alert">
++          <div>
++            <strong>部分本地资料未能安全读取</strong>
++            <p>相关原始浏览器数据已保留；其他区域仍可继续查看。</p>
++          </div>
++          <ul>
++            {failedDomains.map((domain) => (
++              <li key={domain.id}>
++                <span>{domain.label}资料暂时无法读取</span>
++                {domain.onReset ? <button onClick={domain.onReset} type="button">重置{domain.label}</button> : null}
++              </li>
++            ))}
++          </ul>
++        </aside>
++      ) : null}
++      {children}
++    </>
++  );
++}
+diff --git a/src/features/profile/profile-hub.tsx b/src/features/profile/profile-hub.tsx
+new file mode 100644
+index 0000000..a020bc1
+--- /dev/null
++++ b/src/features/profile/profile-hub.tsx
+@@ -0,0 +1,551 @@
++'use client';
++
++import {
++  ArrowRight,
++  Compass,
++  Heart,
++  MapPin,
++  ShieldCheck,
++  SuitcaseRolling,
++  UserCircle,
++} from '@phosphor-icons/react';
++import Image from 'next/image';
++import Link from 'next/link';
++import { type KeyboardEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
++import { HydrationBoundary, type HydrationDomain } from '@/components/hydration-boundary';
++import { postsBySlug } from '@/data/posts';
++import { FavoriteButton } from '@/features/library/favorite-button';
++import { PreferenceSettings } from '@/features/profile/preference-settings';
++import { TripCollectionCard } from '@/features/trips/trip-collection';
++import {
++  hydrateLibraryStore,
++  type FavoriteOfferSnapshot,
++  useLibraryStore,
++  useLibraryStoreHydration,
++} from '@/stores/library-store';
++import {
++  hydratePartnerStore,
++  usePartnerStore,
++  usePartnerStoreHydration,
++} from '@/stores/partner-store';
++import {
++  hydrateProfileStore,
++  useProfileStore,
++  useProfileStoreHydration,
++} from '@/stores/profile-store';
++import {
++  hydrateWorkbenchTripStore,
++  selectAcceptedTripCount,
++  selectTripRecords,
++  type WorkbenchTrip,
++  useTripStore,
++  useTripStoreHydration,
++} from '@/stores/trip-store';
++import styles from './profile.module.css';
++
++export type ProfileTab = 'overview' | 'trips' | 'likes' | 'offers' | 'safety' | 'preferences';
++
++interface ProfileHubProps {
++  initialTab?: string;
++}
++
++const tabs: readonly { id: ProfileTab; label: string }[] = [
++  { id: 'overview', label: '概览' },
++  { id: 'trips', label: '我的行程' },
++  { id: 'likes', label: '喜欢' },
++  { id: 'offers', label: '收藏报价' },
++  { id: 'safety', label: '搭子与安全' },
++  { id: 'preferences', label: '兴趣偏好' },
++];
++const acceptedTabs = new Set<ProfileTab>(tabs.map(({ id }) => id));
++const acceptedTripStatuses = new Set(['active', 'guarded', 'archived']);
++const offerKindLabels = { flight: '机票', hotel: '酒店', ticket: '门票' } as const;
++const timestampFormatter = new Intl.DateTimeFormat('zh-CN', {
++  year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
++});
++const profileSessionTime = Date.now();
++
++function normalizeProfileTab(tab: string | null | undefined): ProfileTab {
++  return tab && acceptedTabs.has(tab as ProfileTab) ? tab as ProfileTab : 'overview';
++}
++
++export function ProfileHub({ initialTab }: ProfileHubProps) {
++  const [activeTab, setActiveTab] = useState<ProfileTab>(() => normalizeProfileTab(initialTab));
++  const tabRefs = useRef<Record<ProfileTab, HTMLButtonElement | null>>({
++    overview: null, trips: null, likes: null, offers: null, safety: null, preferences: null,
++  });
++  const profileHydration = useProfileStoreHydration();
++  const libraryHydration = useLibraryStoreHydration();
++  const tripHydration = useTripStoreHydration();
++  const partnerHydration = usePartnerStoreHydration();
++  const resetProfilePreferences = useProfileStore((state) => state.resetProfilePreferences);
++  const resetLibrary = useLibraryStore((state) => state.resetLibrary);
++
++  useEffect(() => {
++    void Promise.all([
++      hydrateProfileStore(),
++      hydrateLibraryStore(),
++      hydrateWorkbenchTripStore(),
++      hydratePartnerStore(),
++    ]);
++  }, []);
++
++  useEffect(() => {
++    function restoreTabFromHistory() {
++      setActiveTab(normalizeProfileTab(new URL(window.location.href).searchParams.get('tab')));
++    }
++    window.addEventListener('popstate', restoreTabFromHistory);
++    return () => window.removeEventListener('popstate', restoreTabFromHistory);
++  }, []);
++
++  function selectTab(tab: ProfileTab, moveFocus = false) {
++    if (tab !== activeTab) {
++      const url = new URL(window.location.href);
++      url.searchParams.set('tab', tab);
++      window.history.pushState({}, '', `${url.pathname}${url.search}${url.hash}`);
++      setActiveTab(tab);
++    }
++    if (moveFocus) tabRefs.current[tab]?.focus();
++  }
++
++  function handleTabKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
++    const currentIndex = tabs.findIndex(({ id }) => id === activeTab);
++    let nextIndex: number | undefined;
++    if (event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % tabs.length;
++    if (event.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
++    if (event.key === 'Home') nextIndex = 0;
++    if (event.key === 'End') nextIndex = tabs.length - 1;
++    if (nextIndex === undefined) return;
++    event.preventDefault();
++    selectTab(tabs[nextIndex].id, true);
++  }
++
++  const domains: HydrationDomain[] = [
++    {
++      id: 'profile', label: '兴趣偏好', ...profileHydration,
++      onReset: () => {
++        resetProfilePreferences();
++        useProfileStoreHydration.setState({ hydrationError: false });
++      },
++    },
++    {
++      id: 'library', label: '喜欢与收藏', ...libraryHydration,
++      onReset: () => {
++        resetLibrary();
++        useLibraryStoreHydration.setState({ hydrationError: false });
++      },
++    },
++    { id: 'trips', label: '行程', ...tripHydration },
++    { id: 'partner', label: '搭子与安全', ...partnerHydration },
++  ];
++
++  return (
++    <main className={styles.profileHub}>
++      <HydrationBoundary domains={domains} loadingMessage="正在整理当前浏览器里的旅行资料…">
++        <ProfileIdentityHeader
++          libraryError={libraryHydration.hydrationError}
++          partnerError={partnerHydration.hydrationError}
++          tripError={tripHydration.hydrationError}
++        />
++        <div className={styles.tabShell}>
++          <div aria-label="个人中心内容" className={styles.tabList} role="tablist">
++            {tabs.map(({ id, label }) => (
++              <button
++                aria-controls={`profile-panel-${id}`}
++                aria-selected={activeTab === id}
++                id={`profile-tab-${id}`}
++                key={id}
++                onClick={() => selectTab(id)}
++                onKeyDown={handleTabKeyDown}
++                ref={(node) => { tabRefs.current[id] = node; }}
++                role="tab"
++                tabIndex={activeTab === id ? 0 : -1}
++                type="button"
++              >
++                {label}
++              </button>
++            ))}
++          </div>
++          <section
++            aria-labelledby={`profile-tab-${activeTab}`}
++            className={styles.tabPanel}
++            id={`profile-panel-${activeTab}`}
++            role="tabpanel"
++            tabIndex={0}
++          >
++            <ProfilePanel
++              activeTab={activeTab}
++              libraryError={libraryHydration.hydrationError}
++              onSelectTab={selectTab}
++              partnerError={partnerHydration.hydrationError}
++              tripError={tripHydration.hydrationError}
++            />
++          </section>
++        </div>
++      </HydrationBoundary>
++    </main>
++  );
++}
++
++function ProfileIdentityHeader({
++  libraryError,
++  partnerError,
++  tripError,
++}: {
++  libraryError: boolean;
++  partnerError: boolean;
++  tripError: boolean;
++}) {
++  const tripCount = useTripStore(selectAcceptedTripCount);
++  const likedCount = useLibraryStore((state) => state.likedPostSlugs.length);
++  const offerCount = useLibraryStore((state) => Object.keys(state.favoriteOffers).length);
++  const visibleMatches = usePartnerStore((state) => state.visibleMatchIds.length);
++
++  return (
++    <header className={styles.identityHeader}>
++      <Image
++        alt=""
++        aria-hidden
++        className={styles.identityBackdrop}
++        fill
++        priority
++        sizes="100vw"
++        src="/assets/hero-dali-dawn.png"
++      />
++      <div aria-hidden className={styles.identityShade} />
++      <div className={styles.identityContent}>
++        <UserCircle aria-hidden size={66} weight="thin" />
++        <div className={styles.identityCopy}>
++          <p>XINGYU · BROWSER LOCAL</p>
++          <h1>你好，行屿旅人</h1>
++          <span>愿每一次出发，都收拢成可继续的自由。</span>
++        </div>
++        <dl className={styles.identityStats}>
++          <Stat label="行程" unavailable={tripError} value={tripCount} />
++          <Stat label="喜欢" unavailable={libraryError} value={likedCount} />
++          <Stat label="收藏报价" unavailable={libraryError} value={offerCount} />
++          <Stat label="可见匹配" unavailable={partnerError} value={visibleMatches} />
++        </dl>
++      </div>
++    </header>
++  );
++}
++
++function Stat({ label, unavailable, value }: { label: string; unavailable: boolean; value: number }) {
++  return <div><dt>{label}</dt><dd>{unavailable ? '—' : value}</dd></div>;
++}
++
++function ProfilePanel({
++  activeTab,
++  libraryError,
++  onSelectTab,
++  partnerError,
++  tripError,
++}: {
++  activeTab: ProfileTab;
++  libraryError: boolean;
++  onSelectTab: (tab: ProfileTab) => void;
++  partnerError: boolean;
++  tripError: boolean;
++}) {
++  if (activeTab === 'overview') {
++    return <OverviewPanel libraryError={libraryError} onSelectTab={onSelectTab} partnerError={partnerError} tripError={tripError} />;
++  }
++  if (activeTab === 'trips') return tripError ? <DomainUnavailable domain="行程" /> : <TripsPanel />;
++  if (activeTab === 'likes') return libraryError ? <DomainUnavailable domain="喜欢" /> : <LikesPanel />;
++  if (activeTab === 'offers') return libraryError ? <DomainUnavailable domain="收藏报价" /> : <OffersPanel />;
++  if (activeTab === 'safety') return <SafetyPanel partnerError={partnerError} tripError={tripError} />;
++  return <PreferenceSettings />;
++}
++
++function OverviewPanel({
++  libraryError,
++  onSelectTab,
++  partnerError,
++  tripError,
++}: {
++  libraryError: boolean;
++  onSelectTab: (tab: ProfileTab) => void;
++  partnerError: boolean;
++  tripError: boolean;
++}) {
++  const tripCount = useTripStore(selectAcceptedTripCount);
++  const likedCount = useLibraryStore((state) => state.likedPostSlugs.length);
++  const offerCount = useLibraryStore((state) => Object.keys(state.favoriteOffers).length);
++  const trips = useTripStore(selectTripRecords);
++  const recentTrip = useMemo(() => acceptedTrips(trips)[0], [trips]);
++
++  return (
++    <div className={styles.panelStack}>
++      <div className={styles.sectionHeading}>
++        <div><p>LOCAL TRAVEL DESK</p><h2>把下一步留在手边</h2></div>
++        <span>所有资料只保存在当前浏览器，不是账户云同步。</span>
++      </div>
++      <div className={styles.summaryGrid}>
++        <SummaryCard
++          href="/trips"
++          icon={<SuitcaseRolling aria-hidden size={24} />}
++          label="我的行程"
++          unavailable={tripError}
++          value={`${tripCount} 个行程`}
++        />
++        <SummaryCard
++          icon={<Heart aria-hidden size={24} />}
++          label="喜欢的攻略"
++          onClick={() => onSelectTab('likes')}
++          unavailable={libraryError}
++          value={`${likedCount} 篇喜欢`}
++        />
++        <SummaryCard
++          icon={<Compass aria-hidden size={24} />}
++          label="收藏报价"
++          onClick={() => onSelectTab('offers')}
++          unavailable={libraryError}
++          value={`${offerCount} 条收藏报价`}
++        />
++      </div>
++      <div className={styles.overviewColumns}>
++        <article className={styles.featureCard}>
++          <p>最近行程</p>
++          {tripError ? <DomainUnavailable domain="行程" compact /> : recentTrip ? (
++            <>
++              <span><MapPin aria-hidden size={16} />{recentTrip.destination}</span>
++              <h3>{recentTrip.title}</h3>
++              <p>{recentTrip.startDate} — {recentTrip.endDate} · {recentTrip.items.length} 天</p>
++              <Link href={`/trips/${recentTrip.sourcePostSlug}`}>继续规划 <ArrowRight aria-hidden size={16} /></Link>
++            </>
++          ) : (
++            <EmptyState actionHref="/square" actionLabel="从攻略创建" message="接受一篇攻略后，最近行程会出现在这里。" title="还没有保存的行程" />
++          )}
++        </article>
++        <article className={styles.safetyDisclosure}>
++          <ShieldCheck aria-hidden size={30} />
++          <div>
++            <p>演示身份与安全边界</p>
++            <h3>26 岁演示旅人 · 状态清晰</h3>
++            <span>仅用于展示 18+ 功能与安全流程，不是实名认证、风险担保或紧急响应服务。</span>
++            <Link href={partnerError ? '/trips' : '/partners'}>查看搭子与安全边界 <ArrowRight aria-hidden size={16} /></Link>
++          </div>
++        </article>
++      </div>
++    </div>
++  );
++}
++
++function SummaryCard({
++  href,
++  icon,
++  label,
++  onClick,
++  unavailable,
++  value,
++}: {
++  href?: string;
++  icon: ReactNode;
++  label: string;
++  onClick?: () => void;
++  unavailable: boolean;
++  value: string;
++}) {
++  const content = <>{icon}<span>{label}</span><strong>{unavailable ? '暂不可用' : value}</strong><ArrowRight aria-hidden size={18} /></>;
++  if (onClick) return <button className={styles.summaryCard} onClick={onClick} type="button">{content}</button>;
++  return <Link className={styles.summaryCard} href={href ?? '/'}>{content}</Link>;
++}
++
++function TripsPanel() {
++  const trips = useTripStore(selectTripRecords);
++  const collectionTrips = useMemo(() => acceptedTrips(trips), [trips]);
++  if (collectionTrips.length === 0) {
++    return (
++      <EmptyState
++        actionHref="/square"
++        actionLabel="从攻略创建"
++        message="把一篇攻略接受为行程后，就能从这里继续规划。"
++        secondaryHref="/compare"
++        secondaryLabel="开始比价"
++        title="还没有保存的行程"
++      />
++    );
++  }
++  return (
++    <div className={styles.panelStack}>
++      <div className={styles.sectionHeading}>
++        <div><p>MY TRIPS</p><h2>我的行程</h2></div>
++        <span>{collectionTrips.length} 个可继续行程，按最近更新排序。</span>
++      </div>
++      <div className={styles.tripGrid}>{collectionTrips.map((trip) => <TripCollectionCard key={trip.id} trip={trip} />)}</div>
++    </div>
++  );
++}
++
++function acceptedTrips(trips: Record<string, WorkbenchTrip>) {
++  return Object.values(trips)
++    .filter((trip) => acceptedTripStatuses.has(trip.status))
++    .toSorted((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt));
++}
++
++function LikesPanel() {
++  const likedPostSlugs = useLibraryStore((state) => state.likedPostSlugs);
++  const togglePostLike = useLibraryStore((state) => state.togglePostLike);
++  if (likedPostSlugs.length === 0) {
++    return <EmptyState actionHref="/square" actionLabel="去灵感广场" message="喜欢的攻略会保存在这里，刷新后仍可找回。" title="喜欢的攻略会保存在这里" />;
++  }
++  return (
++    <div className={styles.panelStack}>
++      <div className={styles.sectionHeading}><div><p>LIKED GUIDES</p><h2>喜欢</h2></div><span>{likedPostSlugs.length} 条本地喜欢记录</span></div>
++      <div className={styles.guideGrid}>
++        {likedPostSlugs.map((slug) => {
++          const post = postsBySlug[slug];
++          if (!post) {
++            return (
++              <article className={styles.unavailableGuide} key={slug}>
++                <span>内容已不可用</span><p>{slug}</p>
++                <button aria-label={`移除不可用喜欢 ${slug}`} onClick={() => togglePostLike(slug)} type="button">移除记录</button>
++              </article>
++            );
++          }
++          const cover = post.media[0];
++          return (
++            <article className={styles.guideCard} key={slug}>
++              <div className={styles.guideCover}>
++                <Image alt={cover.alt} fill sizes="(max-width: 680px) 100vw, 33vw" src={cover.src} />
++              </div>
++              <div>
++                <span>{post.destination} · {post.days} 天</span>
++                <h3><Link href={`/square/${post.slug}`}>{post.title}</Link></h3>
++                <p>{post.excerpt}</p>
++                <FavoriteButton label={post.title} slug={post.slug} />
++              </div>
++            </article>
++          );
++        })}
++      </div>
++    </div>
++  );
++}
++
++function OffersPanel() {
++  const favoriteOffers = useLibraryStore((state) => state.favoriteOffers);
++  const priceAlerts = useLibraryStore((state) => state.priceAlerts);
++  const offers = Object.values(favoriteOffers);
++  const [filter, setFilter] = useState<'all' | FavoriteOfferSnapshot['productKind']>('all');
++  if (offers.length === 0) {
++    return <EmptyState actionHref="/compare" actionLabel="开始比价" message="收藏一条报价后，可在这里核对数据时间与提醒状态。" title="收藏的报价会保存在这里" />;
++  }
++  const filteredOffers = filter === 'all' ? offers : offers.filter((offer) => offer.productKind === filter);
++  const counts = {
++    flight: offers.filter((offer) => offer.productKind === 'flight').length,
++    hotel: offers.filter((offer) => offer.productKind === 'hotel').length,
++    ticket: offers.filter((offer) => offer.productKind === 'ticket').length,
++  };
++  const hasEnabledAlert = Object.values(priceAlerts).some((alert) => alert.enabled);
++  return (
++    <div className={styles.panelStack}>
++      <div className={styles.sectionHeading}><div><p>SAVED OFFERS</p><h2>收藏报价</h2></div><span>{offers.length} 条浏览器本地快照</span></div>
++      <div aria-label="筛选收藏报价" className={styles.offerFilters} role="group">
++        <button aria-pressed={filter === 'all'} onClick={() => setFilter('all')} type="button">全部 {offers.length}</button>
++        <button aria-pressed={filter === 'flight'} onClick={() => setFilter('flight')} type="button">机票 {counts.flight}</button>
++        <button aria-pressed={filter === 'hotel'} onClick={() => setFilter('hotel')} type="button">酒店 {counts.hotel}</button>
++        <button aria-pressed={filter === 'ticket'} onClick={() => setFilter('ticket')} type="button">门票 {counts.ticket}</button>
++      </div>
++      {hasEnabledAlert ? <p className={styles.alertBoundary}>已保存提醒设置；本演示不会在关闭页面后推送</p> : null}
++      <div className={styles.offerList}>
++        {filteredOffers.length > 0
++          ? filteredOffers.map((offer) => <OfferCard alertEnabled={Boolean(priceAlerts[offer.key]?.enabled)} key={offer.key} offer={offer} />)
++          : <p className={styles.filteredEmpty}>这一类还没有收藏报价。</p>}
++      </div>
++    </div>
++  );
++}
++
++function OfferCard({ alertEnabled, offer }: { alertEnabled: boolean; offer: FavoriteOfferSnapshot }) {
++  const expired = Date.parse(offer.expiresAt) <= profileSessionTime;
++  const search = new URLSearchParams({ kind: offer.productKind, destination: offer.destination });
++  return (
++    <article className={styles.offerCard}>
++      <div><span>{offerKindLabels[offer.productKind]} · {offer.provider}</span><h3>{offer.destination}</h3><p>{offer.policySummary}</p></div>
++      <div className={styles.offerPrice}><small>保存时总价</small><strong>¥ {offer.totalPrice.toLocaleString('zh-CN')}</strong></div>
++      <dl>
++        <div><dt>数据时间</dt><dd>{formatTimestamp(offer.observedAt)}</dd></div>
++        <div><dt>快照状态</dt><dd className={expired ? styles.expired : undefined}>{expired ? '报价可能已变化' : `有效至 ${formatTimestamp(offer.expiresAt)}`}</dd></div>
++        <div><dt>本地提醒</dt><dd>{alertEnabled ? '已保存（关闭页面后不会推送）' : '未开启'}</dd></div>
++      </dl>
++      <Link href={`/compare?${search.toString()}`}>重新比价</Link>
++    </article>
++  );
++}
++
++function formatTimestamp(value: string) {
++  return timestampFormatter.format(new Date(value));
++}
++
++function SafetyPanel({ partnerError, tripError }: { partnerError: boolean; tripError: boolean }) {
++  const trips = useTripStore(selectTripRecords);
++  const intents = usePartnerStore((state) => state.intents);
++  const matches = usePartnerStore((state) => state.matches);
++  const visibleMatchIds = usePartnerStore((state) => state.visibleMatchIds);
++  const guardedTrips = Object.values(trips).filter((trip) => trip.status === 'guarded');
++  const visibleMatches = visibleMatchIds.map((id) => matches[id]).filter(Boolean);
++  const trustedContactCount = visibleMatches.filter((match) => match.trustedContactAcknowledged).length;
++  const missedCheckIns = visibleMatches.filter((match) => match.checkInStatus === 'missed').length;
++  const currentIntent = Object.values(intents)[0];
++
++  return (
++    <div className={styles.panelStack}>
++      <div className={styles.sectionHeading}><div><p>PARTNER & SAFETY</p><h2>搭子与安全</h2></div><span>摘要来自搭子与行程领域，不在个人中心复制。</span></div>
++      <div className={styles.safetyGrid}>
++        <article>
++          <Compass aria-hidden size={27} />
++          <span>搭子意愿</span>
++          {partnerError ? <strong>暂不可用</strong> : <strong>{currentIntent ? `${currentIntent.destination} · ${currentIntent.capacity} 人` : '尚未发布'}</strong>}
++          <p>{partnerError ? '搭子资料未能安全读取。' : `${visibleMatches.length} 个可见匹配 · ${trustedContactCount} 个已确认可信联系人`}</p>
++          <Link href="/partners">继续寻找搭子</Link>
++        </article>
++        <article>
++          <ShieldCheck aria-hidden size={27} />
++          <span>行程守护</span>
++          {tripError ? <strong>暂不可用</strong> : <strong>{guardedTrips.length} 个守护中行程</strong>}
++          <p>{tripError ? '行程资料未能安全读取。' : `${missedCheckIns} 个错过签到状态；官方紧急服务始终优先。`}</p>
++          <Link href="/trips">查看我的行程</Link>
++        </article>
++      </div>
++      <aside className={styles.safetyBoundary}>
++        <ShieldCheck aria-hidden size={24} />
++        <p>身份状态、匹配分数、可信联系人与守护均为当前浏览器中的沙箱演示，不构成身份、安全或紧急响应担保。遇到现实危险时，请优先联系当地警方、急救与官方服务。</p>
++      </aside>
++    </div>
++  );
++}
++
++function DomainUnavailable({ compact = false, domain }: { compact?: boolean; domain: string }) {
++  return (
++    <div className={compact ? styles.compactUnavailable : styles.domainUnavailable} role="status">
++      <strong>{domain}资料暂不可用</strong>
++      <p>原始浏览器数据已保留；请稍后刷新重试。</p>
++    </div>
++  );
++}
++
++function EmptyState({
++  actionHref,
++  actionLabel,
++  message,
++  secondaryHref,
++  secondaryLabel,
++  title,
++}: {
++  actionHref: string;
++  actionLabel: string;
++  message: string;
++  secondaryHref?: string;
++  secondaryLabel?: string;
++  title: string;
++}) {
++  return (
++    <div className={styles.emptyState}>
++      <Compass aria-hidden size={28} />
++      <h2>{title}</h2><p>{message}</p>
++      <div><Link href={actionHref}>{actionLabel}</Link>{secondaryHref && secondaryLabel ? <Link href={secondaryHref}>{secondaryLabel}</Link> : null}</div>
++    </div>
++  );
++}
+diff --git a/src/features/profile/profile.module.css b/src/features/profile/profile.module.css
+new file mode 100644
+index 0000000..3626cca
+--- /dev/null
++++ b/src/features/profile/profile.module.css
+@@ -0,0 +1,199 @@
++.profileHub {
++  min-height: 100vh;
++  padding-top: 78px;
++  color: var(--ink);
++  background: var(--ivory);
++}
++
++.identityHeader {
++  position: relative;
++  min-height: 310px;
++  overflow: hidden;
++  color: var(--ivory);
++  background: var(--ink);
++}
++
++.identityBackdrop { object-fit: cover; object-position: 50% 58%; opacity: 0.48; }
++.identityShade { position: absolute; inset: 0; background: rgb(16 16 15 / 48%); }
++
++.identityContent {
++  position: relative;
++  z-index: 1;
++  display: grid;
++  grid-template-columns: auto minmax(240px, 1fr) minmax(420px, auto);
++  gap: clamp(18px, 3vw, 38px);
++  align-items: center;
++  width: min(calc(100% - 64px), var(--content-max));
++  min-height: 310px;
++  margin: 0 auto;
++  padding: 56px 0 42px;
++}
++
++.identityContent > svg { color: var(--sand); filter: drop-shadow(0 8px 18px rgb(0 0 0 / 28%)); }
++.identityCopy p { margin: 0 0 12px; color: var(--sand); font-size: 10px; letter-spacing: 0.2em; }
++.identityCopy h1 { margin: 0; font-family: var(--font-display); font-size: clamp(32px, 4vw, 48px); font-weight: 400; letter-spacing: 0.02em; }
++.identityCopy span { display: block; margin-top: 11px; color: rgb(244 240 232 / 68%); font-size: 13px; }
++
++.identityStats { display: grid; grid-template-columns: repeat(4, minmax(82px, 1fr)); margin: 0; }
++.identityStats > div { padding: 7px 18px; border-left: 1px solid rgb(244 240 232 / 15%); }
++.identityStats dt { color: rgb(244 240 232 / 60%); font-size: 11px; letter-spacing: 0.08em; }
++.identityStats dd { margin: 9px 0 0; font-family: var(--font-display); font-size: 27px; font-variant-numeric: tabular-nums; }
++
++.tabShell { width: min(calc(100% - 64px), var(--content-max)); margin: -1px auto 0; padding-bottom: 96px; }
++.tabList { display: flex; gap: clamp(20px, 4vw, 52px); overflow-x: auto; border-bottom: 1px solid rgb(16 16 15 / 12%); scrollbar-width: none; }
++.tabList::-webkit-scrollbar { display: none; }
++.tabList button { position: relative; flex: 0 0 auto; min-height: 64px; padding: 2px 0 0; color: rgb(16 16 15 / 60%); border: 0; background: transparent; cursor: pointer; font-size: 13px; }
++.tabList button::after { position: absolute; right: 0; bottom: -1px; left: 0; height: 2px; background: var(--sand); content: ''; opacity: 0; transform: scaleX(0.35); transition: opacity 160ms ease, transform 320ms cubic-bezier(.22, .61, .36, 1); }
++.tabList button[aria-selected='true'] { color: var(--ink); }
++.tabList button[aria-selected='true']::after { opacity: 1; transform: scaleX(1); }
++.tabList button:focus-visible,
++.summaryCard:focus-visible,
++.featureCard a:focus-visible,
++.safetyDisclosure a:focus-visible,
++.guideCard a:focus-visible,
++.unavailableGuide button:focus-visible,
++.offerCard a:focus-visible,
++.safetyGrid a:focus-visible,
++.emptyState a:focus-visible { outline: 2px solid var(--sand); outline-offset: 4px; }
++
++.tabPanel { padding-top: clamp(38px, 5vw, 66px); outline: none; }
++.panelStack { display: grid; gap: 30px; }
++.sectionHeading { display: flex; justify-content: space-between; gap: 24px; align-items: flex-end; }
++.sectionHeading p { margin: 0 0 8px; color: var(--sand); font-size: 10px; letter-spacing: 0.17em; }
++.sectionHeading h2 { margin: 0; font-family: var(--font-display); font-size: clamp(28px, 4vw, 38px); font-weight: 500; }
++.sectionHeading > span { max-width: 430px; color: rgb(16 16 15 / 58%); font-size: 13px; line-height: 1.7; text-align: right; }
++
++.summaryGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
++.summaryCard { display: grid; grid-template-columns: auto 1fr auto; gap: 8px 13px; align-items: center; min-height: 126px; padding: 22px; color: var(--ink); text-align: left; text-decoration: none; border: 1px solid rgb(16 16 15 / 11%); background: rgb(255 255 255 / 26%); cursor: pointer; transition: border-color 160ms ease, transform 320ms cubic-bezier(.22, .61, .36, 1); }
++.summaryCard:hover { border-color: rgb(183 154 104 / 72%); transform: translateY(-3px); }
++.summaryCard > svg:first-child { grid-row: span 2; color: var(--sand); }
++.summaryCard > svg:last-child { grid-column: 3; grid-row: 1 / span 2; color: rgb(16 16 15 / 48%); }
++.summaryCard span { color: rgb(16 16 15 / 58%); font-size: 12px; }
++.summaryCard strong { font-family: var(--font-display); font-size: 21px; font-weight: 500; }
++
++.overviewColumns { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr); gap: 16px; }
++.featureCard,
++.safetyDisclosure { min-height: 245px; padding: clamp(24px, 4vw, 36px); border: 1px solid rgb(16 16 15 / 11%); }
++.featureCard > p:first-child,
++.safetyDisclosure > div > p { margin: 0 0 20px; color: var(--sand); font-size: 10px; letter-spacing: 0.15em; }
++.featureCard > span { display: inline-flex; align-items: center; gap: 6px; color: rgb(16 16 15 / 58%); font-size: 12px; }
++.featureCard h3,
++.safetyDisclosure h3 { margin: 15px 0 10px; font-family: var(--font-display); font-size: 25px; font-weight: 500; }
++.featureCard > p:not(:first-child),
++.safetyDisclosure span { color: rgb(16 16 15 / 62%); font-size: 13px; line-height: 1.8; }
++.featureCard > a,
++.safetyDisclosure a { display: inline-flex; gap: 7px; align-items: center; margin-top: 24px; color: var(--pine); font-size: 13px; font-weight: 700; text-decoration: none; }
++.safetyDisclosure { display: flex; gap: 20px; color: var(--ivory); border-color: var(--pine); background: var(--pine); }
++.safetyDisclosure > svg { flex: 0 0 auto; color: var(--sand); }
++.safetyDisclosure span { color: rgb(244 240 232 / 68%); }
++.safetyDisclosure a { color: var(--ivory); }
++
++.tripGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
++.guideGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
++.guideCard { overflow: hidden; border: 1px solid rgb(16 16 15 / 11%); background: rgb(255 255 255 / 25%); }
++.guideCover { position: relative; aspect-ratio: 3 / 2; overflow: hidden; background: #ded8cd; }
++.guideCover img { object-fit: cover; transition: transform 320ms cubic-bezier(.22, .61, .36, 1); }
++.guideCard:hover .guideCover img { transform: scale(1.025); }
++.guideCard > div:last-child { position: relative; padding: 20px; }
++.guideCard span { color: var(--sand); font-size: 10px; letter-spacing: .08em; }
++.guideCard h3 { min-height: 3.2em; margin: 10px 0 8px; font-family: var(--font-display); font-size: 19px; font-weight: 500; line-height: 1.55; }
++.guideCard h3 a { text-decoration: none; }
++.guideCard p { display: -webkit-box; overflow: hidden; margin: 0; color: rgb(16 16 15 / 58%); font-size: 12px; line-height: 1.7; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
++.guideCard > div:last-child > span:last-child { position: absolute; top: 14px; right: 14px; }
++.unavailableGuide { min-height: 210px; padding: 24px; border: 1px dashed rgb(16 16 15 / 24%); }
++.unavailableGuide span { color: var(--cinnabar, #a94032); font-family: var(--font-display); font-size: 21px; }
++.unavailableGuide p { color: rgb(16 16 15 / 52%); font-size: 12px; }
++.unavailableGuide button { margin-top: 40px; padding: 9px 12px; color: var(--ink); border: 1px solid rgb(16 16 15 / 20%); background: transparent; cursor: pointer; }
++
++.offerList { display: grid; gap: 12px; }
++.offerFilters { display: flex; flex-wrap: wrap; gap: 8px; }
++.offerFilters button { min-height: 34px; padding: 0 12px; color: rgb(16 16 15 / 64%); border: 1px solid rgb(16 16 15 / 16%); background: transparent; cursor: pointer; font-size: 12px; }
++.offerFilters button[aria-pressed='true'] { color: var(--ink); border-color: var(--sand); background: rgb(183 154 104 / 12%); }
++.offerFilters button:focus-visible { outline: 2px solid var(--sand); outline-offset: 3px; }
++.alertBoundary { margin: -14px 0 0; color: var(--lake-jade); font-size: 12px; }
++.filteredEmpty { margin: 0; padding: 28px; border: 1px dashed rgb(16 16 15 / 20%); color: rgb(16 16 15 / 58%); font-size: 13px; }
++.offerCard { display: grid; grid-template-columns: minmax(180px, 1fr) auto minmax(300px, 1.35fr) auto; gap: 24px; align-items: center; padding: 24px; border: 1px solid rgb(16 16 15 / 11%); background: rgb(255 255 255 / 25%); }
++.offerCard span { color: var(--sand); font-size: 10px; letter-spacing: .08em; }
++.offerCard h3 { margin: 8px 0; font-family: var(--font-display); font-size: 22px; font-weight: 500; }
++.offerCard p { margin: 0; color: rgb(16 16 15 / 58%); font-size: 12px; }
++.offerPrice { text-align: right; }
++.offerPrice small { display: block; color: rgb(16 16 15 / 52%); font-size: 10px; }
++.offerPrice strong { display: block; margin-top: 6px; font-family: var(--font-display); font-size: 23px; font-variant-numeric: tabular-nums; }
++.offerCard dl { display: grid; gap: 5px; margin: 0; font-size: 11px; }
++.offerCard dl div { display: grid; grid-template-columns: 60px 1fr; gap: 8px; }
++.offerCard dt { color: rgb(16 16 15 / 48%); }
++.offerCard dd { margin: 0; font-variant-numeric: tabular-nums; }
++.offerCard .expired { color: var(--cinnabar, #a94032); font-weight: 700; }
++.offerCard > a { padding: 10px 13px; color: var(--ivory); background: var(--pine); font-size: 12px; text-decoration: none; white-space: nowrap; }
++
++.safetyGrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
++.safetyGrid article { padding: 30px; border: 1px solid rgb(16 16 15 / 11%); }
++.safetyGrid svg { color: var(--lake-jade, #4d6b63); }
++.safetyGrid span { display: block; margin-top: 24px; color: rgb(16 16 15 / 52%); font-size: 11px; }
++.safetyGrid strong { display: block; margin-top: 8px; font-family: var(--font-display); font-size: 25px; font-weight: 500; }
++.safetyGrid p { color: rgb(16 16 15 / 58%); font-size: 12px; line-height: 1.7; }
++.safetyGrid a { display: inline-block; margin-top: 12px; color: var(--pine); font-size: 12px; font-weight: 700; text-decoration: none; }
++.safetyBoundary { display: flex; gap: 14px; align-items: flex-start; padding: 22px 24px; color: var(--ivory); background: var(--ink); }
++.safetyBoundary svg { flex: 0 0 auto; color: var(--sand); }
++.safetyBoundary p { margin: 0; color: rgb(244 240 232 / 70%); font-size: 12px; line-height: 1.8; }
++
++.emptyState,
++.domainUnavailable { display: grid; justify-items: start; min-height: 260px; padding: clamp(28px, 5vw, 48px); border: 1px dashed rgb(16 16 15 / 22%); }
++.emptyState > svg { color: var(--sand); }
++.emptyState h2 { margin: 22px 0 8px; font-family: var(--font-display); font-size: 27px; font-weight: 500; }
++.emptyState p,
++.domainUnavailable p { margin: 0; color: rgb(16 16 15 / 58%); font-size: 13px; line-height: 1.7; }
++.emptyState > div { display: flex; gap: 10px; margin-top: 30px; }
++.emptyState a { padding: 10px 14px; color: var(--ivory); background: var(--pine); font-size: 12px; text-decoration: none; }
++.emptyState a + a { color: var(--ink); border: 1px solid rgb(16 16 15 / 20%); background: transparent; }
++.domainUnavailable strong { font-family: var(--font-display); font-size: 24px; font-weight: 500; }
++.compactUnavailable { padding: 20px 0; }
++.compactUnavailable strong { display: block; font-family: var(--font-display); font-size: 20px; }
++.compactUnavailable p { color: rgb(16 16 15 / 58%); font-size: 12px; }
++
++@media (max-width: 980px) {
++  .identityContent { grid-template-columns: auto 1fr; }
++  .identityStats { grid-column: 1 / -1; }
++  .identityStats > div:first-child { border-left: 0; }
++  .guideGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
++  .offerCard { grid-template-columns: 1fr auto; }
++  .offerCard dl { grid-column: 1 / -1; }
++}
++
++@media (max-width: 680px) {
++  .profileHub { padding-top: 72px; }
++  .identityHeader,
++  .identityContent { min-height: 360px; }
++  .identityContent { grid-template-columns: auto 1fr; width: calc(100% - 32px); padding: 44px 0 26px; }
++  .identityContent > svg { width: 50px; height: 50px; }
++  .identityCopy h1 { font-size: 31px; }
++  .identityStats { grid-template-columns: repeat(2, 1fr); }
++  .identityStats > div { padding: 10px 12px; }
++  .identityStats > div:nth-child(3) { border-left: 0; }
++  .identityStats dd { font-size: 23px; }
++  .tabShell { width: calc(100% - 28px); padding-bottom: 70px; }
++  .tabList { gap: 28px; margin: 0 -14px; padding: 0 14px; }
++  .tabList button { min-height: 58px; }
++  .sectionHeading { align-items: flex-start; flex-direction: column; }
++  .sectionHeading > span { text-align: left; }
++  .summaryGrid,
++  .overviewColumns,
++  .tripGrid,
++  .guideGrid,
++  .safetyGrid { grid-template-columns: 1fr; }
++  .summaryCard { min-height: 105px; }
++  .offerCard { grid-template-columns: 1fr; gap: 16px; }
++  .offerPrice { text-align: left; }
++  .offerCard dl { grid-column: auto; }
++  .offerCard > a { justify-self: start; }
++  .emptyState,
++  .domainUnavailable { min-height: 230px; }
++}
++
++@media (prefers-reduced-motion: reduce) {
++  .tabList button::after,
++  .summaryCard,
++  .guideCover img { transition: none; }
++  .summaryCard:hover { transform: none; }
++  .guideCard:hover .guideCover img { transform: none; }
++}
+diff --git a/tests/component/profile-hub.test.tsx b/tests/component/profile-hub.test.tsx
+new file mode 100644
+index 0000000..0c8174b
+--- /dev/null
++++ b/tests/component/profile-hub.test.tsx
+@@ -0,0 +1,198 @@
++import { fireEvent, render, screen } from '@testing-library/react';
++import userEvent from '@testing-library/user-event';
++import { beforeEach, describe, expect, it, vi } from 'vitest';
++import { postsBySlug } from '@/data/posts';
++import { extractTripDraft } from '@/domain/trips/extract-draft';
++import { ProfileHub } from '@/features/profile/profile-hub';
++import {
++  type FavoriteOfferSnapshot,
++  useLibraryStore,
++  useLibraryStoreHydration,
++} from '@/stores/library-store';
++import { usePartnerStore, usePartnerStoreHydration } from '@/stores/partner-store';
++import { useProfileStore, useProfileStoreHydration } from '@/stores/profile-store';
++import { createTripStore, useTripStore, useTripStoreHydration } from '@/stores/trip-store';
++
++const expiredOffer: FavoriteOfferSnapshot = {
++  key: '["演示航司","flight-expired"]',
++  provider: '演示航司',
++  productKind: 'flight',
++  destination: '大理',
++  totalPrice: 1260,
++  currency: 'CNY',
++  policySummary: '可退款｜含行李',
++  observedAt: '2026-08-18T02:00:00.000Z',
++  expiresAt: '2026-08-18T02:15:00.000Z',
++};
++
++const hotelOffer: FavoriteOfferSnapshot = {
++  key: '["演示酒店","hotel-current"]',
++  provider: '演示酒店',
++  productKind: 'hotel',
++  destination: '桂林',
++  totalPrice: 880,
++  currency: 'CNY',
++  policySummary: '可退款｜不含行李',
++  observedAt: '2026-08-19T04:00:00.000Z',
++  expiresAt: '2026-08-19T04:15:00.000Z',
++};
++
++beforeEach(() => {
++  vi.useRealTimers();
++  window.localStorage.clear();
++  window.history.replaceState({}, '', '/profile');
++  useProfileStore.setState({ personalizedFeed: true, interestTags: ['山野', '慢旅行'] });
++  useLibraryStore.setState({ likedPostSlugs: [], favoriteOffers: {}, priceAlerts: {} });
++  useTripStore.setState({ trips: {}, partnerIntents: {}, guardianPlans: {} });
++  usePartnerStore.setState({ intents: {}, matches: {}, visibleMatchIds: [], blockedCandidateIds: [] });
++  useProfileStoreHydration.setState({ hydrated: true, hydrationError: false });
++  useLibraryStoreHydration.setState({ hydrated: true, hydrationError: false });
++  useTripStoreHydration.setState({ hydrated: true, hydrationError: false });
++  usePartnerStoreHydration.setState({ hydrated: true, hydrationError: false });
++});
++
++describe('ProfileHub', () => {
++  it('shows liked guides, trips, and offer validity from their owning stores', async () => {
++    const user = userEvent.setup();
++    seedAcceptedTrip();
++    useLibraryStore.setState({
++      likedPostSlugs: ['dali-slow-5d'],
++      favoriteOffers: { [expiredOffer.key]: expiredOffer },
++    });
++
++    render(<ProfileHub initialTab="overview" />);
++
++    expect(screen.getByText('1 个行程')).toBeInTheDocument();
++    expect(screen.getByText('1 篇喜欢')).toBeInTheDocument();
++    expect(screen.getByText('1 条收藏报价')).toBeInTheDocument();
++    await user.click(screen.getByRole('tab', { name: '喜欢' }));
++    expect(screen.getByRole('link', { name: /把大理留给慢下来的人/ })).toHaveAttribute(
++      'href',
++      '/square/dali-slow-5d',
++    );
++    await user.click(screen.getByRole('tab', { name: '收藏报价' }));
++    expect(screen.getByText('报价可能已变化')).toBeInTheDocument();
++    expect(screen.getByText(/数据时间/)).toBeInTheDocument();
++    expect(screen.getByRole('link', { name: '重新比价' })).toHaveAttribute(
++      'href',
++      '/compare?kind=flight&destination=%E5%A4%A7%E7%90%86',
++    );
++  });
++
++  it('uses semantic query-driven tabs, normalizes invalid tabs, and preserves browser history', async () => {
++    const user = userEvent.setup();
++    render(<ProfileHub initialTab="unknown" />);
++
++    const tablist = screen.getByRole('tablist', { name: '个人中心内容' });
++    expect(tablist).toBeInTheDocument();
++    expect(screen.getByRole('tab', { name: '概览' })).toHaveAttribute('aria-selected', 'true');
++    expect(screen.getByRole('tabpanel', { name: '概览' })).toBeInTheDocument();
++
++    await user.click(screen.getByRole('tab', { name: '我的行程' }));
++    expect(window.location.search).toBe('?tab=trips');
++    expect(screen.getByRole('tabpanel', { name: '我的行程' })).toBeInTheDocument();
++
++    window.history.pushState({}, '', '/profile?tab=likes');
++    fireEvent(window, new PopStateEvent('popstate'));
++    expect(screen.getByRole('tab', { name: '喜欢' })).toHaveAttribute('aria-selected', 'true');
++    expect(screen.getByRole('tabpanel', { name: '喜欢' })).toBeInTheDocument();
++  });
++
++  it('opens local overview summaries in their matching query tab', async () => {
++    const user = userEvent.setup();
++    render(<ProfileHub initialTab="overview" />);
++
++    await user.click(screen.getByText('喜欢的攻略'));
++    expect(screen.getByRole('tab', { name: '喜欢' })).toHaveAttribute('aria-selected', 'true');
++    expect(window.location.search).toBe('?tab=likes');
++  });
++
++  it('supports arrow, Home, and End navigation with a roving tab stop', async () => {
++    const user = userEvent.setup();
++    render(<ProfileHub initialTab="overview" />);
++
++    const overview = screen.getByRole('tab', { name: '概览' });
++    overview.focus();
++    await user.keyboard('{ArrowRight}');
++    expect(screen.getByRole('tab', { name: '我的行程' })).toHaveFocus();
++    expect(window.location.search).toBe('?tab=trips');
++    await user.keyboard('{End}');
++    expect(screen.getByRole('tab', { name: '兴趣偏好' })).toHaveFocus();
++    await user.keyboard('{Home}');
++    expect(overview).toHaveFocus();
++  });
++
++  it('keeps combined hydration neutral and identifies each failed domain explicitly', () => {
++    useLibraryStoreHydration.setState({ hydrated: false, hydrationError: false });
++    const view = render(<ProfileHub initialTab="overview" />);
++
++    expect(screen.getByRole('status')).toHaveTextContent('正在整理当前浏览器里的旅行资料');
++    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
++
++    useLibraryStoreHydration.setState({ hydrated: true, hydrationError: true });
++    view.rerender(<ProfileHub initialTab="overview" />);
++    expect(screen.getByRole('alert')).toHaveTextContent('喜欢与收藏资料暂时无法读取');
++    expect(screen.getByRole('tablist', { name: '个人中心内容' })).toBeInTheDocument();
++    expect(screen.queryByText('行程资料暂时无法读取')).not.toBeInTheDocument();
++  });
++
++  it('keeps unavailable likes removable and provides useful empty states', async () => {
++    const user = userEvent.setup();
++    useLibraryStore.setState({ likedPostSlugs: ['withdrawn-guide'] });
++    render(<ProfileHub initialTab="likes" />);
++
++    expect(screen.getByText('内容已不可用')).toBeInTheDocument();
++    await user.click(screen.getByRole('button', { name: '移除不可用喜欢 withdrawn-guide' }));
++    expect(screen.getByText('喜欢的攻略会保存在这里')).toBeInTheDocument();
++    expect(screen.getByRole('link', { name: '去灵感广场' })).toHaveAttribute('href', '/square');
++
++    await user.click(screen.getByRole('tab', { name: '收藏报价' }));
++    expect(screen.getByText('收藏的报价会保存在这里')).toBeInTheDocument();
++    expect(screen.getByRole('link', { name: '开始比价' })).toHaveAttribute('href', '/compare');
++
++    await user.click(screen.getByRole('tab', { name: '我的行程' }));
++    expect(screen.getByText('还没有保存的行程')).toBeInTheDocument();
++    expect(screen.getByRole('link', { name: '从攻略创建' })).toHaveAttribute('href', '/square');
++  });
++
++  it('filters saved offers by product kind and explains the local-only alert boundary', async () => {
++    const user = userEvent.setup();
++    useLibraryStore.setState({
++      favoriteOffers: { [expiredOffer.key]: expiredOffer, [hotelOffer.key]: hotelOffer },
++      priceAlerts: {
++        [hotelOffer.key]: { offerKey: hotelOffer.key, enabled: true, createdAt: '2026-08-19T04:01:00.000Z' },
++      },
++    });
++    render(<ProfileHub initialTab="offers" />);
++
++    expect(screen.getByText('大理')).toBeInTheDocument();
++    expect(screen.getByText('桂林')).toBeInTheDocument();
++    expect(screen.getByText('已保存提醒设置；本演示不会在关闭页面后推送')).toBeInTheDocument();
++    await user.click(screen.getByRole('button', { name: '酒店 1' }));
++    expect(screen.queryByText('大理')).not.toBeInTheDocument();
++    expect(screen.getByText('桂林')).toBeInTheDocument();
++  });
++
++  it('summarizes partner and guardian safety state without turning it into a guarantee', async () => {
++    const user = userEvent.setup();
++    const trip = seedAcceptedTrip();
++    useTripStore.setState({
++      trips: { [trip.id]: { ...trip, status: 'guarded', guardianEnabled: true } },
++      guardianPlans: { [trip.id]: { id: 'plan-a', title: '标准守护方案' } },
++    });
++
++    render(<ProfileHub initialTab="safety" />);
++
++    expect(screen.getByText('1 个守护中行程')).toBeInTheDocument();
++    expect(screen.getByText(/不构成身份、安全或紧急响应担保/)).toBeInTheDocument();
++    expect(screen.getByRole('link', { name: '继续寻找搭子' })).toHaveAttribute('href', '/partners');
++    await user.click(screen.getByRole('tab', { name: '兴趣偏好' }));
++    expect(screen.getByRole('heading', { name: '推荐与兴趣偏好' })).toBeInTheDocument();
++  });
++});
++
++function seedAcceptedTrip() {
++  const trip = createTripStore().getState().savePostAsTrip(extractTripDraft(postsBySlug['dali-slow-5d']));
++  useTripStore.setState({ trips: { [trip.id]: trip } });
++  return trip;
++}

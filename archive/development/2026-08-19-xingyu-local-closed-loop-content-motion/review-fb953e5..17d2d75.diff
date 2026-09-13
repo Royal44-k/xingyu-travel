@@ -1,0 +1,1287 @@
+# Review package: fb953e5..17d2d75
+
+## Commits
+17d2d75 fix: harden profile recovery and accessibility
+
+## Files changed
+ src/app/globals.css                       |   6 +-
+ src/features/profile/profile-colors.ts    |   7 ++
+ src/features/profile/profile-hub.tsx      | 181 +++++++++++++++++++++++++-----
+ src/features/profile/profile.module.css   |  15 +--
+ src/stores/partner-store.ts               |  54 +++++++--
+ src/stores/trip-store.ts                  |  19 +++-
+ tests/component/profile-hub.test.tsx      |  75 ++++++++++++-
+ tests/unit/partner-eligibility.test.ts    |  23 ++++
+ tests/unit/profile-color-contrast.test.ts |  23 ++++
+ tests/unit/trip-store.test.ts             |  20 ++++
+ 10 files changed, 369 insertions(+), 54 deletions(-)
+
+## Diff
+diff --git a/src/app/globals.css b/src/app/globals.css
+index fa40620..50a2f1a 100644
+--- a/src/app/globals.css
++++ b/src/app/globals.css
+@@ -111,21 +111,21 @@ textarea { font: inherit; }
+ .preferenceSettings {
+   padding: clamp(24px, 5vw, 44px);
+   border: 1px solid rgb(16 16 15 / 13%);
+   border-radius: var(--radius-panel);
+   background: rgb(244 240 232 / 82%);
+   box-shadow: 0 18px 42px rgb(16 16 15 / 7%);
+ }
+ 
+ .profileIntro > p:first-child,
+ .preferenceSettings > p:first-child {
+-  color: var(--sand);
++  color: var(--profile-accent-on-light, #6f5732);
+   font-size: 11px;
+   letter-spacing: 0.17em;
+ }
+ 
+ .profileIntro h1,
+ .preferenceSettings h2 {
+   margin: 0 0 15px;
+   font-family: var(--font-display);
+   font-weight: 500;
+ }
+@@ -157,25 +157,25 @@ textarea { font: inherit; }
+ .preferenceClear { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 40px; padding: 0 14px; color: var(--ivory); border: 1px solid var(--pine); border-radius: var(--radius-control); background: var(--pine); cursor: pointer; }
+ .preferenceSwitchRow button[aria-checked='false'],
+ .preferenceClear { color: var(--ink); border-color: rgb(16 16 15 / 20%); background: transparent; }
+ .preferenceSwitchRow button:disabled,
+ .preferenceClear:disabled { opacity: 0.55; cursor: not-allowed; }
+ .preferenceTags { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0; }
+ .preferenceTags span { padding: 6px 9px; border-radius: 999px; background: #e7e1d5; font-size: 13px; }
+ .preferenceSwitchRow button:focus-visible,
+ .preferenceClear:focus-visible,
+ .interestTagPicker button:focus-visible,
+-.customInterestForm input:focus-visible { outline: 2px solid var(--sand); outline-offset: 3px; }
++.customInterestForm input:focus-visible { outline: 2px solid var(--profile-focus-on-light, #6f5732); outline-offset: 3px; }
+ 
+ .interestTagPicker { margin-top: 28px; padding-top: 24px; border-top: 1px solid rgb(16 16 15 / 13%); }
+ .interestPickerHeader { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
+-.interestPickerEyebrow { margin: 0; color: var(--sand); font-size: 10px; letter-spacing: 0.15em; }
++.interestPickerEyebrow { margin: 0; color: var(--profile-accent-on-light, #6f5732); font-size: 10px; letter-spacing: 0.15em; }
+ .interestPickerHeader h3 { margin: 6px 0 5px; font-family: var(--font-display); font-size: 22px; font-weight: 500; }
+ .interestPickerHeader p:not(.interestPickerEyebrow) { margin: 0; color: rgb(16 16 15 / 70%); font-size: 13px; line-height: 1.65; }
+ .interestClearConfirm { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 8px; color: rgb(16 16 15 / 72%); font-size: 12px; }
+ .interestClearConfirm button,
+ .customInterestForm button { min-height: 36px; padding: 0 11px; color: var(--ivory); border: 1px solid var(--pine); border-radius: var(--radius-control); background: var(--pine); cursor: pointer; }
+ .interestClearConfirm button:last-child { color: var(--ink); border-color: rgb(16 16 15 / 20%); background: transparent; }
+ .selectedInterestTag { display: inline-flex; align-items: center; gap: 4px; }
+ .selectedInterestTag button { display: inline-flex; padding: 0; color: rgb(16 16 15 / 65%); border: 0; background: transparent; cursor: pointer; }
+ .interestCategoryList { display: grid; gap: 16px; margin-top: 24px; }
+ .interestCategory { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 12px; align-items: start; }
+diff --git a/src/features/profile/profile-colors.ts b/src/features/profile/profile-colors.ts
+new file mode 100644
+index 0000000..fac2805
+--- /dev/null
++++ b/src/features/profile/profile-colors.ts
+@@ -0,0 +1,7 @@
++export const profileAccessibleColors = {
++  accentOnLight: '#6f5732',
++  focusOnLight: '#6f5732',
++  focusOnDark: '#b79a68',
++  lightCanvas: '#f4f0e8',
++  darkCanvas: '#10100f',
++} as const;
+diff --git a/src/features/profile/profile-hub.tsx b/src/features/profile/profile-hub.tsx
+index a020bc1..4b273a5 100644
+--- a/src/features/profile/profile-hub.tsx
++++ b/src/features/profile/profile-hub.tsx
+@@ -4,25 +4,37 @@ import {
+   ArrowRight,
+   Compass,
+   Heart,
+   MapPin,
+   ShieldCheck,
+   SuitcaseRolling,
+   UserCircle,
+ } from '@phosphor-icons/react';
+ import Image from 'next/image';
+ import Link from 'next/link';
+-import { type KeyboardEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
++import {
++  type KeyboardEvent,
++  type CSSProperties,
++  type ReactNode,
++  useCallback,
++  useEffect,
++  useLayoutEffect,
++  useMemo,
++  useRef,
++  useState,
++  useSyncExternalStore,
++} from 'react';
+ import { HydrationBoundary, type HydrationDomain } from '@/components/hydration-boundary';
+ import { postsBySlug } from '@/data/posts';
+ import { FavoriteButton } from '@/features/library/favorite-button';
+ import { PreferenceSettings } from '@/features/profile/preference-settings';
++import { profileAccessibleColors } from '@/features/profile/profile-colors';
+ import { TripCollectionCard } from '@/features/trips/trip-collection';
+ import {
+   hydrateLibraryStore,
+   type FavoriteOfferSnapshot,
+   useLibraryStore,
+   useLibraryStoreHydration,
+ } from '@/stores/library-store';
+ import {
+   hydratePartnerStore,
+   usePartnerStore,
+@@ -56,98 +68,172 @@ const tabs: readonly { id: ProfileTab; label: string }[] = [
+   { id: 'offers', label: '收藏报价' },
+   { id: 'safety', label: '搭子与安全' },
+   { id: 'preferences', label: '兴趣偏好' },
+ ];
+ const acceptedTabs = new Set<ProfileTab>(tabs.map(({ id }) => id));
+ const acceptedTripStatuses = new Set(['active', 'guarded', 'archived']);
+ const offerKindLabels = { flight: '机票', hotel: '酒店', ticket: '门票' } as const;
+ const timestampFormatter = new Intl.DateTimeFormat('zh-CN', {
+   year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+ });
+-const profileSessionTime = Date.now();
++const profileColorProperties = {
++  '--profile-accent-on-light': profileAccessibleColors.accentOnLight,
++  '--profile-focus-on-light': profileAccessibleColors.focusOnLight,
++  '--profile-focus-on-dark': profileAccessibleColors.focusOnDark,
++} as CSSProperties;
++
++type ClockListener = () => void;
++
++const offerClock = (() => {
++  let currentTime = Date.now();
++  let timer: ReturnType<typeof setTimeout> | undefined;
++  const subscriptions = new Map<ClockListener, readonly number[]>();
++
++  function scheduleNextBoundary() {
++    if (timer) clearTimeout(timer);
++    timer = undefined;
++    const nextBoundary = [...subscriptions.values()]
++      .flat()
++      .filter((timestamp) => timestamp > currentTime)
++      .reduce((nearest, timestamp) => Math.min(nearest, timestamp), Number.POSITIVE_INFINITY);
++    if (!Number.isFinite(nextBoundary)) return;
++    timer = setTimeout(refresh, Math.max(0, nextBoundary - currentTime));
++  }
++
++  function refresh() {
++    const nextTime = Date.now();
++    if (nextTime !== currentTime) {
++      currentTime = nextTime;
++      for (const listener of subscriptions.keys()) listener();
++    }
++    scheduleNextBoundary();
++  }
++
++  return {
++    getSnapshot: () => currentTime,
++    subscribe(expirationTimes: readonly number[], listener: ClockListener) {
++      subscriptions.set(listener, expirationTimes);
++      refresh();
++      return () => {
++        subscriptions.delete(listener);
++        scheduleNextBoundary();
++      };
++    },
++  };
++})();
+ 
+ function normalizeProfileTab(tab: string | null | undefined): ProfileTab {
+   return tab && acceptedTabs.has(tab as ProfileTab) ? tab as ProfileTab : 'overview';
+ }
+ 
+ export function ProfileHub({ initialTab }: ProfileHubProps) {
+   const [activeTab, setActiveTab] = useState<ProfileTab>(() => normalizeProfileTab(initialTab));
++  const pendingFocus = useRef<{ tab: ProfileTab; target: 'tab' | 'panel' } | null>(null);
+   const tabRefs = useRef<Record<ProfileTab, HTMLButtonElement | null>>({
+     overview: null, trips: null, likes: null, offers: null, safety: null, preferences: null,
+   });
++  const panelRefs = useRef<Record<ProfileTab, HTMLElement | null>>({
++    overview: null, trips: null, likes: null, offers: null, safety: null, preferences: null,
++  });
+   const profileHydration = useProfileStoreHydration();
+   const libraryHydration = useLibraryStoreHydration();
+   const tripHydration = useTripStoreHydration();
+   const partnerHydration = usePartnerStoreHydration();
+   const resetProfilePreferences = useProfileStore((state) => state.resetProfilePreferences);
+   const resetLibrary = useLibraryStore((state) => state.resetLibrary);
++  const resetTrips = useTripStore((state) => state.resetTripStore);
++  const resetPartner = usePartnerStore((state) => state.resetPartnerStore);
+ 
+   useEffect(() => {
+     void Promise.all([
+       hydrateProfileStore(),
+       hydrateLibraryStore(),
+       hydrateWorkbenchTripStore(),
+       hydratePartnerStore(),
+     ]);
+   }, []);
+ 
+   useEffect(() => {
+     function restoreTabFromHistory() {
+       setActiveTab(normalizeProfileTab(new URL(window.location.href).searchParams.get('tab')));
+     }
+     window.addEventListener('popstate', restoreTabFromHistory);
+     return () => window.removeEventListener('popstate', restoreTabFromHistory);
+   }, []);
+ 
+-  function selectTab(tab: ProfileTab, moveFocus = false) {
++  useLayoutEffect(() => {
++    const request = pendingFocus.current;
++    if (!request || request.tab !== activeTab) return;
++    const target = request.target === 'tab' ? tabRefs.current[activeTab] : panelRefs.current[activeTab];
++    pendingFocus.current = null;
++    target?.focus();
++  }, [activeTab]);
++
++  function selectTab(tab: ProfileTab, focusTarget?: 'tab' | 'panel') {
++    if (focusTarget) pendingFocus.current = { tab, target: focusTarget };
+     if (tab !== activeTab) {
+       const url = new URL(window.location.href);
+       url.searchParams.set('tab', tab);
+       window.history.pushState({}, '', `${url.pathname}${url.search}${url.hash}`);
+       setActiveTab(tab);
++    } else if (focusTarget === 'tab') {
++      tabRefs.current[tab]?.focus();
++    } else if (focusTarget === 'panel') {
++      panelRefs.current[tab]?.focus();
+     }
+-    if (moveFocus) tabRefs.current[tab]?.focus();
+   }
+ 
+   function handleTabKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
+     const currentIndex = tabs.findIndex(({ id }) => id === activeTab);
+     let nextIndex: number | undefined;
+     if (event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % tabs.length;
+     if (event.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+     if (event.key === 'Home') nextIndex = 0;
+     if (event.key === 'End') nextIndex = tabs.length - 1;
+     if (nextIndex === undefined) return;
+     event.preventDefault();
+-    selectTab(tabs[nextIndex].id, true);
++    selectTab(tabs[nextIndex].id, 'tab');
+   }
+ 
+   const domains: HydrationDomain[] = [
+     {
+       id: 'profile', label: '兴趣偏好', ...profileHydration,
+       onReset: () => {
+         resetProfilePreferences();
+         useProfileStoreHydration.setState({ hydrationError: false });
+       },
+     },
+     {
+       id: 'library', label: '喜欢与收藏', ...libraryHydration,
+       onReset: () => {
+         resetLibrary();
+         useLibraryStoreHydration.setState({ hydrationError: false });
+       },
+     },
+-    { id: 'trips', label: '行程', ...tripHydration },
+-    { id: 'partner', label: '搭子与安全', ...partnerHydration },
++    {
++      id: 'trips', label: '行程', ...tripHydration,
++      onReset: () => {
++        resetTrips();
++        useTripStoreHydration.setState({ hydrationError: false });
++      },
++    },
++    {
++      id: 'partner', label: '搭子与安全', ...partnerHydration,
++      onReset: () => {
++        resetPartner();
++        usePartnerStoreHydration.setState({ hydrationError: false });
++      },
++    },
+   ];
+ 
+   return (
+-    <main className={styles.profileHub}>
++    <main className={styles.profileHub} style={profileColorProperties}>
+       <HydrationBoundary domains={domains} loadingMessage="正在整理当前浏览器里的旅行资料…">
+         <ProfileIdentityHeader
+           libraryError={libraryHydration.hydrationError}
+           partnerError={partnerHydration.hydrationError}
+           tripError={tripHydration.hydrationError}
+         />
+         <div className={styles.tabShell}>
+           <div aria-label="个人中心内容" className={styles.tabList} role="tablist">
+             {tabs.map(({ id, label }) => (
+               <button
+@@ -159,35 +245,42 @@ export function ProfileHub({ initialTab }: ProfileHubProps) {
+                 onKeyDown={handleTabKeyDown}
+                 ref={(node) => { tabRefs.current[id] = node; }}
+                 role="tab"
+                 tabIndex={activeTab === id ? 0 : -1}
+                 type="button"
+               >
+                 {label}
+               </button>
+             ))}
+           </div>
+-          <section
+-            aria-labelledby={`profile-tab-${activeTab}`}
+-            className={styles.tabPanel}
+-            id={`profile-panel-${activeTab}`}
+-            role="tabpanel"
+-            tabIndex={0}
+-          >
+-            <ProfilePanel
+-              activeTab={activeTab}
+-              libraryError={libraryHydration.hydrationError}
+-              onSelectTab={selectTab}
+-              partnerError={partnerHydration.hydrationError}
+-              tripError={tripHydration.hydrationError}
+-            />
+-          </section>
++          {tabs.map(({ id }) => (
++            <section
++              aria-labelledby={`profile-tab-${id}`}
++              className={styles.tabPanel}
++              hidden={activeTab !== id}
++              id={`profile-panel-${id}`}
++              key={id}
++              ref={(node) => { panelRefs.current[id] = node; }}
++              role="tabpanel"
++              tabIndex={activeTab === id ? 0 : -1}
++            >
++              {activeTab === id ? (
++                <ProfilePanel
++                  activeTab={activeTab}
++                  libraryError={libraryHydration.hydrationError}
++                  onSelectTab={selectTab}
++                  partnerError={partnerHydration.hydrationError}
++                  tripError={tripHydration.hydrationError}
++                />
++              ) : null}
++            </section>
++          ))}
+         </div>
+       </HydrationBoundary>
+     </main>
+   );
+ }
+ 
+ function ProfileIdentityHeader({
+   libraryError,
+   partnerError,
+   tripError,
+@@ -237,42 +330,42 @@ function Stat({ label, unavailable, value }: { label: string; unavailable: boole
+ 
+ function ProfilePanel({
+   activeTab,
+   libraryError,
+   onSelectTab,
+   partnerError,
+   tripError,
+ }: {
+   activeTab: ProfileTab;
+   libraryError: boolean;
+-  onSelectTab: (tab: ProfileTab) => void;
++  onSelectTab: (tab: ProfileTab, focusTarget?: 'tab' | 'panel') => void;
+   partnerError: boolean;
+   tripError: boolean;
+ }) {
+   if (activeTab === 'overview') {
+     return <OverviewPanel libraryError={libraryError} onSelectTab={onSelectTab} partnerError={partnerError} tripError={tripError} />;
+   }
+   if (activeTab === 'trips') return tripError ? <DomainUnavailable domain="行程" /> : <TripsPanel />;
+   if (activeTab === 'likes') return libraryError ? <DomainUnavailable domain="喜欢" /> : <LikesPanel />;
+   if (activeTab === 'offers') return libraryError ? <DomainUnavailable domain="收藏报价" /> : <OffersPanel />;
+   if (activeTab === 'safety') return <SafetyPanel partnerError={partnerError} tripError={tripError} />;
+   return <PreferenceSettings />;
+ }
+ 
+ function OverviewPanel({
+   libraryError,
+   onSelectTab,
+   partnerError,
+   tripError,
+ }: {
+   libraryError: boolean;
+-  onSelectTab: (tab: ProfileTab) => void;
++  onSelectTab: (tab: ProfileTab, focusTarget?: 'tab' | 'panel') => void;
+   partnerError: boolean;
+   tripError: boolean;
+ }) {
+   const tripCount = useTripStore(selectAcceptedTripCount);
+   const likedCount = useLibraryStore((state) => state.likedPostSlugs.length);
+   const offerCount = useLibraryStore((state) => Object.keys(state.favoriteOffers).length);
+   const trips = useTripStore(selectTripRecords);
+   const recentTrip = useMemo(() => acceptedTrips(trips)[0], [trips]);
+ 
+   return (
+@@ -285,28 +378,28 @@ function OverviewPanel({
+         <SummaryCard
+           href="/trips"
+           icon={<SuitcaseRolling aria-hidden size={24} />}
+           label="我的行程"
+           unavailable={tripError}
+           value={`${tripCount} 个行程`}
+         />
+         <SummaryCard
+           icon={<Heart aria-hidden size={24} />}
+           label="喜欢的攻略"
+-          onClick={() => onSelectTab('likes')}
++          onClick={() => onSelectTab('likes', 'panel')}
+           unavailable={libraryError}
+           value={`${likedCount} 篇喜欢`}
+         />
+         <SummaryCard
+           icon={<Compass aria-hidden size={24} />}
+           label="收藏报价"
+-          onClick={() => onSelectTab('offers')}
++          onClick={() => onSelectTab('offers', 'panel')}
+           unavailable={libraryError}
+           value={`${offerCount} 条收藏报价`}
+         />
+       </div>
+       <div className={styles.overviewColumns}>
+         <article className={styles.featureCard}>
+           <p>最近行程</p>
+           {tripError ? <DomainUnavailable domain="行程" compact /> : recentTrip ? (
+             <>
+               <span><MapPin aria-hidden size={16} />{recentTrip.destination}</span>
+@@ -421,20 +514,21 @@ function LikesPanel() {
+         })}
+       </div>
+     </div>
+   );
+ }
+ 
+ function OffersPanel() {
+   const favoriteOffers = useLibraryStore((state) => state.favoriteOffers);
+   const priceAlerts = useLibraryStore((state) => state.priceAlerts);
+   const offers = Object.values(favoriteOffers);
++  const currentTime = useOfferClock(offers);
+   const [filter, setFilter] = useState<'all' | FavoriteOfferSnapshot['productKind']>('all');
+   if (offers.length === 0) {
+     return <EmptyState actionHref="/compare" actionLabel="开始比价" message="收藏一条报价后，可在这里核对数据时间与提醒状态。" title="收藏的报价会保存在这里" />;
+   }
+   const filteredOffers = filter === 'all' ? offers : offers.filter((offer) => offer.productKind === filter);
+   const counts = {
+     flight: offers.filter((offer) => offer.productKind === 'flight').length,
+     hotel: offers.filter((offer) => offer.productKind === 'hotel').length,
+     ticket: offers.filter((offer) => offer.productKind === 'ticket').length,
+   };
+@@ -444,29 +538,50 @@ function OffersPanel() {
+       <div className={styles.sectionHeading}><div><p>SAVED OFFERS</p><h2>收藏报价</h2></div><span>{offers.length} 条浏览器本地快照</span></div>
+       <div aria-label="筛选收藏报价" className={styles.offerFilters} role="group">
+         <button aria-pressed={filter === 'all'} onClick={() => setFilter('all')} type="button">全部 {offers.length}</button>
+         <button aria-pressed={filter === 'flight'} onClick={() => setFilter('flight')} type="button">机票 {counts.flight}</button>
+         <button aria-pressed={filter === 'hotel'} onClick={() => setFilter('hotel')} type="button">酒店 {counts.hotel}</button>
+         <button aria-pressed={filter === 'ticket'} onClick={() => setFilter('ticket')} type="button">门票 {counts.ticket}</button>
+       </div>
+       {hasEnabledAlert ? <p className={styles.alertBoundary}>已保存提醒设置；本演示不会在关闭页面后推送</p> : null}
+       <div className={styles.offerList}>
+         {filteredOffers.length > 0
+-          ? filteredOffers.map((offer) => <OfferCard alertEnabled={Boolean(priceAlerts[offer.key]?.enabled)} key={offer.key} offer={offer} />)
++          ? filteredOffers.map((offer) => <OfferCard alertEnabled={Boolean(priceAlerts[offer.key]?.enabled)} currentTime={currentTime} key={offer.key} offer={offer} />)
+           : <p className={styles.filteredEmpty}>这一类还没有收藏报价。</p>}
+       </div>
+     </div>
+   );
+ }
+ 
+-function OfferCard({ alertEnabled, offer }: { alertEnabled: boolean; offer: FavoriteOfferSnapshot }) {
+-  const expired = Date.parse(offer.expiresAt) <= profileSessionTime;
++function useOfferClock(offers: readonly FavoriteOfferSnapshot[]) {
++  const expirationSignature = offers.map((offer) => offer.expiresAt).toSorted().join('|');
++  const expirationTimes = useMemo(
++    () => expirationSignature ? expirationSignature.split('|').map(Date.parse) : [],
++    [expirationSignature],
++  );
++  const subscribe = useCallback(
++    (listener: ClockListener) => offerClock.subscribe(expirationTimes, listener),
++    [expirationTimes],
++  );
++  return useSyncExternalStore(subscribe, offerClock.getSnapshot, offerClock.getSnapshot);
++}
++
++function OfferCard({
++  alertEnabled,
++  currentTime,
++  offer,
++}: {
++  alertEnabled: boolean;
++  currentTime: number;
++  offer: FavoriteOfferSnapshot;
++}) {
++  const expired = Date.parse(offer.expiresAt) <= currentTime;
+   const search = new URLSearchParams({ kind: offer.productKind, destination: offer.destination });
+   return (
+     <article className={styles.offerCard}>
+       <div><span>{offerKindLabels[offer.productKind]} · {offer.provider}</span><h3>{offer.destination}</h3><p>{offer.policySummary}</p></div>
+       <div className={styles.offerPrice}><small>保存时总价</small><strong>¥ {offer.totalPrice.toLocaleString('zh-CN')}</strong></div>
+       <dl>
+         <div><dt>数据时间</dt><dd>{formatTimestamp(offer.observedAt)}</dd></div>
+         <div><dt>快照状态</dt><dd className={expired ? styles.expired : undefined}>{expired ? '报价可能已变化' : `有效至 ${formatTimestamp(offer.expiresAt)}`}</dd></div>
+         <div><dt>本地提醒</dt><dd>{alertEnabled ? '已保存（关闭页面后不会推送）' : '未开启'}</dd></div>
+       </dl>
+@@ -498,21 +613,25 @@ function SafetyPanel({ partnerError, tripError }: { partnerError: boolean; tripE
+           <Compass aria-hidden size={27} />
+           <span>搭子意愿</span>
+           {partnerError ? <strong>暂不可用</strong> : <strong>{currentIntent ? `${currentIntent.destination} · ${currentIntent.capacity} 人` : '尚未发布'}</strong>}
+           <p>{partnerError ? '搭子资料未能安全读取。' : `${visibleMatches.length} 个可见匹配 · ${trustedContactCount} 个已确认可信联系人`}</p>
+           <Link href="/partners">继续寻找搭子</Link>
+         </article>
+         <article>
+           <ShieldCheck aria-hidden size={27} />
+           <span>行程守护</span>
+           {tripError ? <strong>暂不可用</strong> : <strong>{guardedTrips.length} 个守护中行程</strong>}
+-          <p>{tripError ? '行程资料未能安全读取。' : `${missedCheckIns} 个错过签到状态；官方紧急服务始终优先。`}</p>
++          <p>{tripError
++            ? '行程资料未能安全读取。'
++            : partnerError
++              ? '搭子安全状态暂不可用'
++              : `${missedCheckIns} 个错过签到状态；官方紧急服务始终优先。`}</p>
+           <Link href="/trips">查看我的行程</Link>
+         </article>
+       </div>
+       <aside className={styles.safetyBoundary}>
+         <ShieldCheck aria-hidden size={24} />
+         <p>身份状态、匹配分数、可信联系人与守护均为当前浏览器中的沙箱演示，不构成身份、安全或紧急响应担保。遇到现实危险时，请优先联系当地警方、急救与官方服务。</p>
+       </aside>
+     </div>
+   );
+ }
+diff --git a/src/features/profile/profile.module.css b/src/features/profile/profile.module.css
+index 3626cca..28bb145 100644
+--- a/src/features/profile/profile.module.css
++++ b/src/features/profile/profile.module.css
+@@ -42,85 +42,86 @@
+ .tabShell { width: min(calc(100% - 64px), var(--content-max)); margin: -1px auto 0; padding-bottom: 96px; }
+ .tabList { display: flex; gap: clamp(20px, 4vw, 52px); overflow-x: auto; border-bottom: 1px solid rgb(16 16 15 / 12%); scrollbar-width: none; }
+ .tabList::-webkit-scrollbar { display: none; }
+ .tabList button { position: relative; flex: 0 0 auto; min-height: 64px; padding: 2px 0 0; color: rgb(16 16 15 / 60%); border: 0; background: transparent; cursor: pointer; font-size: 13px; }
+ .tabList button::after { position: absolute; right: 0; bottom: -1px; left: 0; height: 2px; background: var(--sand); content: ''; opacity: 0; transform: scaleX(0.35); transition: opacity 160ms ease, transform 320ms cubic-bezier(.22, .61, .36, 1); }
+ .tabList button[aria-selected='true'] { color: var(--ink); }
+ .tabList button[aria-selected='true']::after { opacity: 1; transform: scaleX(1); }
+ .tabList button:focus-visible,
+ .summaryCard:focus-visible,
+ .featureCard a:focus-visible,
+-.safetyDisclosure a:focus-visible,
+ .guideCard a:focus-visible,
+ .unavailableGuide button:focus-visible,
+ .offerCard a:focus-visible,
+ .safetyGrid a:focus-visible,
+-.emptyState a:focus-visible { outline: 2px solid var(--sand); outline-offset: 4px; }
++.emptyState a:focus-visible { outline: 2px solid var(--profile-focus-on-light, #6f5732); outline-offset: 4px; }
++.safetyDisclosure a:focus-visible { outline: 2px solid var(--profile-focus-on-dark, #b79a68); outline-offset: 4px; }
+ 
+ .tabPanel { padding-top: clamp(38px, 5vw, 66px); outline: none; }
++.tabPanel:focus-visible { outline: 3px solid var(--profile-focus-on-light, #6f5732); outline-offset: 5px; }
+ .panelStack { display: grid; gap: 30px; }
+ .sectionHeading { display: flex; justify-content: space-between; gap: 24px; align-items: flex-end; }
+-.sectionHeading p { margin: 0 0 8px; color: var(--sand); font-size: 10px; letter-spacing: 0.17em; }
++.sectionHeading p { margin: 0 0 8px; color: var(--profile-accent-on-light, #6f5732); font-size: 10px; letter-spacing: 0.17em; }
+ .sectionHeading h2 { margin: 0; font-family: var(--font-display); font-size: clamp(28px, 4vw, 38px); font-weight: 500; }
+ .sectionHeading > span { max-width: 430px; color: rgb(16 16 15 / 58%); font-size: 13px; line-height: 1.7; text-align: right; }
+ 
+ .summaryGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+ .summaryCard { display: grid; grid-template-columns: auto 1fr auto; gap: 8px 13px; align-items: center; min-height: 126px; padding: 22px; color: var(--ink); text-align: left; text-decoration: none; border: 1px solid rgb(16 16 15 / 11%); background: rgb(255 255 255 / 26%); cursor: pointer; transition: border-color 160ms ease, transform 320ms cubic-bezier(.22, .61, .36, 1); }
+ .summaryCard:hover { border-color: rgb(183 154 104 / 72%); transform: translateY(-3px); }
+ .summaryCard > svg:first-child { grid-row: span 2; color: var(--sand); }
+ .summaryCard > svg:last-child { grid-column: 3; grid-row: 1 / span 2; color: rgb(16 16 15 / 48%); }
+ .summaryCard span { color: rgb(16 16 15 / 58%); font-size: 12px; }
+ .summaryCard strong { font-family: var(--font-display); font-size: 21px; font-weight: 500; }
+ 
+ .overviewColumns { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr); gap: 16px; }
+ .featureCard,
+ .safetyDisclosure { min-height: 245px; padding: clamp(24px, 4vw, 36px); border: 1px solid rgb(16 16 15 / 11%); }
+-.featureCard > p:first-child,
++.featureCard > p:first-child { margin: 0 0 20px; color: var(--profile-accent-on-light, #6f5732); font-size: 10px; letter-spacing: 0.15em; }
+ .safetyDisclosure > div > p { margin: 0 0 20px; color: var(--sand); font-size: 10px; letter-spacing: 0.15em; }
+ .featureCard > span { display: inline-flex; align-items: center; gap: 6px; color: rgb(16 16 15 / 58%); font-size: 12px; }
+ .featureCard h3,
+ .safetyDisclosure h3 { margin: 15px 0 10px; font-family: var(--font-display); font-size: 25px; font-weight: 500; }
+ .featureCard > p:not(:first-child),
+ .safetyDisclosure span { color: rgb(16 16 15 / 62%); font-size: 13px; line-height: 1.8; }
+ .featureCard > a,
+ .safetyDisclosure a { display: inline-flex; gap: 7px; align-items: center; margin-top: 24px; color: var(--pine); font-size: 13px; font-weight: 700; text-decoration: none; }
+ .safetyDisclosure { display: flex; gap: 20px; color: var(--ivory); border-color: var(--pine); background: var(--pine); }
+ .safetyDisclosure > svg { flex: 0 0 auto; color: var(--sand); }
+ .safetyDisclosure span { color: rgb(244 240 232 / 68%); }
+ .safetyDisclosure a { color: var(--ivory); }
+ 
+ .tripGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+ .guideGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+ .guideCard { overflow: hidden; border: 1px solid rgb(16 16 15 / 11%); background: rgb(255 255 255 / 25%); }
+ .guideCover { position: relative; aspect-ratio: 3 / 2; overflow: hidden; background: #ded8cd; }
+ .guideCover img { object-fit: cover; transition: transform 320ms cubic-bezier(.22, .61, .36, 1); }
+ .guideCard:hover .guideCover img { transform: scale(1.025); }
+ .guideCard > div:last-child { position: relative; padding: 20px; }
+-.guideCard span { color: var(--sand); font-size: 10px; letter-spacing: .08em; }
++.guideCard span { color: var(--profile-accent-on-light, #6f5732); font-size: 10px; letter-spacing: .08em; }
+ .guideCard h3 { min-height: 3.2em; margin: 10px 0 8px; font-family: var(--font-display); font-size: 19px; font-weight: 500; line-height: 1.55; }
+ .guideCard h3 a { text-decoration: none; }
+ .guideCard p { display: -webkit-box; overflow: hidden; margin: 0; color: rgb(16 16 15 / 58%); font-size: 12px; line-height: 1.7; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+ .guideCard > div:last-child > span:last-child { position: absolute; top: 14px; right: 14px; }
+ .unavailableGuide { min-height: 210px; padding: 24px; border: 1px dashed rgb(16 16 15 / 24%); }
+ .unavailableGuide span { color: var(--cinnabar, #a94032); font-family: var(--font-display); font-size: 21px; }
+ .unavailableGuide p { color: rgb(16 16 15 / 52%); font-size: 12px; }
+ .unavailableGuide button { margin-top: 40px; padding: 9px 12px; color: var(--ink); border: 1px solid rgb(16 16 15 / 20%); background: transparent; cursor: pointer; }
+ 
+ .offerList { display: grid; gap: 12px; }
+ .offerFilters { display: flex; flex-wrap: wrap; gap: 8px; }
+ .offerFilters button { min-height: 34px; padding: 0 12px; color: rgb(16 16 15 / 64%); border: 1px solid rgb(16 16 15 / 16%); background: transparent; cursor: pointer; font-size: 12px; }
+ .offerFilters button[aria-pressed='true'] { color: var(--ink); border-color: var(--sand); background: rgb(183 154 104 / 12%); }
+-.offerFilters button:focus-visible { outline: 2px solid var(--sand); outline-offset: 3px; }
++.offerFilters button:focus-visible { outline: 2px solid var(--profile-focus-on-light, #6f5732); outline-offset: 3px; }
+ .alertBoundary { margin: -14px 0 0; color: var(--lake-jade); font-size: 12px; }
+ .filteredEmpty { margin: 0; padding: 28px; border: 1px dashed rgb(16 16 15 / 20%); color: rgb(16 16 15 / 58%); font-size: 13px; }
+ .offerCard { display: grid; grid-template-columns: minmax(180px, 1fr) auto minmax(300px, 1.35fr) auto; gap: 24px; align-items: center; padding: 24px; border: 1px solid rgb(16 16 15 / 11%); background: rgb(255 255 255 / 25%); }
+-.offerCard span { color: var(--sand); font-size: 10px; letter-spacing: .08em; }
++.offerCard span { color: var(--profile-accent-on-light, #6f5732); font-size: 10px; letter-spacing: .08em; }
+ .offerCard h3 { margin: 8px 0; font-family: var(--font-display); font-size: 22px; font-weight: 500; }
+ .offerCard p { margin: 0; color: rgb(16 16 15 / 58%); font-size: 12px; }
+ .offerPrice { text-align: right; }
+ .offerPrice small { display: block; color: rgb(16 16 15 / 52%); font-size: 10px; }
+ .offerPrice strong { display: block; margin-top: 6px; font-family: var(--font-display); font-size: 23px; font-variant-numeric: tabular-nums; }
+ .offerCard dl { display: grid; gap: 5px; margin: 0; font-size: 11px; }
+ .offerCard dl div { display: grid; grid-template-columns: 60px 1fr; gap: 8px; }
+ .offerCard dt { color: rgb(16 16 15 / 48%); }
+ .offerCard dd { margin: 0; font-variant-numeric: tabular-nums; }
+ .offerCard .expired { color: var(--cinnabar, #a94032); font-weight: 700; }
+diff --git a/src/stores/partner-store.ts b/src/stores/partner-store.ts
+index 0abff8f..4a58675 100644
+--- a/src/stores/partner-store.ts
++++ b/src/stores/partner-store.ts
+@@ -1,15 +1,15 @@
+ 'use client';
+ 
+ import { create } from 'zustand';
+ import { createStore } from 'zustand/vanilla';
+-import { persist } from 'zustand/middleware';
++import { createJSONStorage, persist } from 'zustand/middleware';
+ import { z } from 'zod';
+ import {
+   demoPartnerCandidates,
+   filterPartnerCandidates,
+   isPartnerEligible,
+   partnerIntentSchema,
+   validatePartnerIntent,
+   type PartnerIntent,
+   type PartnerProfile,
+ } from '@/data/partners';
+@@ -49,25 +49,33 @@ export interface PartnerStoreState {
+   simulateMutualApproval: (profile: PartnerProfile, matchId: string) => void;
+   sendMessage: (profile: PartnerProfile, matchId: string, body: string) =>
+     | { sent: false; code: 'CONTACT_CONSENT_REQUIRED' }
+     | { sent: true; warning?: string };
+   setContactConsent: (profile: PartnerProfile, matchId: string, side: 'viewer' | 'candidate', consent: boolean) => void;
+   acknowledgeTrustedContact: (profile: PartnerProfile, matchId: string) => void;
+   shareTrip: (profile: PartnerProfile, matchId: string) => void;
+   recordCheckIn: (profile: PartnerProfile, matchId: string, status: Exclude<CheckInStatus, 'none'>) => void;
+   blockMatch: (profile: PartnerProfile, matchId: string) => void;
+   reportMatch: (profile: PartnerProfile, matchId: string) => void;
++  resetPartnerStore: () => void;
+ }
+ 
+ interface CreatePartnerStoreOptions { onHydrationError?: (error: unknown) => void }
+ interface PartnerStoreHydrationState { hydrated: boolean; hydrationError: boolean }
+ 
++const initialPartnerState: Pick<
++  PartnerStoreState,
++  'intents' | 'matches' | 'visibleMatchIds' | 'blockedCandidateIds'
++> = {
++  intents: {}, matches: {}, visibleMatchIds: [], blockedCandidateIds: [],
++};
++
+ const allowedTransitions: Readonly<Record<PartnerMatchStatus, readonly PartnerMatchStatus[]>> = {
+   pending_mutual: ['matched', 'blocked', 'reported'],
+   matched: ['blocked', 'reported'],
+   blocked: [],
+   reported: [],
+ };
+ 
+ const messageSchema = z.object({
+   id: z.string().min(1).max(180),
+   senderId: z.string().min(1).max(120),
+@@ -156,23 +164,24 @@ function requireActiveMatch(state: PartnerStoreState, profile: PartnerProfile, m
+ function collisionSafeId(prefix: string, existing: Record<string, unknown>) {
+   let id = '';
+   do id = `${prefix}-${crypto.randomUUID()}`;
+   while (existing[id]);
+   return id;
+ }
+ 
+ function stateCreator(
+   set: (recipe: (state: PartnerStoreState) => Partial<PartnerStoreState>) => void,
+   get: () => PartnerStoreState,
++  allowPersistence: () => void = () => {},
+ ): PartnerStoreState {
+   return {
+-    intents: {}, matches: {}, visibleMatchIds: [], blockedCandidateIds: [],
++    ...initialPartnerState,
+     publishIntent: (profile, intent) => {
+       requireEligibility(profile);
+       const parsed = validatePartnerIntent(intent);
+       if (!parsed.success) throw new Error('PARTNER_INVALID_INTENT');
+       set((state) => ({ intents: { ...state.intents, [profile.id]: parsed.data } }));
+     },
+     requestMatch: (profile, candidateId) => {
+       requireEligibility(profile);
+       const state = get();
+       const intent = state.intents[profile.id];
+@@ -234,20 +243,24 @@ function stateCreator(
+     shareTrip: (profile, matchId) => set((state) => {
+       const match = requireActiveMatch(state, profile, matchId);
+       return { matches: { ...state.matches, [matchId]: { ...match, tripShared: true } } };
+     }),
+     recordCheckIn: (profile, matchId, checkInStatus) => set((state) => {
+       const match = requireActiveMatch(state, profile, matchId);
+       return { matches: { ...state.matches, [matchId]: { ...match, checkInStatus } } };
+     }),
+     blockMatch: (profile, matchId) => set((state) => lockMatch(state, profile, matchId, 'blocked')),
+     reportMatch: (profile, matchId) => set((state) => lockMatch(state, profile, matchId, 'reported')),
++    resetPartnerStore: () => {
++      allowPersistence();
++      set(() => ({ intents: {}, matches: {}, visibleMatchIds: [], blockedCandidateIds: [] }));
++    },
+   };
+ }
+ 
+ function lockMatch(state: PartnerStoreState, profile: PartnerProfile, matchId: string, next: 'blocked' | 'reported') {
+   const match = requireMatch(state, profile, matchId);
+   const status = transitionPartnerMatch(match.status, next);
+   return {
+     matches: { ...state.matches, [matchId]: {
+       ...match,
+       status,
+@@ -301,31 +314,58 @@ function persistenceOptions(options: CreatePartnerStoreOptions = {}) {
+     migrate: (persistedState: unknown, version: number): PersistedPartnerState => {
+       if (version !== 1) throw new Error(`PARTNER_UNSUPPORTED_PERSISTED_VERSION:${version}`);
+       return migrateV1PersistedState(persistedState);
+     },
+     onRehydrateStorage: () => (_state: PartnerStoreState | undefined, error: unknown) => {
+       if (error) options.onHydrationError?.(error);
+     },
+   };
+ }
+ 
+-export function createPartnerStore(options: CreatePartnerStoreOptions = {}) {
+-  return createStore<PartnerStoreState>()(
+-    persist<PartnerStoreState, [], [], PersistedPartnerState>(stateCreator, persistenceOptions(options)),
++function createPersistedPartnerState(options: CreatePartnerStoreOptions = {}) {
++  let preserveMalformedBytes = false;
++  const allowPersistence = () => { preserveMalformedBytes = false; };
++  const jsonStorage = createJSONStorage<PersistedPartnerState>(() => localStorage) ?? {
++    getItem: () => null,
++    setItem: () => {},
++    removeItem: () => {},
++  };
++  const safeOptions = {
++    ...options,
++    onHydrationError: (error: unknown) => {
++      preserveMalformedBytes = true;
++      options.onHydrationError?.(error);
++    },
++  };
++
++  return persist<PartnerStoreState, [], [], PersistedPartnerState>(
++    (set, get) => stateCreator(set, get, allowPersistence),
++    {
++      ...persistenceOptions(safeOptions),
++      storage: {
++        getItem: (name) => jsonStorage.getItem(name),
++        setItem: (name, value) => preserveMalformedBytes ? undefined : jsonStorage.setItem(name, value),
++        removeItem: (name) => preserveMalformedBytes ? undefined : jsonStorage.removeItem(name),
++      },
++    },
+   );
+ }
+ 
++export function createPartnerStore(options: CreatePartnerStoreOptions = {}) {
++  return createStore<PartnerStoreState>()(createPersistedPartnerState(options));
++}
++
+ export const usePartnerStoreHydration = create<PartnerStoreHydrationState>(() => ({ hydrated: false, hydrationError: false }));
+ export const usePartnerStore = create<PartnerStoreState>()(
+-  persist<PartnerStoreState, [], [], PersistedPartnerState>(stateCreator, persistenceOptions({
++  createPersistedPartnerState({
+     onHydrationError: () => usePartnerStoreHydration.setState({ hydrationError: true }),
+-  })),
++  }),
+ );
+ 
+ export async function hydratePartnerStore() {
+   if (typeof window === 'undefined' || usePartnerStoreHydration.getState().hydrated) return;
+   try {
+     usePartnerStoreHydration.setState({ hydrated: false, hydrationError: false });
+     await usePartnerStore.persist.rehydrate();
+   } catch {
+     usePartnerStoreHydration.setState({ hydrationError: true });
+   } finally {
+diff --git a/src/stores/trip-store.ts b/src/stores/trip-store.ts
+index 612f065..1000dd9 100644
+--- a/src/stores/trip-store.ts
++++ b/src/stores/trip-store.ts
+@@ -60,20 +60,21 @@ export interface TripStoreState {
+   acceptDraft: (draft: TripDraft) => void;
+   savePostAsTrip: (draft: TripDraft, coverImage?: string) => WorkbenchTrip;
+   updateTrip: (tripId: string, patch: TripSettingsPatch) => void;
+   updateItem: (tripId: string, itemId: string, patch: TripItemPatch) => void;
+   reorderItem: (tripId: string, itemId: string, direction: ReorderDirection) => void;
+   toggleAlternative: (tripId: string, itemId: string) => void;
+   vote: (tripId: string, memberId: string, candidateId: string) => void;
+   enableGuardian: (tripId: string, consent: boolean) => void;
+   publishPartnerIntent: (tripId: string) => void;
+   selectGuardianPlan: (tripId: string, plan: GuardianPlanSelection) => void;
++  resetTripStore: () => void;
+ }
+ 
+ interface TripStoreHydrationState {
+   hydrated: boolean;
+   hydrationError: boolean;
+ }
+ 
+ interface CreateTripStoreOptions {
+   onHydrationError?: (error: unknown) => void;
+ }
+@@ -83,20 +84,21 @@ const allowedTransitions: Readonly<Record<WorkbenchTripStatus, readonly Workbenc
+   active: ['guarded', 'archived'],
+   guarded: ['active', 'archived'],
+   discarded: [],
+   archived: [],
+ };
+ 
+ const initialItemCosts = [520, 420, 680, 980, 370] as const;
+ const tripStorageKey = 'xingyu-demo-v1';
+ const tripStorageVersion = 2;
+ const stableMigrationTimestamp = '2026-08-18T00:00:00.000Z';
++const initialTripState = { trips: {}, partnerIntents: {}, guardianPlans: {} } as const;
+ 
+ export const demoMembers = [
+   { id: 'member-lin', name: '林见山' },
+   { id: 'member-muyu', name: '木雨' },
+   { id: 'member-zhou', name: '周舟' },
+ ] as const;
+ 
+ const realIsoDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
+   const parsed = new Date(`${value}T00:00:00.000Z`);
+   return !Number.isNaN(parsed.valueOf()) && parsed.toISOString().slice(0, 10) === value;
+@@ -355,25 +357,24 @@ function withImportedLegacyDrafts(state: PersistedTripState): PersistedTripState
+   return parsePersistedTripState({ ...state, trips });
+ }
+ 
+ function updatedTrip(trip: WorkbenchTrip, patch: Partial<WorkbenchTrip>): WorkbenchTrip {
+   return { ...trip, ...patch, updatedAt: new Date().toISOString() };
+ }
+ 
+ function stateCreator(
+   set: (recipe: (state: TripStoreState) => Partial<TripStoreState>) => void,
+   get: () => TripStoreState,
++  allowPersistence: () => void = () => {},
+ ) {
+   return {
+-    trips: {},
+-    partnerIntents: {},
+-    guardianPlans: {},
++    ...initialTripState,
+     acceptDraft: (draft: TripDraft) => { get().savePostAsTrip(draft); },
+     savePostAsTrip: (draft: TripDraft, coverImage?: string) => {
+       let canonicalTrip: WorkbenchTrip | undefined;
+       set((state) => {
+         const existing = Object.values(state.trips).find(
+           (trip) => trip.sourcePostSlug === draft.sourcePostSlug,
+         );
+         if (existing) {
+           canonicalTrip = existing;
+           return {};
+@@ -471,20 +472,24 @@ function stateCreator(
+         partnerIntents: { ...state.partnerIntents, [trip.id]: true },
+       };
+     }),
+     selectGuardianPlan: (tripId: string, plan: GuardianPlanSelection) => set((state) => {
+       const trip = getTrip(state, tripId);
+       return {
+         trips: { ...state.trips, [trip.id]: updatedTrip(trip, {}) },
+         guardianPlans: { ...state.guardianPlans, [trip.id]: plan },
+       };
+     }),
++    resetTripStore: () => {
++      allowPersistence();
++      set(() => ({ trips: {}, partnerIntents: {}, guardianPlans: {} }));
++    },
+   } satisfies TripStoreState;
+ }
+ 
+ function persistenceOptions(options: CreateTripStoreOptions = {}) {
+   return {
+     name: tripStorageKey,
+     version: tripStorageVersion,
+     skipHydration: true,
+     partialize: (state: TripStoreState): PersistedTripState => ({
+       trips: state.trips,
+@@ -508,34 +513,37 @@ function persistenceOptions(options: CreateTripStoreOptions = {}) {
+       };
+     },
+     onRehydrateStorage: () => (_state: TripStoreState | undefined, error: unknown) => {
+       if (error) options.onHydrationError?.(error);
+     },
+   };
+ }
+ 
+ function createPersistedTripState(options: CreateTripStoreOptions = {}) {
+   let preserveMalformedBytes = false;
++  const allowPersistence = () => { preserveMalformedBytes = false; };
+   const jsonStorage = createJSONStorage<PersistedTripState>(() => localStorage) ?? {
+     getItem: () => null,
+     setItem: () => {},
+     removeItem: () => {},
+   };
+   const safeOptions = {
+     ...options,
+     onHydrationError: (error: unknown) => {
+       preserveMalformedBytes = true;
+       options.onHydrationError?.(error);
+     },
+   };
+ 
+-  return persist<TripStoreState, [], [], PersistedTripState>(stateCreator, {
++  return persist<TripStoreState, [], [], PersistedTripState>(
++    (set, get) => stateCreator(set, get, allowPersistence),
++    {
+     ...persistenceOptions(safeOptions),
+     storage: {
+       getItem: (name) => {
+         const value = jsonStorage.getItem(name);
+         if (value === null) {
+           if (typeof localStorage === 'undefined' || localStorage.getItem(legacyTripDraftStorageKey) === null) {
+             return null;
+           }
+           return {
+             state: { trips: {}, partnerIntents: {}, guardianPlans: {} },
+@@ -550,21 +558,22 @@ function createPersistedTripState(options: CreateTripStoreOptions = {}) {
+           if (Object.keys(importedState.trips).length !== Object.keys(canonicalState.trips).length) {
+             jsonStorage.setItem(name, { state: importedState, version: tripStorageVersion });
+           }
+           return { state: importedState, version: tripStorageVersion };
+         }
+         return parsed.data as { state: PersistedTripState; version: number };
+       },
+       setItem: (name, value) => preserveMalformedBytes ? undefined : jsonStorage.setItem(name, value),
+       removeItem: (name) => preserveMalformedBytes ? undefined : jsonStorage.removeItem(name),
+     },
+-  });
++    },
++  );
+ }
+ 
+ export function createTripStore(options: CreateTripStoreOptions = {}) {
+   return createStore<TripStoreState>()(createPersistedTripState(options));
+ }
+ 
+ export const useTripStoreHydration = create<TripStoreHydrationState>(() => ({
+   hydrated: false,
+   hydrationError: false,
+ }));
+diff --git a/tests/component/profile-hub.test.tsx b/tests/component/profile-hub.test.tsx
+index 0c8174b..0a2aca2 100644
+--- a/tests/component/profile-hub.test.tsx
++++ b/tests/component/profile-hub.test.tsx
+@@ -1,11 +1,11 @@
+-import { fireEvent, render, screen } from '@testing-library/react';
++import { act, fireEvent, render, screen } from '@testing-library/react';
+ import userEvent from '@testing-library/user-event';
+ import { beforeEach, describe, expect, it, vi } from 'vitest';
+ import { postsBySlug } from '@/data/posts';
+ import { extractTripDraft } from '@/domain/trips/extract-draft';
+ import { ProfileHub } from '@/features/profile/profile-hub';
+ import {
+   type FavoriteOfferSnapshot,
+   useLibraryStore,
+   useLibraryStoreHydration,
+ } from '@/stores/library-store';
+@@ -78,40 +78,44 @@ describe('ProfileHub', () => {
+       '/compare?kind=flight&destination=%E5%A4%A7%E7%90%86',
+     );
+   });
+ 
+   it('uses semantic query-driven tabs, normalizes invalid tabs, and preserves browser history', async () => {
+     const user = userEvent.setup();
+     render(<ProfileHub initialTab="unknown" />);
+ 
+     const tablist = screen.getByRole('tablist', { name: '个人中心内容' });
+     expect(tablist).toBeInTheDocument();
++    for (const tab of screen.getAllByRole('tab')) {
++      expect(document.getElementById(tab.getAttribute('aria-controls') ?? '')).not.toBeNull();
++    }
+     expect(screen.getByRole('tab', { name: '概览' })).toHaveAttribute('aria-selected', 'true');
+     expect(screen.getByRole('tabpanel', { name: '概览' })).toBeInTheDocument();
+ 
+     await user.click(screen.getByRole('tab', { name: '我的行程' }));
+     expect(window.location.search).toBe('?tab=trips');
+     expect(screen.getByRole('tabpanel', { name: '我的行程' })).toBeInTheDocument();
+ 
+     window.history.pushState({}, '', '/profile?tab=likes');
+     fireEvent(window, new PopStateEvent('popstate'));
+     expect(screen.getByRole('tab', { name: '喜欢' })).toHaveAttribute('aria-selected', 'true');
+     expect(screen.getByRole('tabpanel', { name: '喜欢' })).toBeInTheDocument();
+   });
+ 
+   it('opens local overview summaries in their matching query tab', async () => {
+     const user = userEvent.setup();
+     render(<ProfileHub initialTab="overview" />);
+ 
+     await user.click(screen.getByText('喜欢的攻略'));
+     expect(screen.getByRole('tab', { name: '喜欢' })).toHaveAttribute('aria-selected', 'true');
+     expect(window.location.search).toBe('?tab=likes');
++    expect(screen.getByRole('tabpanel', { name: '喜欢' })).toHaveFocus();
+   });
+ 
+   it('supports arrow, Home, and End navigation with a roving tab stop', async () => {
+     const user = userEvent.setup();
+     render(<ProfileHub initialTab="overview" />);
+ 
+     const overview = screen.getByRole('tab', { name: '概览' });
+     overview.focus();
+     await user.keyboard('{ArrowRight}');
+     expect(screen.getByRole('tab', { name: '我的行程' })).toHaveFocus();
+@@ -129,20 +133,38 @@ describe('ProfileHub', () => {
+     expect(screen.getByRole('status')).toHaveTextContent('正在整理当前浏览器里的旅行资料');
+     expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+ 
+     useLibraryStoreHydration.setState({ hydrated: true, hydrationError: true });
+     view.rerender(<ProfileHub initialTab="overview" />);
+     expect(screen.getByRole('alert')).toHaveTextContent('喜欢与收藏资料暂时无法读取');
+     expect(screen.getByRole('tablist', { name: '个人中心内容' })).toBeInTheDocument();
+     expect(screen.queryByText('行程资料暂时无法读取')).not.toBeInTheDocument();
+   });
+ 
++  it('lets each owning store deliberately reset and recover its failed hydration domain', async () => {
++    const user = userEvent.setup();
++    seedAcceptedTrip();
++    usePartnerStore.setState({ blockedCandidateIds: ['candidate-a'] });
++    useTripStoreHydration.setState({ hydrated: true, hydrationError: true });
++    usePartnerStoreHydration.setState({ hydrated: true, hydrationError: true });
++
++    render(<ProfileHub initialTab="overview" />);
++
++    await user.click(screen.getByRole('button', { name: '重置行程' }));
++    expect(useTripStore.getState().trips).toEqual({});
++    expect(useTripStoreHydration.getState().hydrationError).toBe(false);
++
++    await user.click(screen.getByRole('button', { name: '重置搭子与安全' }));
++    expect(usePartnerStore.getState().blockedCandidateIds).toEqual([]);
++    expect(usePartnerStoreHydration.getState().hydrationError).toBe(false);
++  });
++
+   it('keeps unavailable likes removable and provides useful empty states', async () => {
+     const user = userEvent.setup();
+     useLibraryStore.setState({ likedPostSlugs: ['withdrawn-guide'] });
+     render(<ProfileHub initialTab="likes" />);
+ 
+     expect(screen.getByText('内容已不可用')).toBeInTheDocument();
+     await user.click(screen.getByRole('button', { name: '移除不可用喜欢 withdrawn-guide' }));
+     expect(screen.getByText('喜欢的攻略会保存在这里')).toBeInTheDocument();
+     expect(screen.getByRole('link', { name: '去灵感广场' })).toHaveAttribute('href', '/square');
+ 
+@@ -166,33 +188,84 @@ describe('ProfileHub', () => {
+     render(<ProfileHub initialTab="offers" />);
+ 
+     expect(screen.getByText('大理')).toBeInTheDocument();
+     expect(screen.getByText('桂林')).toBeInTheDocument();
+     expect(screen.getByText('已保存提醒设置；本演示不会在关闭页面后推送')).toBeInTheDocument();
+     await user.click(screen.getByRole('button', { name: '酒店 1' }));
+     expect(screen.queryByText('大理')).not.toBeInTheDocument();
+     expect(screen.getByText('桂林')).toBeInTheDocument();
+   });
+ 
++  it('transitions a live offer to stale exactly at its expiry boundary without polling', () => {
++    vi.useFakeTimers();
++    vi.setSystemTime(new Date('2099-01-01T00:00:00.000Z'));
++    const boundaryOffer = {
++      ...hotelOffer,
++      observedAt: '2098-12-31T23:45:01.000Z',
++      expiresAt: '2099-01-01T00:00:01.000Z',
++    };
++    useLibraryStore.setState({ favoriteOffers: { [boundaryOffer.key]: boundaryOffer } });
++
++    render(<ProfileHub initialTab="offers" />);
++    expect(screen.getByText(/有效至/)).toBeInTheDocument();
++
++    act(() => vi.advanceTimersByTime(1000));
++    expect(screen.getByText('报价可能已变化')).toBeInTheDocument();
++    expect(vi.getTimerCount()).toBe(0);
++  });
++
++  it('re-evaluates offer expiry when the offers panel remounts after time passed', () => {
++    vi.useFakeTimers();
++    vi.setSystemTime(new Date('2099-01-01T00:00:00.000Z'));
++    const boundaryOffer = {
++      ...hotelOffer,
++      observedAt: '2098-12-31T23:45:01.000Z',
++      expiresAt: '2099-01-01T00:00:01.000Z',
++    };
++    useLibraryStore.setState({ favoriteOffers: { [boundaryOffer.key]: boundaryOffer } });
++    const view = render(<ProfileHub initialTab="offers" />);
++    expect(screen.getByText(/有效至/)).toBeInTheDocument();
++
++    view.unmount();
++    act(() => vi.advanceTimersByTime(2000));
++    render(<ProfileHub initialTab="offers" />);
++
++    expect(screen.getByText('报价可能已变化')).toBeInTheDocument();
++  });
++
+   it('summarizes partner and guardian safety state without turning it into a guarantee', async () => {
+     const user = userEvent.setup();
+     const trip = seedAcceptedTrip();
+     useTripStore.setState({
+       trips: { [trip.id]: { ...trip, status: 'guarded', guardianEnabled: true } },
+       guardianPlans: { [trip.id]: { id: 'plan-a', title: '标准守护方案' } },
+     });
+ 
+     render(<ProfileHub initialTab="safety" />);
+ 
+     expect(screen.getByText('1 个守护中行程')).toBeInTheDocument();
+     expect(screen.getByText(/不构成身份、安全或紧急响应担保/)).toBeInTheDocument();
+     expect(screen.getByRole('link', { name: '继续寻找搭子' })).toHaveAttribute('href', '/partners');
+     await user.click(screen.getByRole('tab', { name: '兴趣偏好' }));
+     expect(screen.getByRole('heading', { name: '推荐与兴趣偏好' })).toBeInTheDocument();
+   });
++
++  it('does not expose a false missed-check-in count when partner hydration failed', () => {
++    const trip = seedAcceptedTrip();
++    useTripStore.setState({
++      trips: { [trip.id]: { ...trip, status: 'guarded', guardianEnabled: true } },
++    });
++    usePartnerStoreHydration.setState({ hydrated: true, hydrationError: true });
++
++    render(<ProfileHub initialTab="safety" />);
++
++    expect(screen.getByText('1 个守护中行程')).toBeInTheDocument();
++    expect(screen.getByText('搭子安全状态暂不可用')).toBeInTheDocument();
++    expect(screen.queryByText(/个错过签到状态/)).not.toBeInTheDocument();
++  });
+ });
+ 
+ function seedAcceptedTrip() {
+   const trip = createTripStore().getState().savePostAsTrip(extractTripDraft(postsBySlug['dali-slow-5d']));
+   useTripStore.setState({ trips: { [trip.id]: trip } });
+   return trip;
+ }
+diff --git a/tests/unit/partner-eligibility.test.ts b/tests/unit/partner-eligibility.test.ts
+index 7d0fb86..0ba3841 100644
+--- a/tests/unit/partner-eligibility.test.ts
++++ b/tests/unit/partner-eligibility.test.ts
+@@ -277,20 +277,43 @@ describe('partner match and chat state', () => {
+     const store = createPartnerStore({ onHydrationError: (error) => { hydrationFailure = error; } });
+ 
+     await store.persist.rehydrate();
+ 
+     expect(hydrationFailure).toBeInstanceOf(Error);
+     expect((hydrationFailure as Error).message).toBe('PARTNER_INVALID_PERSISTED_STATE');
+     expect(store.getState().matches).toEqual({});
+     expect(window.localStorage.getItem('xingyu-partner-demo-v1')).toBe(malformedBytes);
+   });
+ 
++  it('preserves malformed bytes through later mutations until the owner explicitly resets', async () => {
++    const storageKey = 'xingyu-partner-demo-v1';
++    const malformedBytes = '{"state":{"matches":';
++    window.localStorage.setItem(storageKey, malformedBytes);
++    const store = createPartnerStore();
++
++    await store.persist.rehydrate();
++    store.getState().publishIntent(eligibleProfile, daliPartnerIntent);
++
++    expect(window.localStorage.getItem(storageKey)).toBe(malformedBytes);
++
++    store.getState().resetPartnerStore();
++
++    expect(store.getState()).toMatchObject({
++      intents: {}, matches: {}, visibleMatchIds: [], blockedCandidateIds: [],
++    });
++    const resetEnvelope = JSON.parse(window.localStorage.getItem(storageKey) ?? '{}');
++    expect(resetEnvelope).toMatchObject({
++      state: { intents: {}, matches: {}, visibleMatchIds: [], blockedCandidateIds: [] },
++      version: 2,
++    });
++  });
++
+   it('migrates a valid v1 terminal match by revoking consent and repersisting safe v2 state', async () => {
+     const source = matchedStore();
+     const matchId = Object.keys(source.getState().matches)[0];
+     source.getState().setContactConsent(eligibleProfile, matchId, 'viewer', true);
+     source.getState().setContactConsent(eligibleProfile, matchId, 'candidate', true);
+     source.getState().sendMessage(eligibleProfile, matchId, '先在站内确认路线');
+     source.getState().acknowledgeTrustedContact(eligibleProfile, matchId);
+     source.getState().shareTrip(eligibleProfile, matchId);
+     const legacyState = JSON.parse(window.localStorage.getItem('xingyu-partner-demo-v1') ?? '{}').state;
+     legacyState.matches[matchId].status = 'blocked';
+diff --git a/tests/unit/profile-color-contrast.test.ts b/tests/unit/profile-color-contrast.test.ts
+new file mode 100644
+index 0000000..758c8b4
+--- /dev/null
++++ b/tests/unit/profile-color-contrast.test.ts
+@@ -0,0 +1,23 @@
++import { describe, expect, it } from 'vitest';
++import { profileAccessibleColors } from '@/features/profile/profile-colors';
++
++describe('profile accessible color roles', () => {
++  it('keeps small accent text and focus indicators above their WCAG contrast floors', () => {
++    expect(contrast(profileAccessibleColors.accentOnLight, profileAccessibleColors.lightCanvas)).toBeGreaterThanOrEqual(4.5);
++    expect(contrast(profileAccessibleColors.focusOnLight, profileAccessibleColors.lightCanvas)).toBeGreaterThanOrEqual(3);
++    expect(contrast(profileAccessibleColors.focusOnDark, profileAccessibleColors.darkCanvas)).toBeGreaterThanOrEqual(3);
++  });
++});
++
++function contrast(first: string, second: string) {
++  const [lighter, darker] = [luminance(first), luminance(second)].sort((a, b) => b - a);
++  return (lighter + 0.05) / (darker + 0.05);
++}
++
++function luminance(hex: string) {
++  const channels = hex.match(/[a-f\d]{2}/gi)?.map((value) => Number.parseInt(value, 16) / 255) ?? [];
++  const [red, green, blue] = channels.map((channel) =>
++    channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4,
++  );
++  return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
++}
+diff --git a/tests/unit/trip-store.test.ts b/tests/unit/trip-store.test.ts
+index 5595474..df6a62f 100644
+--- a/tests/unit/trip-store.test.ts
++++ b/tests/unit/trip-store.test.ts
+@@ -312,20 +312,40 @@ describe('draft merge and persistence', () => {
+     const safeState = structuredClone(store.getState().trips);
+     window.localStorage.setItem(canonicalKey, malformedBytes);
+ 
+     await store.persist.rehydrate();
+ 
+     expect(hydrationError).toBe(true);
+     expect(store.getState().trips).toEqual(safeState);
+     expect(window.localStorage.getItem(canonicalKey)).toBe(malformedBytes);
+   });
+ 
++  it('preserves malformed bytes through later mutations until the owner explicitly resets', async () => {
++    const malformedBytes = '{"state":{"trips":';
++    const store = createTripStore();
++    window.localStorage.setItem(canonicalKey, malformedBytes);
++
++    await store.persist.rehydrate();
++    store.getState().acceptDraft(daliDraft);
++
++    expect(window.localStorage.getItem(canonicalKey)).toBe(malformedBytes);
++
++    store.getState().resetTripStore();
++
++    expect(store.getState()).toMatchObject({ trips: {}, partnerIntents: {}, guardianPlans: {} });
++    const resetEnvelope = JSON.parse(window.localStorage.getItem(canonicalKey) ?? '{}');
++    expect(resetEnvelope).toMatchObject({
++      state: { trips: {}, partnerIntents: {}, guardianPlans: {} },
++      version: 2,
++    });
++  });
++
+   it('rejects duplicate source slugs in an exact v2 envelope and preserves its raw bytes', async () => {
+     const first = acceptedTrip();
+     const duplicateId = 'draft-dali-duplicate';
+     const duplicate = { ...structuredClone(first), id: duplicateId };
+     const raw = JSON.stringify({
+       state: {
+         trips: { [first.id]: first, [duplicate.id]: duplicate },
+         partnerIntents: { [duplicate.id]: true },
+         guardianPlans: { [first.id]: { id: 'PLAN-A', title: '室内备选' } },
+       },

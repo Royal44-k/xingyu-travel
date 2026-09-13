@@ -1,0 +1,48 @@
+
+ RUN  v4.1.10 D:/Codex-chat/xingyu-travel/.worktrees/xingyu-public-mvp
+
+
+ Test Files  29 passed (29)
+      Tests  215 passed (215)
+   Start at  16:02:41
+   Duration  88.91s (transform 2.79s, setup 52.80s, import 809.55s, tests 22.91s, environment 275.87s)
+
+▲ Next.js 16.2.12 (Turbopack)
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 5.0s
+  Running TypeScript ...
+  Finished TypeScript in 10.9s ...
+  Collecting page data using 15 workers ...
+  Generating static pages using 15 workers (0/13) ...
+  Generating static pages using 15 workers (3/13) 
+  Generating static pages using 15 workers (6/13) 
+  Generating static pages using 15 workers (9/13) 
+✓ Generating static pages using 15 workers (13/13) in 592ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ƒ /api/v1/assistant
+├ ƒ /api/v1/comparison/searches
+├ ƒ /api/v1/comparison/searches/[id]/events
+├ ƒ /api/v1/guardian/[tripId]
+├ ƒ /api/v1/health
+├ ○ /assistant
+├ ƒ /chat/[matchId]
+├ ƒ /compare
+├ ƒ /guardian/[tripId]
+├ ○ /manifest.webmanifest
+├ ○ /partners
+├ ○ /profile
+├ ○ /robots.txt
+├ ○ /sitemap.xml
+├ ○ /square
+├ ƒ /square/[slug]
+└ ƒ /trips/[slug]
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

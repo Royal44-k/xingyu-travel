@@ -1,0 +1,1504 @@
+# Review package: 7b95447..c9ccd47
+
+## Commits
+c9ccd47 feat: add cinematic destination discovery
+
+## Files changed
+ .../task-8-report.md                               |  73 +++
+ src/app/page.tsx                                   |   2 +
+ src/features/home/destination-film-carousel.tsx    | 253 +++++++++++
+ src/features/home/featured-destinations.module.css | 503 +++++++++++++++++----
+ src/features/home/featured-destinations.tsx        |  82 ++--
+ src/features/home/home-story-sections.tsx          | 210 +++++++++
+ tests/component/destination-film-carousel.test.tsx | 144 ++++++
+ tests/component/home-shell.test.tsx                |  64 ++-
+ 8 files changed, 1179 insertions(+), 152 deletions(-)
+
+## Diff
+diff --git a/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/task-8-report.md b/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/task-8-report.md
+new file mode 100644
+index 0000000..a454d42
+--- /dev/null
++++ b/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/task-8-report.md
+@@ -0,0 +1,73 @@
++# Task 8 Report: Signature Destination Film and Rich Home Story
++
++## Result
++
++Implemented the Task 8 homepage scope without changing persisted schemas, running a browser/E2E session, touching the ledger, or deploying:
++
++- Replaced the two-card seasonal strip with a real eight-guide destination film sourced from the Task 6 post and destination-image registries.
++- Enlarged the active destination while keeping both adjacent photographs partially visible.
++- Added 6-second autoplay, hover/focus-within/page-hidden/drag pause behavior, pointer drag, previous/next controls, pagination, Home/End/Arrow keys, an accessible live position, and reduced-motion autoplay/parallax removal.
++- Added four guide themes, true-total-price explanation, guide-to-trip example, AI/guardian scenario, trusted-partner boundary, and browser-local recent-trip/liked-guide content.
++- Kept the local shelf server/client neutral until the client snapshot and both owning stores are hydrated, then derived content through store selectors without direct `localStorage` access.
++- Kept every CTA on an existing route and every photograph tied to real destination metadata.
++
++## TDD Evidence
++
++Production files were unchanged when the Task 8 component contract was added.
++
++Initial RED:
++
++- Command: `pnpm test tests/component/destination-film-carousel.test.tsx tests/component/home-shell.test.tsx`
++- Test files: 2 failed.
++- Existing home checks: 2 passed.
++- Expected missing behavior: the carousel module did not exist; the home shell lacked the destination region, narrative modules, and local hydration status.
++
++Focused GREEN:
++
++- Command: `pnpm test tests/component/destination-film-carousel.test.tsx tests/component/home-shell.test.tsx tests/component/search-composer.test.tsx`
++- Test files: 3 passed.
++- Tests: 16 passed.
++- Covered timing, every pause source, pointer drag and cancellation, keyboard endpoints, pagination, reduced motion, real image/route metadata, all narrative CTAs, neutral hydration, local trip/like reveal, and the unchanged search composer.
++
++## Design Evidence
++
++- Read and followed the approved homepage target `docs/design/selected-homepage-option-1.png`, the content target `docs/design/xingyu-content-hub-target.png`, the full Task 8 brief, and the homepage/motion sections of the approved plan and spec.
++- Followed the Product Design critical override at `C:/Users/lenovo/.codex/plugins/cache/openai-curated-remote/product-design/0.1.52/references/critical-overrides.md` and the local frontend-design guidance.
++- Reused the approved tokens `#10100F`, `#F4F0E8`, `#B79A68`, `#26312B`, `#4D6B63`, and `#A94032`, plus the existing Noto Serif/Sans roles.
++- Kept the moving travel viewfinder as the single new signature motion surface. Supporting cards use only state-driven focus/hover treatment; lift is 6px and image scale is capped at 1.035.
++- Sand glow appears only on the active carousel card, active pagination, and hovered controls. No gradient, CSS drawing, inline/handcrafted SVG, fake map line, decorative numbering, or generic metric dashboard was added.
++- The 390px rules collapse all grids, keep adjacent film edges visible inside an overflow-clipped viewport, preserve readable copy and focus, and remove large transforms under reduced motion.
++
++## React Review Evidence
++
++- Direct imports keep the client bundle boundary explicit; the static post-to-film mapping remains in the server composition.
++- Transient pointer and pause state lives in refs so high-frequency movement and timer checks do not cause avoidable rerenders.
++- Store subscriptions select only the liked slugs, trip records, and individual hydration booleans they render.
++- Derived recent-trip and liked-guide data is memoized; no effect mirrors derived render state.
++- `useSyncExternalStore` provides a stable false server snapshot and true client snapshot for hydration-safe local content without `setState` inside an effect.
++- All controls are DOM-native buttons/links with Phosphor icons, visible focus, semantic grouping, and no child-key hijacking.
++
++## Fresh Verification
++
++- Focused home/search: 3 files, 16 tests passed.
++- Full Vitest: 40 files, 316 tests passed; exit 0.
++- `pnpm lint`: exit 0.
++- `pnpm typecheck`: exit 0.
++- `pnpm build`: exit 0; Next.js 16.2.12 compiled successfully and generated 14/14 static pages.
++- `git diff --check`: no whitespace errors; only the repository's existing LF-to-CRLF notices were printed.
++- No browser, Playwright/E2E, ledger, deployment, or unrelated MasterGo process action was performed.
++
++## Files
++
++Created:
++
++- `src/features/home/destination-film-carousel.tsx`
++- `src/features/home/home-story-sections.tsx`
++- `tests/component/destination-film-carousel.test.tsx`
++
++Modified:
++
++- `src/features/home/featured-destinations.tsx`
++- `src/features/home/featured-destinations.module.css`
++- `src/app/page.tsx`
++- `tests/component/home-shell.test.tsx`
+diff --git a/src/app/page.tsx b/src/app/page.tsx
+index 5ddd88b..fb2cf02 100644
+--- a/src/app/page.tsx
++++ b/src/app/page.tsx
+@@ -1,15 +1,17 @@
+ import { SiteHeader } from '@/components/site-header';
+ import { FeaturedDestinations } from '@/features/home/featured-destinations';
+ import { Hero } from '@/features/home/hero';
++import { HomeStorySections } from '@/features/home/home-story-sections';
+ 
+ export default function HomePage() {
+   return (
+     <>
+       <SiteHeader activePath="/" />
+       <main className="homePage">
+         <Hero />
+         <FeaturedDestinations />
++        <HomeStorySections />
+       </main>
+     </>
+   );
+ }
+diff --git a/src/features/home/destination-film-carousel.tsx b/src/features/home/destination-film-carousel.tsx
+new file mode 100644
+index 0000000..2e342d3
+--- /dev/null
++++ b/src/features/home/destination-film-carousel.tsx
+@@ -0,0 +1,253 @@
++'use client';
++
++import { CaretLeft, CaretRight } from '@phosphor-icons/react';
++import { motion, useReducedMotion } from 'motion/react';
++import Image from 'next/image';
++import Link from 'next/link';
++import {
++  useCallback,
++  useEffect,
++  useRef,
++  useState,
++  type CSSProperties,
++  type FocusEvent,
++  type KeyboardEvent,
++  type PointerEvent,
++} from 'react';
++import type { PostMedia } from '@/data/posts';
++import styles from './featured-destinations.module.css';
++
++export interface DestinationFilmItem {
++  destination: string;
++  title: string;
++  description: string;
++  days: number;
++  season: string;
++  image: PostMedia;
++  href: string;
++}
++
++interface DestinationFilmCarouselProps {
++  destinations: readonly DestinationFilmItem[];
++  intervalMs?: number;
++}
++
++interface DragOrigin {
++  pointerId: number;
++  x: number;
++  y: number;
++}
++
++const dragThreshold = 64;
++const maxDragParallax = 36;
++
++function circularOffset(index: number, activeIndex: number, length: number) {
++  let offset = index - activeIndex;
++  if (offset > length / 2) offset -= length;
++  if (offset < -length / 2) offset += length;
++  return offset;
++}
++
++export function DestinationFilmCarousel({
++  destinations,
++  intervalMs = 6000,
++}: DestinationFilmCarouselProps) {
++  const reduceMotion = Boolean(useReducedMotion());
++  const [activeIndex, setActiveIndex] = useState(0);
++  const [dragOffset, setDragOffset] = useState(0);
++  const dragOrigin = useRef<DragOrigin | null>(null);
++  const pauseState = useRef({
++    documentHidden: typeof document !== 'undefined' && document.hidden,
++    dragging: false,
++    focusWithin: false,
++    hovered: false,
++  });
++  const count = destinations.length;
++
++  const select = useCallback((index: number) => {
++    if (count === 0) return;
++    setActiveIndex((index + count) % count);
++  }, [count]);
++
++  const selectRelative = useCallback((step: number) => {
++    if (count === 0) return;
++    setActiveIndex((current) => (current + step + count) % count);
++  }, [count]);
++
++  useEffect(() => {
++    function onVisibilityChange() {
++      pauseState.current.documentHidden = document.hidden;
++    }
++
++    document.addEventListener('visibilitychange', onVisibilityChange);
++    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
++  }, []);
++
++  useEffect(() => {
++    if (
++      reduceMotion ||
++      count < 2
++    ) return;
++
++    const timer = window.setInterval(() => {
++      const paused = Object.values(pauseState.current).some(Boolean);
++      if (!paused) selectRelative(1);
++    }, intervalMs);
++    return () => window.clearInterval(timer);
++  }, [count, intervalMs, reduceMotion, selectRelative]);
++
++  if (count === 0) return null;
++
++  function onKeyDown(event: KeyboardEvent<HTMLElement>) {
++    if (event.target !== event.currentTarget) return;
++    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
++    event.preventDefault();
++    if (event.key === 'ArrowLeft') selectRelative(-1);
++    if (event.key === 'ArrowRight') selectRelative(1);
++    if (event.key === 'Home') select(0);
++    if (event.key === 'End') select(count - 1);
++  }
++
++  function onBlur(event: FocusEvent<HTMLElement>) {
++    if (!event.currentTarget.contains(event.relatedTarget)) {
++      pauseState.current.focusWithin = false;
++    }
++  }
++
++  function onPointerDown(event: PointerEvent<HTMLDivElement>) {
++    dragOrigin.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY };
++    pauseState.current.dragging = true;
++    event.currentTarget.setPointerCapture?.(event.pointerId);
++  }
++
++  function onPointerMove(event: PointerEvent<HTMLDivElement>) {
++    const origin = dragOrigin.current;
++    if (!origin || origin.pointerId !== event.pointerId || reduceMotion) return;
++    const distance = event.clientX - origin.x;
++    setDragOffset(Math.max(-maxDragParallax, Math.min(maxDragParallax, distance * 0.18)));
++  }
++
++  function finishDrag(event: PointerEvent<HTMLDivElement>) {
++    const origin = dragOrigin.current;
++    dragOrigin.current = null;
++    pauseState.current.dragging = false;
++    setDragOffset(0);
++    if (!origin || origin.pointerId !== event.pointerId) return;
++
++    const horizontalDistance = event.clientX - origin.x;
++    const verticalDistance = event.clientY - origin.y;
++    if (
++      Math.abs(horizontalDistance) >= dragThreshold &&
++      Math.abs(horizontalDistance) > Math.abs(verticalDistance)
++    ) {
++      selectRelative(horizontalDistance < 0 ? 1 : -1);
++    }
++  }
++
++  function cancelDrag() {
++    dragOrigin.current = null;
++    pauseState.current.dragging = false;
++    setDragOffset(0);
++  }
++
++  const viewportStyle = {
++    '--film-drag-x': reduceMotion ? '0px' : `${dragOffset}px`,
++  } as CSSProperties;
++
++  return (
++    <section
++      aria-label="目的地旅行取景窗"
++      className={styles.filmCarousel}
++      onBlurCapture={onBlur}
++      onFocusCapture={() => { pauseState.current.focusWithin = true; }}
++      onKeyDown={onKeyDown}
++      onMouseEnter={() => { pauseState.current.hovered = true; }}
++      onMouseLeave={() => { pauseState.current.hovered = false; }}
++      tabIndex={0}
++    >
++      <div
++        className={styles.filmViewport}
++        data-parallax={reduceMotion ? 'disabled' : 'enabled'}
++        data-testid="destination-film-viewport"
++        onPointerCancel={cancelDrag}
++        onPointerDown={onPointerDown}
++        onPointerMove={onPointerMove}
++        onPointerUp={finishDrag}
++        style={viewportStyle}
++      >
++        <div className={styles.filmScene}>
++          {destinations.map((destination, index) => {
++            const offset = circularOffset(index, activeIndex, count);
++            const active = offset === 0;
++            const adjacent = Math.abs(offset) === 1;
++            const visible = active || adjacent;
++
++            return (
++              <motion.article
++                animate={{
++                  opacity: active ? 1 : adjacent ? 0.62 : 0,
++                  scale: active ? 1 : 0.88,
++                  x: `${offset * 100 - 50}%`,
++                }}
++                aria-hidden={visible ? undefined : true}
++                className={styles.filmCard}
++                data-active={active ? 'true' : 'false'}
++                key={destination.href}
++                transition={reduceMotion
++                  ? { duration: 0 }
++                  : { duration: 0.62, ease: [0.22, 0.61, 0.36, 1] }}
++              >
++                <Image
++                  alt={destination.image.alt}
++                  className={styles.filmImage}
++                  fill
++                  sizes="(max-width: 720px) 86vw, 60vw"
++                  src={destination.image.src}
++                />
++                <div aria-hidden className={styles.filmScrim} />
++                <div className={styles.filmCopy}>
++                  <p>{destination.days} 天 · {destination.season}</p>
++                  <h3>{destination.destination}</h3>
++                  <span>{destination.description}</span>
++                  <Link
++                    aria-current={active ? 'true' : undefined}
++                    href={destination.href}
++                    tabIndex={visible ? 0 : -1}
++                  >
++                    打开{destination.destination}攻略
++                    <CaretRight aria-hidden size={18} weight="light" />
++                  </Link>
++                </div>
++              </motion.article>
++            );
++          })}
++        </div>
++      </div>
++
++      <div className={styles.filmControls}>
++        <button aria-label="上一个目的地" onClick={() => selectRelative(-1)} type="button">
++          <CaretLeft aria-hidden size={22} weight="light" />
++        </button>
++        <p aria-label="目的地位置" aria-live="polite" aria-atomic="true" role="status">
++          <span>{activeIndex + 1} / {count}</span>
++          <span className={styles.srOnly}>，当前目的地：{destinations[activeIndex].destination}</span>
++        </p>
++        <button aria-label="下一个目的地" onClick={() => selectRelative(1)} type="button">
++          <CaretRight aria-hidden size={22} weight="light" />
++        </button>
++      </div>
++
++      <div aria-label="选择目的地" className={styles.filmPagination} role="group">
++        {destinations.map((destination, index) => (
++          <button
++            aria-label={`查看${destination.destination}`}
++            aria-pressed={index === activeIndex}
++            key={destination.href}
++            onClick={() => select(index)}
++            type="button"
++          />
++        ))}
++      </div>
++    </section>
++  );
++}
+diff --git a/src/features/home/featured-destinations.module.css b/src/features/home/featured-destinations.module.css
+index 6566593..2fc4831 100644
+--- a/src/features/home/featured-destinations.module.css
++++ b/src/features/home/featured-destinations.module.css
+@@ -1,163 +1,472 @@
+ .section {
+   position: relative;
+-  display: grid;
+-  grid-template-columns: minmax(260px, 0.76fr) 2fr;
+-  gap: clamp(36px, 5vw, 76px);
+-  width: min(calc(100% - 80px), var(--content-max));
+-  margin: 0 auto;
+-  padding: 38px 0 84px;
++  padding: 82px 0 68px;
++  overflow: hidden;
+   color: var(--ivory);
++  background: #141514;
+ }
+ 
+-.section::before {
+-  content: '';
+-  position: absolute;
+-  z-index: -1;
+-  top: 0;
+-  bottom: 0;
+-  left: 50%;
+-  width: 100vw;
+-  background: #141514;
+-  transform: translateX(-50%);
++.intro,
++.storyHeading {
++  width: min(calc(100% - 64px), var(--content-max));
++  margin: 0 auto;
+ }
+ 
+ .intro {
+-  align-self: start;
+-  padding-top: 15px;
++  display: grid;
++  grid-template-columns: minmax(220px, 0.7fr) minmax(320px, 1fr) minmax(260px, 0.8fr);
++  align-items: end;
++  gap: 36px;
++  padding-bottom: 44px;
+ }
+ 
+-.intro > p {
+-  margin: 0 0 22px;
++.intro p,
++.storyHeading > p,
++.proofCopy > p,
++.tripStoryCopy > p,
++.safetyStoryHeading > p,
++.partnerStory p {
++  margin: 0;
+   color: var(--sand);
+   font-size: 10px;
+-  letter-spacing: 0.24em;
++  letter-spacing: 0.22em;
+ }
+ 
+-.intro h2 {
++.intro h2,
++.storyHeading h2,
++.proofCopy h2,
++.tripStoryCopy h2,
++.safetyStory h2,
++.partnerStory h2 {
+   margin: 0;
+   font-family: var(--font-display);
+-  font-size: clamp(30px, 3vw, 42px);
+   font-weight: 400;
+-  line-height: 1.4;
+-  letter-spacing: 0.06em;
++  line-height: 1.36;
++  letter-spacing: 0.04em;
+ }
+ 
+-.intro > span {
+-  display: block;
+-  margin-top: 18px;
+-  color: rgb(244 240 232 / 65%);
+-  font-size: 15px;
+-  line-height: 1.8;
++.intro h2 { font-size: clamp(31px, 3.2vw, 48px); }
++
++.intro > span,
++.storyHeading > span,
++.proofCopy > span,
++.tripStoryCopy > span,
++.safetyStoryHeading > span,
++.partnerStory > div > span {
++  color: rgb(244 240 232 / 64%);
++  font-size: 14px;
++  line-height: 1.85;
+ }
+ 
+-.intro::after {
+-  content: '';
+-  display: block;
+-  width: 34px;
+-  height: 1px;
+-  margin-top: 27px;
+-  background: var(--sand);
++.filmCarousel {
++  position: relative;
++  outline: none;
+ }
+ 
+-.destinations {
+-  display: grid;
+-  grid-template-columns: repeat(2, minmax(0, 1fr));
+-  gap: 18px;
++.filmCarousel:focus-visible {
++  outline: 2px solid var(--sand);
++  outline-offset: -8px;
++}
++
++.filmViewport {
++  position: relative;
++  height: 526px;
++  overflow: hidden;
++  cursor: grab;
++  touch-action: pan-y;
++  user-select: none;
+ }
+ 
+-.card {
++.filmViewport:active { cursor: grabbing; }
++
++.filmScene {
+   position: relative;
+-  min-height: 310px;
++  height: 100%;
++  transform: translateX(var(--film-drag-x));
++  transition: transform var(--motion-fast) ease-out;
++}
++
++.filmCard {
++  position: absolute;
++  top: 0;
++  left: 50%;
++  width: min(60vw, 880px);
++  height: 500px;
+   overflow: hidden;
++  border: 1px solid rgb(244 240 232 / 16%);
+   border-radius: 2px;
+   background: var(--pine);
++  box-shadow: 0 24px 78px rgb(0 0 0 / 34%);
++  will-change: transform, opacity;
++}
++
++.filmCard[data-active='true'] {
++  z-index: 2;
++  border-color: rgb(183 154 104 / 72%);
++  box-shadow:
++    0 28px 88px rgb(0 0 0 / 45%),
++    0 0 34px rgb(183 154 104 / 14%);
+ }
+ 
+-.destinationImage {
++.filmImage {
+   object-fit: cover;
+-  transition: transform 700ms cubic-bezier(0.2, 0.8, 0.2, 1);
++  transition: transform var(--motion-reveal) cubic-bezier(.22, .61, .36, 1);
+ }
+ 
+-.card:hover .destinationImage {
++.filmCard[data-active='true']:hover .filmImage,
++.filmCard[data-active='true']:focus-within .filmImage {
+   transform: scale(1.035);
+ }
+ 
+-.cardScrim {
++.filmScrim {
+   position: absolute;
+   inset: 0;
+-  background: rgb(3 6 5 / 17%);
+-  box-shadow: inset 0 -190px 120px rgb(3 6 5 / 72%);
++  background: rgb(3 6 5 / 14%);
++  box-shadow: inset 0 -270px 180px rgb(3 6 5 / 84%);
+ }
+ 
+-.cardCopy {
++.filmCopy {
+   position: absolute;
+-  right: 30px;
+-  bottom: 25px;
+-  left: 30px;
+-  color: var(--ivory);
+-  transition: transform 300ms ease;
++  z-index: 1;
++  right: clamp(22px, 4vw, 54px);
++  bottom: 34px;
++  left: clamp(22px, 4vw, 54px);
++  max-width: 680px;
++  transition: opacity var(--motion-standard) ease;
+ }
+ 
+-.card:hover .cardCopy {
+-  transform: translateY(-5px);
++.filmCard:not([data-active='true']) .filmCopy { opacity: 0; }
++.filmCard:focus-within .filmCopy { opacity: 1; }
++.filmCopy p { margin: 0 0 8px; color: var(--sand); font-size: 11px; letter-spacing: 0.14em; }
++.filmCopy h3 { margin: 0; font-family: var(--font-display); font-size: clamp(32px, 4vw, 54px); font-weight: 400; letter-spacing: 0.08em; }
++.filmCopy > span { display: block; max-width: 600px; margin-top: 9px; color: rgb(244 240 232 / 72%); font-size: 13px; line-height: 1.65; }
++
++.filmCopy a,
++.proofCopy > a,
++.tripStoryCopy > a,
++.scenarioGrid a,
++.partnerStory > a,
++.themeCard a,
++.localGrid a {
++  display: inline-flex;
++  align-items: center;
++  gap: 8px;
++  margin-top: 20px;
++  color: inherit;
++  font-size: 13px;
++  text-underline-offset: 5px;
+ }
+ 
+-.cardCopy h3 {
+-  margin: 0 0 7px;
+-  font-family: var(--font-display);
+-  font-size: 24px;
+-  font-weight: 500;
+-  letter-spacing: 0.06em;
++.filmCopy a:focus-visible,
++.filmControls button:focus-visible,
++.filmPagination button:focus-visible,
++.themeCard a:focus-visible,
++.proofCopy > a:focus-visible,
++.tripStoryCopy > a:focus-visible,
++.scenarioGrid a:focus-visible,
++.partnerStory > a:focus-visible,
++.localShelf a:focus-visible {
++  outline: 2px solid var(--sand);
++  outline-offset: 4px;
++}
++
++.filmControls {
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  gap: 16px;
++  width: min(calc(100% - 48px), 440px);
++  margin: 18px auto 0;
+ }
+ 
+-.cardCopy p {
++.filmControls button {
++  display: grid;
++  width: 42px;
++  height: 42px;
++  padding: 0;
++  place-items: center;
++  color: var(--ivory);
++  border: 1px solid rgb(244 240 232 / 24%);
++  border-radius: 50%;
++  background: transparent;
++  cursor: pointer;
++}
++
++.filmControls button:hover {
++  color: var(--ink);
++  border-color: var(--sand);
++  background: var(--sand);
++  box-shadow: 0 0 22px rgb(183 154 104 / 18%);
++}
++
++.filmControls p {
++  min-width: 84px;
+   margin: 0;
+-  color: rgb(244 240 232 / 77%);
+-  font-size: 13px;
+-  letter-spacing: 0.06em;
++  color: rgb(244 240 232 / 70%);
++  font-size: 12px;
++  font-variant-numeric: tabular-nums;
++  letter-spacing: 0.1em;
++  text-align: center;
+ }
+ 
+-.cardCopy a {
+-  display: inline-flex;
+-  margin-top: 18px;
+-  color: inherit;
++.filmPagination {
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  gap: 8px;
++  margin-top: 15px;
+ }
+ 
+-.cardCopy a:focus-visible {
+-  outline: 2px solid var(--sand);
+-  outline-offset: 5px;
++.filmPagination button {
++  width: 20px;
++  height: 8px;
++  padding: 0;
++  border: 0;
++  border-radius: 999px;
++  background: rgb(244 240 232 / 28%);
++  cursor: pointer;
++  transition: width var(--motion-standard) ease, background-color var(--motion-fast) ease;
+ }
+ 
+-@media (max-width: 900px) {
+-  .section {
+-    grid-template-columns: 1fr;
+-  }
++.filmPagination button[aria-pressed='true'] {
++  width: 40px;
++  background: var(--sand);
++  box-shadow: 0 0 18px rgb(183 154 104 / 24%);
++}
+ 
+-  .intro {
+-    align-self: center;
+-    max-width: 540px;
+-    padding-top: 0;
+-  }
++.srOnly {
++  position: absolute;
++  width: 1px;
++  height: 1px;
++  padding: 0;
++  overflow: hidden;
++  clip: rect(0, 0, 0, 0);
++  white-space: nowrap;
++  border: 0;
+ }
+ 
+-@media (max-width: 680px) {
+-  .section {
+-    width: calc(100% - 32px);
+-    padding: 56px 0 64px;
+-  }
++.guideThemes,
++.localShelf {
++  padding: clamp(78px, 10vw, 132px) 0;
++  color: var(--ink);
++  background: var(--ivory);
++}
+ 
+-  .destinations {
+-    grid-template-columns: 1fr;
+-  }
++.storyHeading {
++  display: grid;
++  grid-template-columns: minmax(180px, 0.55fr) minmax(320px, 1fr) minmax(220px, 0.7fr);
++  align-items: end;
++  gap: 34px;
++}
+ 
+-  .card {
+-    min-height: 300px;
+-  }
++.storyHeading > p { color: #725b35; }
++.storyHeading h2 { font-size: clamp(29px, 3vw, 44px); }
++.storyHeading > span { color: rgb(16 16 15 / 62%); }
++
++.themeGrid {
++  display: grid;
++  grid-template-columns: repeat(4, minmax(0, 1fr));
++  gap: 14px;
++  width: min(calc(100% - 64px), var(--content-max));
++  margin: 48px auto 0;
++}
++
++.themeCard {
++  min-width: 0;
++  border: 1px solid rgb(16 16 15 / 13%);
++  background: #eee9df;
++  transition: transform var(--motion-standard) cubic-bezier(.22, .61, .36, 1), border-color var(--motion-fast) ease;
++}
++
++.themeCard:hover,
++.themeCard:focus-within {
++  border-color: rgb(183 154 104 / 70%);
++  transform: translateY(-6px);
++}
++
++.themeImage { position: relative; aspect-ratio: 3 / 2; overflow: hidden; }
++.themeImage img { object-fit: cover; transition: transform var(--motion-reveal) cubic-bezier(.22, .61, .36, 1); }
++.themeCard:hover .themeImage img,
++.themeCard:focus-within .themeImage img { transform: scale(1.035); }
++.themeCard > div:last-child { padding: 22px 20px 24px; }
++.themeCard p { margin: 0; color: #725b35; font-size: 10px; letter-spacing: 0.12em; }
++.themeCard h3 { margin: 8px 0 10px; font-family: var(--font-display); font-size: 27px; font-weight: 500; }
++.themeCard span { display: block; min-height: 46px; color: rgb(16 16 15 / 65%); font-size: 13px; line-height: 1.7; }
++
++.proofSection,
++.tripStory {
++  display: grid;
++  grid-template-columns: minmax(0, 0.94fr) minmax(0, 1.06fr);
++  min-height: 650px;
++  color: var(--ivory);
++  background: var(--pine);
++}
++
++.proofCopy,
++.tripStoryCopy {
++  align-self: center;
++  width: min(100%, 650px);
++  padding: clamp(52px, 8vw, 118px);
++}
++
++.proofCopy > svg,
++.tripStoryCopy > svg { margin-bottom: 34px; color: var(--sand); }
++.proofCopy h2,
++.tripStoryCopy h2 { margin-top: 14px; font-size: clamp(31px, 3.5vw, 50px); }
++.proofCopy > span,
++.tripStoryCopy > span { display: block; margin-top: 20px; }
++.proofImage,
++.tripStoryImage { position: relative; min-height: 520px; overflow: hidden; }
++.proofImage img,
++.tripStoryImage img { object-fit: cover; }
++.proofCopy ul { display: grid; gap: 11px; margin: 30px 0 0; padding: 0; list-style: none; color: rgb(244 240 232 / 74%); font-size: 13px; }
++.proofCopy li { display: flex; align-items: center; gap: 9px; }
++.proofCopy li svg { color: var(--sand); }
++
++.tripStory { color: var(--ink); background: #ddd7cc; }
++.tripStoryCopy { order: 2; }
++.tripStoryImage { order: 1; }
++.tripStoryCopy > p,
++.tripStoryCopy > svg { color: #725b35; }
++.tripStoryCopy > span { color: rgb(16 16 15 / 66%); }
++.tripStoryCopy dl { display: grid; gap: 15px; margin: 28px 0 0; }
++.tripStoryCopy dl > div { padding: 13px 0; border-top: 1px solid rgb(16 16 15 / 16%); }
++.tripStoryCopy dt { color: #725b35; font-size: 11px; letter-spacing: 0.12em; }
++.tripStoryCopy dd { margin: 7px 0 0; color: rgb(16 16 15 / 72%); font-size: 13px; line-height: 1.65; }
++
++.safetyStory {
++  display: grid;
++  grid-template-columns: minmax(260px, 0.72fr) minmax(0, 1.28fr);
++  gap: clamp(42px, 7vw, 110px);
++  padding: clamp(78px, 10vw, 132px) max(32px, calc((100vw - var(--content-max)) / 2));
++  color: var(--ivory);
++  background: #171a18;
++}
++
++.safetyStoryHeading > svg { margin-bottom: 34px; color: var(--sand); }
++.safetyStory h2 { margin-top: 14px; font-size: clamp(31px, 3.4vw, 49px); }
++.safetyStoryHeading > span { display: block; margin-top: 20px; }
++.scenarioGrid { display: grid; gap: 14px; align-self: center; }
++.scenarioGrid article { padding: clamp(26px, 4vw, 42px); border: 1px solid rgb(244 240 232 / 15%); background: rgb(244 240 232 / 4%); }
++.scenarioGrid article:last-child { border-color: rgb(77 107 99 / 70%); background: rgb(77 107 99 / 16%); }
++.scenarioGrid article > svg { display: block; margin-bottom: 18px; color: var(--lake-jade); }
++.scenarioGrid strong { font-family: var(--font-display); font-size: clamp(19px, 2vw, 27px); font-weight: 500; line-height: 1.55; }
++.scenarioGrid p { margin: 15px 0 0; color: rgb(244 240 232 / 66%); font-size: 13px; line-height: 1.8; }
++
++.partnerStory {
++  display: grid;
++  grid-template-columns: auto minmax(0, 1fr) auto;
++  align-items: center;
++  gap: 28px;
++  width: min(calc(100% - 64px), var(--content-max));
++  margin: 0 auto;
++  padding: 70px 0;
++  color: var(--ink);
++  background: var(--ivory);
++}
++
++.partnerStory > svg { color: var(--lake-jade); }
++.partnerStory h2 { margin-top: 9px; font-size: clamp(27px, 3vw, 40px); }
++.partnerStory > div > span { display: block; max-width: 760px; margin-top: 12px; color: rgb(16 16 15 / 64%); }
++.partnerStory > a { margin-top: 0; white-space: nowrap; }
++
++.localShelf { border-top: 1px solid rgb(16 16 15 / 12%); }
++.localGrid,
++.localState {
++  width: min(calc(100% - 64px), var(--content-max));
++  margin: 44px auto 0;
++}
++.localGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
++.localGrid article,
++.localState { padding: clamp(24px, 4vw, 38px); border: 1px solid rgb(16 16 15 / 13%); background: #eee9df; }
++.localGrid article > svg { float: right; color: var(--cinnabar); }
++.localGrid span { color: #725b35; font-size: 11px; letter-spacing: 0.1em; }
++.localGrid h3 { margin: 10px 0 8px; font-family: var(--font-display); font-size: clamp(21px, 2vw, 29px); font-weight: 500; line-height: 1.5; }
++.localGrid p { margin: 0; color: rgb(16 16 15 / 62%); font-size: 13px; line-height: 1.75; }
++.localState { display: flex; align-items: center; gap: 13px; color: rgb(16 16 15 / 68%); }
++.localState p { margin: 0; line-height: 1.7; }
++.localState > div { display: flex; gap: 16px; margin-left: auto; }
++
++.homeFooter {
++  display: flex;
++  align-items: center;
++  justify-content: space-between;
++  gap: 28px;
++  padding: 30px max(32px, calc((100vw - var(--content-max)) / 2));
++  color: rgb(244 240 232 / 60%);
++  background: var(--ink);
++  font-size: 11px;
++  line-height: 1.7;
++}
++.homeFooter p { margin: 0; color: var(--ivory); font-family: var(--font-display); font-size: 16px; white-space: nowrap; }
++
++@media (max-width: 980px) {
++  .intro,
++  .storyHeading { grid-template-columns: 1fr 1.4fr; }
++  .intro > span,
++  .storyHeading > span { grid-column: 2; }
++  .themeGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
++  .safetyStory { grid-template-columns: 1fr; }
++}
++
++@media (max-width: 760px) {
++  .section { padding-top: 62px; }
++  .intro,
++  .storyHeading { grid-template-columns: 1fr; width: calc(100% - 36px); gap: 12px; }
++  .intro > span,
++  .storyHeading > span { grid-column: auto; }
++  .filmViewport { height: 444px; }
++  .filmCard { width: 86vw; height: 420px; }
++  .filmCopy { right: 22px; bottom: 24px; left: 22px; }
++  .filmCopy > span { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
++  .themeGrid,
++  .localGrid { grid-template-columns: 1fr; width: calc(100% - 36px); }
++  .proofSection,
++  .tripStory { grid-template-columns: 1fr; }
++  .proofImage,
++  .tripStoryImage { min-height: 390px; }
++  .proofCopy,
++  .tripStoryCopy { padding: 58px 24px 66px; }
++  .proofImage { order: -1; }
++  .tripStoryCopy { order: 2; }
++  .tripStoryImage { order: 1; }
++  .safetyStory { padding: 72px 18px; }
++  .partnerStory { grid-template-columns: auto 1fr; width: calc(100% - 36px); padding: 58px 0; }
++  .partnerStory > a { grid-column: 2; }
++  .localGrid,
++  .localState { width: calc(100% - 36px); }
++  .localState { align-items: flex-start; flex-direction: column; }
++  .localState > div { margin-left: 0; }
++  .homeFooter { align-items: flex-start; flex-direction: column; padding: 28px 18px; }
++}
++
++@media (max-width: 430px) {
++  .filmViewport { height: 414px; }
++  .filmCard { height: 390px; }
++  .filmCopy h3 { font-size: 32px; }
++  .filmControls { margin-top: 10px; }
++  .filmPagination { gap: 6px; }
++  .themeGrid { gap: 12px; }
++  .proofImage,
++  .tripStoryImage { min-height: 310px; }
++  .scenarioGrid article { padding: 24px 20px; }
+ }
+ 
+ @media (prefers-reduced-motion: reduce) {
+-  .destinationImage,
+-  .cardCopy {
++  .filmScene,
++  .filmImage,
++  .filmCopy,
++  .filmPagination button,
++  .themeCard,
++  .themeImage img {
+     transition: none;
+   }
++
++  .filmScene { transform: none; }
++  .themeCard:hover,
++  .themeCard:focus-within { transform: none; }
++  .filmCard[data-active='true']:hover .filmImage,
++  .filmCard[data-active='true']:focus-within .filmImage,
++  .themeCard:hover .themeImage img,
++  .themeCard:focus-within .themeImage img { transform: none; }
+ }
+diff --git a/src/features/home/featured-destinations.tsx b/src/features/home/featured-destinations.tsx
+index e99afe9..1d4f53a 100644
+--- a/src/features/home/featured-destinations.tsx
++++ b/src/features/home/featured-destinations.tsx
+@@ -1,64 +1,40 @@
+-'use client';
+-
+-import { ArrowRight } from '@phosphor-icons/react';
+-import { motion, useReducedMotion } from 'motion/react';
+-import Image from 'next/image';
+-import Link from 'next/link';
+-import { brandAssets } from '@/data/assets';
++import { posts } from '@/data/posts';
++import {
++  DestinationFilmCarousel,
++  type DestinationFilmItem,
++} from './destination-film-carousel';
+ import styles from './featured-destinations.module.css';
+ 
+-const destinations = [
+-  {
+-    title: '川西秘境',
+-    description: '雪山湖泊，秋色铺满高原',
+-    image: brandAssets.sichuan,
+-    href: '/compare?kind=ticket&destination=%E5%B7%9D%E8%A5%BF&from=2026-09-18&to=2026-09-24&travelers=2',
+-  },
+-  {
+-    title: '桂林山水',
+-    description: '江作青罗带，山如碧玉簪',
+-    image: brandAssets.guilin,
+-    href: '/compare?kind=ticket&destination=%E6%A1%82%E6%9E%97&from=2026-10-02&to=2026-10-06&travelers=2',
+-  },
+-] as const;
++const seasons: Record<string, string> = {
++  大理: '秋日',
++  桂林: '初秋',
++  川西: '金秋',
++  三亚: '晚夏',
++  杭州: '初秋',
++  南京: '深秋',
++  上海: '四季',
++  贵州: '雨后',
++};
+ 
+-export function FeaturedDestinations() {
+-  const reduceMotion = useReducedMotion();
++const destinations: readonly DestinationFilmItem[] = posts.map((post) => ({
++  destination: post.destination,
++  title: post.title,
++  description: post.excerpt,
++  days: post.days,
++  season: seasons[post.destination] ?? '当季',
++  image: post.media[0],
++  href: `/square/${post.slug}`,
++}));
+ 
++export function FeaturedDestinations() {
+   return (
+     <section className={styles.section} aria-labelledby="featured-title">
+       <div className={styles.intro}>
+-        <p>SEASONAL EDIT</p>
+-        <h2 id="featured-title">今秋值得出发的地方</h2>
+-        <span>在山海之间，遇见更辽阔的自己</span>
+-      </div>
+-
+-      <div className={styles.destinations}>
+-        {destinations.map((destination) => (
+-          <motion.article
+-            className={styles.card}
+-            key={destination.title}
+-            whileHover={reduceMotion ? undefined : { y: -8 }}
+-            transition={{ duration: 0.32, ease: 'easeOut' }}
+-          >
+-            <Image
+-              alt={destination.image.alt}
+-              className={styles.destinationImage}
+-              fill
+-              sizes="(max-width: 760px) 100vw, 38vw"
+-              src={destination.image.src}
+-            />
+-            <div className={styles.cardScrim} aria-hidden />
+-            <div className={styles.cardCopy}>
+-              <h3>{destination.title}</h3>
+-              <p>{destination.description}</p>
+-              <Link href={destination.href} aria-label={`探索${destination.title}`}>
+-                <ArrowRight aria-hidden size={25} weight="light" />
+-              </Link>
+-            </div>
+-          </motion.article>
+-        ))}
++        <p>DESTINATION FILM</p>
++        <h2 id="featured-title">把下一程，放进取景窗</h2>
++        <span>八座山海与城市，来自可以继续阅读、收藏和转成行程的完整攻略。</span>
+       </div>
++      <DestinationFilmCarousel destinations={destinations} />
+     </section>
+   );
+ }
+diff --git a/src/features/home/home-story-sections.tsx b/src/features/home/home-story-sections.tsx
+new file mode 100644
+index 0000000..c353514
+--- /dev/null
++++ b/src/features/home/home-story-sections.tsx
+@@ -0,0 +1,210 @@
++'use client';
++
++import {
++  ArrowRight,
++  CheckCircle,
++  Compass,
++  Heart,
++  ShieldCheck,
++  Sparkle,
++  UsersThree,
++  Wallet,
++} from '@phosphor-icons/react';
++import Image from 'next/image';
++import Link from 'next/link';
++import { useEffect, useMemo, useSyncExternalStore } from 'react';
++import { postsBySlug, type TravelPost } from '@/data/posts';
++import {
++  hydrateLibraryStore,
++  useLibraryStore,
++  useLibraryStoreHydration,
++} from '@/stores/library-store';
++import {
++  hydrateWorkbenchTripStore,
++  selectTripRecords,
++  useTripStore,
++  useTripStoreHydration,
++} from '@/stores/trip-store';
++import styles from './featured-destinations.module.css';
++
++const themeGuides = [
++  { theme: '海岛', note: '在海风和雨林之间，把一天留出阴影。', post: postsBySlug['sanya-bay-rainforest-5d'] },
++  { theme: '城市', note: '沿街区和水岸慢走，读一座城的日常。', post: postsBySlug['shanghai-urban-walk-3d'] },
++  { theme: '山野', note: '给海拔、天气和返程多留一点余地。', post: postsBySlug['sichuan-autumn-road'] },
++  { theme: '人文', note: '从城墙、梧桐到夜色，把故事走进路里。', post: postsBySlug['nanjing-wall-qinhuai-4d'] },
++] as const;
++
++const acceptedStatuses = new Set(['active', 'guarded', 'archived']);
++const subscribeToClientReady = () => () => {};
++const getClientReady = () => true;
++const getServerReady = () => false;
++
++export function HomeStorySections() {
++  const clientReady = useSyncExternalStore(
++    subscribeToClientReady,
++    getClientReady,
++    getServerReady,
++  );
++  const likedPostSlugs = useLibraryStore((state) => state.likedPostSlugs);
++  const libraryHydrated = useLibraryStoreHydration((state) => state.hydrated);
++  const libraryHydrationError = useLibraryStoreHydration((state) => state.hydrationError);
++  const trips = useTripStore(selectTripRecords);
++  const tripHydrated = useTripStoreHydration((state) => state.hydrated);
++  const tripHydrationError = useTripStoreHydration((state) => state.hydrationError);
++
++  useEffect(() => {
++    void Promise.all([hydrateLibraryStore(), hydrateWorkbenchTripStore()]);
++  }, []);
++
++  const recentTrip = useMemo(() => Object.values(trips)
++    .filter((trip) => acceptedStatuses.has(trip.status))
++    .sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt))[0], [trips]);
++  const likedPost = useMemo(() => likedPostSlugs
++    .map((slug) => postsBySlug[slug])
++    .find((post): post is TravelPost => Boolean(post)), [likedPostSlugs]);
++  const hydrationReady = clientReady && libraryHydrated && tripHydrated;
++  const hydrationFailed = libraryHydrationError || tripHydrationError;
++
++  return (
++    <>
++      <section aria-labelledby="guide-themes-title" className={styles.guideThemes}>
++        <div className={styles.storyHeading}>
++          <p>GUIDES FOR REAL DAYS</p>
++          <h2 id="guide-themes-title">按想过的日子，选择一篇攻略</h2>
++          <span>四种旅行气质，来自八篇完整的国内目的地路线。</span>
++        </div>
++        <div className={styles.themeGrid}>
++          {themeGuides.map(({ note, post, theme }) => (
++            <article className={styles.themeCard} key={theme}>
++              <div className={styles.themeImage}>
++                <Image alt={post.media[1].alt} fill sizes="(max-width: 680px) 100vw, 25vw" src={post.media[1].src} />
++              </div>
++              <div>
++                <p>{post.destination} · {post.days} 天</p>
++                <h3>{theme}</h3>
++                <span>{note}</span>
++                <Link href={`/square/${post.slug}`}>读{post.destination}攻略 <ArrowRight aria-hidden size={17} /></Link>
++              </div>
++            </article>
++          ))}
++        </div>
++      </section>
++
++      <section aria-labelledby="price-story-title" className={styles.proofSection}>
++        <div className={styles.proofCopy}>
++          <Wallet aria-hidden size={29} weight="light" />
++          <p>TRUE TOTAL PRICE</p>
++          <h2 id="price-story-title">只比较最后要付的总价</h2>
++          <span>同一条件下对齐税费、行李、取消政策和数据时间。收藏的是当前快照，不是永久承诺。</span>
++          <ul>
++            <li><CheckCircle aria-hidden size={17} />含税总价先对齐</li>
++            <li><CheckCircle aria-hidden size={17} />规则与更新时间可见</li>
++            <li><CheckCircle aria-hidden size={17} />离站前再次确认价格</li>
++          </ul>
++          <Link href="/compare">开始一次真实比价 <ArrowRight aria-hidden size={18} /></Link>
++        </div>
++        <div className={styles.proofImage}>
++          <Image alt={postsBySlug['hangzhou-lake-tea-4d'].media[2].alt} fill sizes="(max-width: 760px) 100vw, 50vw" src={postsBySlug['hangzhou-lake-tea-4d'].media[2].src} />
++        </div>
++      </section>
++
++      <section aria-labelledby="guide-to-trip-title" className={styles.tripStory}>
++        <div className={styles.tripStoryImage}>
++          <Image alt={postsBySlug['dali-slow-5d'].media[2].alt} fill sizes="(max-width: 760px) 100vw, 50vw" src={postsBySlug['dali-slow-5d'].media[2].src} />
++        </div>
++        <div className={styles.tripStoryCopy}>
++          <Compass aria-hidden size={29} weight="light" />
++          <p>GUIDE TO YOUR TRIP</p>
++          <h2 id="guide-to-trip-title">一篇攻略，可以继续变成自己的行程</h2>
++          <span>从大理五日路线出发，保留地点与节奏，再改日期、预算、同行人数和每天安排。</span>
++          <dl>
++            <div><dt>攻略</dt><dd>洱海、喜洲、双廊的真实路线骨架</dd></div>
++            <div><dt>行程</dt><dd>保存到当前浏览器，回来还能继续编辑</dd></div>
++          </dl>
++          <Link href="/square/dali-slow-5d">从大理攻略开始 <ArrowRight aria-hidden size={18} /></Link>
++        </div>
++      </section>
++
++      <section aria-labelledby="assistant-guardian-title" className={styles.safetyStory}>
++        <div className={styles.safetyStoryHeading}>
++          <Sparkle aria-hidden size={28} weight="light" />
++          <p>WHEN PLANS CHANGE</p>
++          <h2 id="assistant-guardian-title">变化发生时，先把选择说清楚</h2>
++          <span>AI 可以整理替代方案，行程守护可以记录同意后的计划；二者都不会替你完成紧急处置。</span>
++        </div>
++        <div className={styles.scenarioGrid}>
++          <article>
++            <strong>“返程航班取消，明早前要离开。”</strong>
++            <p>旅行助手先确认时间、人数和可接受的转场范围，再给出铁路、改签与多住一晚的选项。</p>
++            <Link href="/assistant">打开旅行助手 <ArrowRight aria-hidden size={17} /></Link>
++          </article>
++          <article>
++            <ShieldCheck aria-hidden size={25} weight="light" />
++            <strong>守护从明确同意开始</strong>
++            <p>只在已保存行程里启用，记录本地演示状态；现实危险始终优先联系当地警方、急救和官方服务。</p>
++            <Link href="/trips">从我的行程进入守护 <ArrowRight aria-hidden size={17} /></Link>
++          </article>
++        </div>
++      </section>
++
++      <section aria-labelledby="partner-boundary-title" className={styles.partnerStory}>
++        <UsersThree aria-hidden size={30} weight="light" />
++        <div>
++          <p>TRAVEL TOGETHER, WITH BOUNDARIES</p>
++          <h2 id="partner-boundary-title">同行是选择，不是安全担保</h2>
++          <span>匹配分数、身份状态和可信联系人都只用于当前浏览器中的沙箱演示。先在公开场所见面，不提交敏感证件。</span>
++        </div>
++        <Link href="/partners">了解可信搭子边界 <ArrowRight aria-hidden size={18} /></Link>
++      </section>
++
++      <section aria-labelledby="local-shelf-title" className={styles.localShelf}>
++        <div className={styles.storyHeading}>
++          <p>CONTINUE WHERE YOU LEFT OFF</p>
++          <h2 id="local-shelf-title">继续当前浏览器里的旅程</h2>
++          <span>只显示在这台设备上保存的行程与喜欢。</span>
++        </div>
++        {!hydrationReady ? (
++          <div aria-label="本地旅行资料状态" className={styles.localState} role="status">
++            <Compass aria-hidden size={24} />
++            <p>正在整理当前浏览器里的旅行资料…</p>
++          </div>
++        ) : hydrationFailed ? (
++          <div aria-label="本地旅行资料状态" className={styles.localState} role="status">
++            <ShieldCheck aria-hidden size={24} />
++            <p>本地资料暂时无法安全读取，原始数据没有被覆盖。</p>
++          </div>
++        ) : recentTrip || likedPost ? (
++          <div className={styles.localGrid}>
++            {recentTrip ? (
++              <article>
++                <span>最近行程 · {recentTrip.destination}</span>
++                <h3>{recentTrip.title}</h3>
++                <p>{recentTrip.items.length} 天 · ¥{recentTrip.budget.toLocaleString('zh-CN')} 预算</p>
++                <Link href={`/trips/${recentTrip.sourcePostSlug}`}>继续{recentTrip.title} <ArrowRight aria-hidden size={17} /></Link>
++              </article>
++            ) : null}
++            {likedPost ? (
++              <article>
++                <Heart aria-hidden size={21} weight="fill" />
++                <span>最近喜欢 · {likedPost.destination}</span>
++                <h3>{likedPost.title}</h3>
++                <p>{likedPost.excerpt}</p>
++                <Link href={`/square/${likedPost.slug}`}>再读{likedPost.title} <ArrowRight aria-hidden size={17} /></Link>
++              </article>
++            ) : null}
++          </div>
++        ) : (
++          <div className={styles.localState}>
++            <p>还没有本地旅程。先读一篇攻略，或做一次比价。</p>
++            <div><Link href="/square">去灵感广场</Link><Link href="/compare">开始比价</Link></div>
++          </div>
++        )}
++      </section>
++
++      <footer className={styles.homeFooter}>
++        <p>行屿公开演示</p>
++        <span>不提供真实预订、支付、身份核验、后台推送或紧急响应；离站服务以第三方最终页面为准。</span>
++      </footer>
++    </>
++  );
++}
+diff --git a/tests/component/destination-film-carousel.test.tsx b/tests/component/destination-film-carousel.test.tsx
+new file mode 100644
+index 0000000..d68b158
+--- /dev/null
++++ b/tests/component/destination-film-carousel.test.tsx
+@@ -0,0 +1,144 @@
++import { act, fireEvent, render, screen, within } from '@testing-library/react';
++import userEvent from '@testing-library/user-event';
++import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
++import { posts } from '@/data/posts';
++import {
++  DestinationFilmCarousel,
++  type DestinationFilmItem,
++} from '@/features/home/destination-film-carousel';
++
++let reduceMotion = false;
++
++vi.mock('motion/react', async (importOriginal) => {
++  const actual = await importOriginal<typeof import('motion/react')>();
++  return { ...actual, useReducedMotion: () => reduceMotion };
++});
++
++const destinations: readonly DestinationFilmItem[] = posts.slice(0, 4).map((post) => ({
++  destination: post.destination,
++  title: post.title,
++  description: post.excerpt,
++  days: post.days,
++  season: '初秋',
++  image: post.media[0],
++  href: `/square/${post.slug}`,
++}));
++
++function position() {
++  return screen.getByRole('status', { name: '目的地位置' });
++}
++
++beforeEach(() => {
++  reduceMotion = false;
++  vi.useRealTimers();
++  Object.defineProperty(document, 'hidden', { configurable: true, value: false });
++});
++
++afterEach(() => {
++  vi.useRealTimers();
++});
++
++describe('DestinationFilmCarousel', () => {
++  it('advances every six seconds and pauses while focus remains inside', () => {
++    vi.useFakeTimers();
++    render(<DestinationFilmCarousel destinations={destinations} intervalMs={6000} />);
++
++    act(() => vi.advanceTimersByTime(6000));
++    expect(position()).toHaveTextContent('2 / 4');
++
++    const guilinLink = screen.getByRole('link', { name: /桂林/ });
++    guilinLink.focus();
++    act(() => vi.advanceTimersByTime(12_000));
++    expect(position()).toHaveTextContent('2 / 4');
++
++    fireEvent.blur(guilinLink, { relatedTarget: null });
++    act(() => vi.advanceTimersByTime(6000));
++    expect(position()).toHaveTextContent('3 / 4');
++  });
++
++  it('pauses on hover and while the document is hidden', () => {
++    vi.useFakeTimers();
++    render(<DestinationFilmCarousel destinations={destinations} intervalMs={6000} />);
++    const carousel = screen.getByRole('region', { name: '目的地旅行取景窗' });
++
++    fireEvent.mouseEnter(carousel);
++    act(() => vi.advanceTimersByTime(12_000));
++    expect(position()).toHaveTextContent('1 / 4');
++
++    fireEvent.mouseLeave(carousel);
++    Object.defineProperty(document, 'hidden', { configurable: true, value: true });
++    fireEvent(document, new Event('visibilitychange'));
++    act(() => vi.advanceTimersByTime(6000));
++    expect(position()).toHaveTextContent('1 / 4');
++
++    Object.defineProperty(document, 'hidden', { configurable: true, value: false });
++    fireEvent(document, new Event('visibilitychange'));
++    act(() => vi.advanceTimersByTime(6000));
++    expect(position()).toHaveTextContent('2 / 4');
++  });
++
++  it('supports pointer drag, arrow buttons, pagination, and Home/End/Arrow keys', async () => {
++    const user = userEvent.setup();
++    render(<DestinationFilmCarousel destinations={destinations} intervalMs={6000} />);
++    const carousel = screen.getByRole('region', { name: '目的地旅行取景窗' });
++    const viewport = screen.getByTestId('destination-film-viewport');
++
++    fireEvent.pointerDown(viewport, { clientX: 280, clientY: 120, pointerId: 1 });
++    fireEvent.pointerMove(viewport, { clientX: 120, clientY: 126, pointerId: 1 });
++    fireEvent.pointerUp(viewport, { clientX: 120, clientY: 126, pointerId: 1 });
++    expect(position()).toHaveTextContent('2 / 4');
++
++    await user.click(screen.getByRole('button', { name: '上一个目的地' }));
++    expect(position()).toHaveTextContent('1 / 4');
++    await user.click(screen.getByRole('button', { name: /查看川西/ }));
++    expect(position()).toHaveTextContent('3 / 4');
++
++    carousel.focus();
++    await user.keyboard('{Home}{ArrowRight}{End}{ArrowLeft}');
++    expect(position()).toHaveTextContent('3 / 4');
++    expect(screen.getByRole('button', { name: /查看川西/ })).toHaveAttribute('aria-pressed', 'true');
++  });
++
++  it('cancels an interrupted pointer gesture without changing destination', () => {
++    render(<DestinationFilmCarousel destinations={destinations} intervalMs={6000} />);
++    const viewport = screen.getByTestId('destination-film-viewport');
++
++    fireEvent.pointerDown(viewport, { clientX: 280, clientY: 120, pointerId: 1 });
++    fireEvent.pointerMove(viewport, { clientX: 120, clientY: 126, pointerId: 1 });
++    fireEvent.pointerCancel(viewport, { clientX: 0, clientY: 0, pointerId: 1 });
++
++    expect(position()).toHaveTextContent('1 / 4');
++    expect(viewport.style.getPropertyValue('--film-drag-x')).toBe('0px');
++  });
++
++  it('disables autoplay and drag parallax when reduced motion is requested', () => {
++    reduceMotion = true;
++    vi.useFakeTimers();
++    render(<DestinationFilmCarousel destinations={destinations} intervalMs={6000} />);
++    const viewport = screen.getByTestId('destination-film-viewport');
++
++    act(() => vi.advanceTimersByTime(18_000));
++    expect(position()).toHaveTextContent('1 / 4');
++
++    fireEvent.pointerDown(viewport, { clientX: 280, clientY: 120, pointerId: 1 });
++    fireEvent.pointerMove(viewport, { clientX: 210, clientY: 122, pointerId: 1 });
++    expect(viewport).toHaveAttribute('data-parallax', 'disabled');
++    expect(viewport.style.getPropertyValue('--film-drag-x')).toBe('0px');
++  });
++
++  it('uses real destination copy, images, and existing guide routes', () => {
++    render(<DestinationFilmCarousel destinations={destinations} />);
++
++    expect(screen.getByRole('link', { name: /大理/ })).toHaveAttribute(
++      'href',
++      '/square/dali-slow-5d',
++    );
++    expect(screen.getByRole('img', { name: destinations[0].image.alt })).toHaveAttribute(
++      'src',
++      expect.stringContaining('dali'),
++    );
++    const activeGuide = screen.getByRole('link', { name: /大理/ }).closest('article');
++    expect(activeGuide).not.toBeNull();
++    expect(within(activeGuide as HTMLElement).getByText('5 天 · 初秋')).toBeInTheDocument();
++  });
++});
+diff --git a/tests/component/home-shell.test.tsx b/tests/component/home-shell.test.tsx
+index 4b039f7..dd2b998 100644
+--- a/tests/component/home-shell.test.tsx
++++ b/tests/component/home-shell.test.tsx
+@@ -1,22 +1,82 @@
+-import { render, screen } from '@testing-library/react';
+-import { expect, it } from 'vitest';
++import { act, render, screen } from '@testing-library/react';
++import { beforeEach, expect, it } from 'vitest';
+ import HomePage from '@/app/page';
++import { postsBySlug } from '@/data/posts';
++import { extractTripDraft } from '@/domain/trips/extract-draft';
++import { useLibraryStore, useLibraryStoreHydration } from '@/stores/library-store';
++import { createTripStore, useTripStore, useTripStoreHydration } from '@/stores/trip-store';
++
++beforeEach(() => {
++  window.localStorage.clear();
++  useLibraryStore.setState({ likedPostSlugs: [], favoriteOffers: {}, priceAlerts: {} });
++  useTripStore.setState({ trips: {}, partnerIntents: {}, guardianPlans: {} });
++  useLibraryStoreHydration.setState({ hydrated: true, hydrationError: false });
++  useTripStoreHydration.setState({ hydrated: true, hydrationError: false });
++});
+ 
+ it('renders the Xingyu brand promise', () => {
+   render(<HomePage />);
+ 
+   expect(
+     screen.getByRole('heading', {
+       name: '把远方，变成一段安心抵达的旅程',
+     }),
+   ).toBeInTheDocument();
+ });
+ 
+ it('keeps the site banner outside the main content landmark', () => {
+   render(<HomePage />);
+ 
+   const banner = screen.getByRole('banner');
+   const main = screen.getByRole('main');
+ 
+   expect(main).not.toContainElement(banner);
+ });
++
++it('tells the complete home story with four guide themes and valid product routes', () => {
++  render(<HomePage />);
++
++  expect(screen.getByRole('region', { name: '目的地旅行取景窗' })).toBeInTheDocument();
++  expect(screen.getByRole('heading', { name: '按想过的日子，选择一篇攻略' })).toBeInTheDocument();
++  for (const theme of ['海岛', '城市', '山野', '人文']) {
++    expect(screen.getByRole('heading', { name: theme })).toBeInTheDocument();
++  }
++  expect(screen.getByRole('heading', { name: '只比较最后要付的总价' })).toBeInTheDocument();
++  expect(screen.getByRole('link', { name: '开始一次真实比价' })).toHaveAttribute('href', '/compare');
++  expect(screen.getByRole('heading', { name: '一篇攻略，可以继续变成自己的行程' })).toBeInTheDocument();
++  expect(screen.getByRole('link', { name: '从大理攻略开始' })).toHaveAttribute('href', '/square/dali-slow-5d');
++  expect(screen.getByRole('heading', { name: '变化发生时，先把选择说清楚' })).toBeInTheDocument();
++  expect(screen.getByRole('link', { name: '打开旅行助手' })).toHaveAttribute('href', '/assistant');
++  expect(screen.getByRole('heading', { name: '同行是选择，不是安全担保' })).toBeInTheDocument();
++  expect(screen.getByRole('link', { name: '了解可信搭子边界' })).toHaveAttribute('href', '/partners');
++});
++
++it('keeps local home content neutral until both stores hydrate, then reveals recent data', () => {
++  const post = postsBySlug['dali-slow-5d'];
++  const trip = createTripStore().getState().savePostAsTrip(extractTripDraft(post), post.media[0].src);
++  useTripStore.setState({ trips: { [trip.id]: trip } });
++  useLibraryStore.setState({ likedPostSlugs: [post.slug] });
++  useLibraryStoreHydration.setState({ hydrated: false, hydrationError: false });
++  useTripStoreHydration.setState({ hydrated: false, hydrationError: false });
++
++  const view = render(<HomePage />);
++
++  expect(screen.getByRole('status', { name: '本地旅行资料状态' })).toHaveTextContent('正在整理当前浏览器里的旅行资料');
++  expect(screen.queryByRole('heading', { name: trip.title })).not.toBeInTheDocument();
++
++  act(() => {
++    useLibraryStoreHydration.setState({ hydrated: true });
++    useTripStoreHydration.setState({ hydrated: true });
++  });
++  view.rerender(<HomePage />);
++
++  expect(screen.getByRole('heading', { name: trip.title })).toBeInTheDocument();
++  expect(screen.getByRole('link', { name: `继续${trip.title}` })).toHaveAttribute(
++    'href',
++    `/trips/${trip.sourcePostSlug}`,
++  );
++  expect(screen.getByRole('link', { name: `再读${post.title}` })).toHaveAttribute(
++    'href',
++    `/square/${post.slug}`,
++  );
++});

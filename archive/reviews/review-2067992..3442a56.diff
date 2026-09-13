@@ -1,0 +1,667 @@
+# COMMITS
+3442a56 feat: add travel domain contracts and sandbox adapters
+
+# STAT
+ src/adapters/contracts.ts                | 21 ++++++++
+ src/adapters/mock/mock-assistant.ts      | 35 +++++++++++++
+ src/adapters/mock/mock-inventory.ts      | 24 +++++++++
+ src/data/offers.ts                       | 50 ++++++++++++++++++
+ src/domain/assistant/schema.ts           | 36 +++++++++++++
+ src/domain/comparison/normalize-offer.ts | 16 ++++++
+ src/domain/comparison/types.ts           | 28 ++++++++++
+ src/domain/partners/score-match.ts       | 74 +++++++++++++++++++++++++++
+ src/domain/shared/api.ts                 | 27 ++++++++++
+ src/domain/trips/state.ts                | 47 +++++++++++++++++
+ tests/unit/assistant-schema.test.ts      | 88 ++++++++++++++++++++++++++++++++
+ tests/unit/normalize-offer.test.ts       | 59 +++++++++++++++++++++
+ tests/unit/score-match.test.ts           | 64 +++++++++++++++++++++++
+ 13 files changed, 569 insertions(+)
+
+# DIFF
+diff --git a/src/adapters/contracts.ts b/src/adapters/contracts.ts
+new file mode 100644
+index 0000000..f4bb6b1
+--- /dev/null
++++ b/src/adapters/contracts.ts
+@@ -0,0 +1,21 @@
++import type { AssistantResponse } from '@/domain/assistant/schema';
++import type { NormalizedOffer } from '@/domain/comparison/types';
++import type { AssistantRequest, ComparisonSearchInput } from '@/domain/shared/api';
++import type { ChatMessage, TripRiskEvent } from '@/domain/trips/state';
++
++export interface InventoryProvider {
++  search(input: ComparisonSearchInput): AsyncIterable<NormalizedOffer>;
++}
++
++export interface LLMProvider {
++  answer(input: AssistantRequest): Promise<AssistantResponse>;
++}
++
++export interface GuardianProvider {
++  getRiskEvents(tripId: string): Promise<TripRiskEvent[]>;
++}
++
++export interface RealtimeProvider {
++  listMessages(matchId: string): Promise<ChatMessage[]>;
++  sendMessage(matchId: string, body: string): Promise<ChatMessage>;
++}
+diff --git a/src/adapters/mock/mock-assistant.ts b/src/adapters/mock/mock-assistant.ts
+new file mode 100644
+index 0000000..2fd9e14
+--- /dev/null
++++ b/src/adapters/mock/mock-assistant.ts
+@@ -0,0 +1,35 @@
++import type { LLMProvider } from '../contracts';
++import { assistantResponseSchema, type AssistantResponse } from '@/domain/assistant/schema';
++import type { AssistantRequest } from '@/domain/shared/api';
++import { SANDBOX_OBSERVED_AT } from '@/data/offers';
++
++const sandboxAssistantResponse: AssistantResponse = {
++  risk_level: 'medium',
++  answer: '这是固定的沙箱演示建议：请先核对行程，再选择备选交通方案。',
++  alternatives: [
++    {
++      id: 'DEMO-ALT-TRAIN-01',
++      title: '大理至丽江沙箱列车方案',
++      cost: '¥128',
++      duration: '2小时18分',
++      risk: '中',
++      actions: ['确认演示行程', '联系人工顾问'],
++    },
++  ],
++  evidence: [
++    {
++      source: '星屿沙箱演示数据',
++      observed_at: SANDBOX_OBSERVED_AT,
++    },
++  ],
++  data_freshness: '固定沙箱快照：2026-08-16 09:00 CST',
++  requires_human_help: false,
++  demo_mode: true,
++};
++
++export class MockAssistantProvider implements LLMProvider {
++  async answer(input: AssistantRequest): Promise<AssistantResponse> {
++    void input;
++    return assistantResponseSchema.parse(sandboxAssistantResponse);
++  }
++}
+diff --git a/src/adapters/mock/mock-inventory.ts b/src/adapters/mock/mock-inventory.ts
+new file mode 100644
+index 0000000..0c156f3
+--- /dev/null
++++ b/src/adapters/mock/mock-inventory.ts
+@@ -0,0 +1,24 @@
++import type { InventoryProvider } from '../contracts';
++import { normalizeOffer } from '@/domain/comparison/normalize-offer';
++import type { NormalizedOffer } from '@/domain/comparison/types';
++import type { ComparisonSearchInput } from '@/domain/shared/api';
++import { sandboxOffers } from '@/data/offers';
++
++export class MockInventoryProvider implements InventoryProvider {
++  async *search(input: ComparisonSearchInput): AsyncIterable<NormalizedOffer> {
++    const destination = input.destination.trim().toLowerCase();
++    const offers = sandboxOffers
++      .filter((offer) => offer.destination?.toLowerCase() === destination)
++      .filter((offer) => input.kind === undefined || offer.kind === input.kind)
++      .filter((offer) => input.origin === undefined || offer.origin === input.origin)
++      .map(normalizeOffer)
++      .sort(
++        (left, right) =>
++          left.totalPrice - right.totalPrice || (left.id < right.id ? -1 : left.id > right.id ? 1 : 0),
++      );
++
++    for (const offer of offers) {
++      yield offer;
++    }
++  }
++}
+diff --git a/src/data/offers.ts b/src/data/offers.ts
+new file mode 100644
+index 0000000..8abc1b8
+--- /dev/null
++++ b/src/data/offers.ts
+@@ -0,0 +1,50 @@
++import type { RawOffer } from '@/domain/comparison/types';
++
++export const SANDBOX_OBSERVED_AT = '2026-08-16T09:00:00+08:00';
++
++export const sandboxOffers: readonly RawOffer[] = [
++  {
++    id: 'DEMO-FLIGHT-DAL-01',
++    provider: '星屿沙箱演示航班',
++    kind: 'flight',
++    title: '上海至大理演示航班 A',
++    origin: '上海',
++    destination: '大理',
++    basePrice: 860,
++    taxes: 120,
++    mandatoryFees: 40,
++    baggageIncluded: true,
++    refundable: false,
++    updatedAt: SANDBOX_OBSERVED_AT,
++    demoMode: true,
++  },
++  {
++    id: 'DEMO-FLIGHT-DAL-02',
++    provider: '星屿沙箱演示航班',
++    kind: 'flight',
++    title: '上海至大理演示航班 B',
++    origin: '上海',
++    destination: '大理',
++    basePrice: 930,
++    taxes: 80,
++    mandatoryFees: 0,
++    baggageIncluded: false,
++    refundable: true,
++    updatedAt: SANDBOX_OBSERVED_AT,
++    demoMode: true,
++  },
++  {
++    id: 'DEMO-HOTEL-DAL-01',
++    provider: '星屿沙箱演示住宿',
++    kind: 'hotel',
++    title: '大理湖畔演示住宿',
++    destination: '大理',
++    basePrice: 680,
++    taxes: 30,
++    mandatoryFees: 20,
++    baggageIncluded: false,
++    refundable: true,
++    updatedAt: SANDBOX_OBSERVED_AT,
++    demoMode: true,
++  },
++] as const;
+diff --git a/src/domain/assistant/schema.ts b/src/domain/assistant/schema.ts
+new file mode 100644
+index 0000000..5867fb1
+--- /dev/null
++++ b/src/domain/assistant/schema.ts
+@@ -0,0 +1,36 @@
++import { z } from 'zod';
++
++export const assistantAlternativeSchema = z
++  .object({
++    id: z.string().min(1),
++    title: z.string().min(1),
++    cost: z.string().min(1),
++    duration: z.string().min(1),
++    risk: z.string().min(1),
++    actions: z.array(z.string().min(1)),
++  })
++  .strict();
++
++export const assistantEvidenceSchema = z
++  .object({
++    source: z.string().min(1),
++    observed_at: z.string().min(1),
++    url: z.url().optional(),
++  })
++  .strict();
++
++export const assistantResponseSchema = z
++  .object({
++    risk_level: z.enum(['low', 'medium', 'high', 'critical']),
++    answer: z.string().min(1),
++    alternatives: z.array(assistantAlternativeSchema),
++    evidence: z.array(assistantEvidenceSchema),
++    data_freshness: z.string().min(1),
++    requires_human_help: z.boolean(),
++    demo_mode: z.boolean(),
++  })
++  .strict();
++
++export type AssistantAlternative = z.infer<typeof assistantAlternativeSchema>;
++export type AssistantEvidence = z.infer<typeof assistantEvidenceSchema>;
++export type AssistantResponse = z.infer<typeof assistantResponseSchema>;
+diff --git a/src/domain/comparison/normalize-offer.ts b/src/domain/comparison/normalize-offer.ts
+new file mode 100644
+index 0000000..ba7c546
+--- /dev/null
++++ b/src/domain/comparison/normalize-offer.ts
+@@ -0,0 +1,16 @@
++import type { NormalizedOffer, RawOffer } from './types';
++
++export function normalizeOffer(raw: RawOffer): NormalizedOffer {
++  const taxes = raw.taxes ?? 0;
++  const mandatoryFees = raw.mandatoryFees ?? 0;
++
++  return {
++    ...raw,
++    taxes,
++    mandatoryFees,
++    demoMode: raw.demoMode ?? false,
++    currency: 'CNY',
++    totalPrice: raw.basePrice + taxes + mandatoryFees,
++    priceExplanation: `基础价 ¥${raw.basePrice} · 税费 ¥${taxes} · 必付费用 ¥${mandatoryFees}`,
++  };
++}
+diff --git a/src/domain/comparison/types.ts b/src/domain/comparison/types.ts
+new file mode 100644
+index 0000000..c0a3ed5
+--- /dev/null
++++ b/src/domain/comparison/types.ts
+@@ -0,0 +1,28 @@
++export const offerKinds = ['flight', 'hotel', 'train', 'car'] as const;
++
++export type OfferKind = (typeof offerKinds)[number];
++
++export interface RawOffer {
++  id: string;
++  provider: string;
++  kind: OfferKind;
++  title?: string;
++  origin?: string;
++  destination?: string;
++  basePrice: number;
++  taxes?: number;
++  mandatoryFees?: number;
++  baggageIncluded: boolean;
++  refundable: boolean;
++  updatedAt: string;
++  demoMode?: boolean;
++}
++
++export interface NormalizedOffer extends Omit<RawOffer, 'taxes' | 'mandatoryFees' | 'demoMode'> {
++  taxes: number;
++  mandatoryFees: number;
++  demoMode: boolean;
++  currency: 'CNY';
++  totalPrice: number;
++  priceExplanation: string;
++}
+diff --git a/src/domain/partners/score-match.ts b/src/domain/partners/score-match.ts
+new file mode 100644
+index 0000000..beb6c3b
+--- /dev/null
++++ b/src/domain/partners/score-match.ts
+@@ -0,0 +1,74 @@
++export interface MatchSignals {
++  destination: string;
++  dateOverlap: number;
++  budgetFit: number;
++  paceFit: number;
++  interestFit: number;
++  routeFit: number;
++  lodgingFit: number;
++  scheduleFit: number;
++  socialFit: number;
++}
++
++export interface MatchCandidate {
++  id: string;
++  displayName: string;
++}
++
++export type MatchReasonKey =
++  | 'date'
++  | 'budget'
++  | 'pace'
++  | 'interest'
++  | 'route'
++  | 'lodging'
++  | 'schedule'
++  | 'social';
++
++export interface MatchReason {
++  key: MatchReasonKey;
++  points: number;
++}
++
++export interface MatchResult {
++  candidate: MatchCandidate;
++  score: number;
++  reasons: MatchReason[];
++}
++
++type ScoredSignal = Exclude<keyof MatchSignals, 'destination'>;
++
++const weightedSignals = [
++  { signal: 'dateOverlap', key: 'date', weight: 25 },
++  { signal: 'budgetFit', key: 'budget', weight: 20 },
++  { signal: 'paceFit', key: 'pace', weight: 15 },
++  { signal: 'interestFit', key: 'interest', weight: 15 },
++  { signal: 'routeFit', key: 'route', weight: 10 },
++  { signal: 'lodgingFit', key: 'lodging', weight: 5 },
++  { signal: 'scheduleFit', key: 'schedule', weight: 5 },
++  { signal: 'socialFit', key: 'social', weight: 5 },
++] as const satisfies ReadonlyArray<{
++  signal: ScoredSignal;
++  key: MatchReasonKey;
++  weight: number;
++}>;
++
++function clampFit(value: number): number {
++  return Math.min(1, Math.max(0, value));
++}
++
++export function scoreMatch(intent: MatchSignals, candidate: MatchCandidate): MatchResult {
++  const entries = weightedSignals.map(({ signal, key, weight }, order) => ({
++    key,
++    points: clampFit(intent[signal]) * weight,
++    order,
++  }));
++
++  const score = Math.round(entries.reduce((sum, entry) => sum + entry.points, 0));
++  const reasons = entries
++    .sort((left, right) => right.points - left.points || left.order - right.order)
++    .slice(0, 3)
++    .map(({ key, points }) => ({ key, points }));
++
++  return { candidate, score, reasons };
++}
+diff --git a/src/domain/shared/api.ts b/src/domain/shared/api.ts
+new file mode 100644
+index 0000000..919fc13
+--- /dev/null
++++ b/src/domain/shared/api.ts
+@@ -0,0 +1,27 @@
++import type { OfferKind } from '../comparison/types';
++
++export interface ComparisonSearchInput {
++  destination: string;
++  kind?: OfferKind;
++  origin?: string;
++}
++
++export interface AssistantRequest {
++  tripId: string;
++  question: string;
++}
++
++export interface ApiSuccess<T> {
++  ok: true;
++  data: T;
++}
++
++export interface ApiFailure {
++  ok: false;
++  error: {
++    code: string;
++    message: string;
++  };
++}
++
++export type ApiResponse<T> = ApiSuccess<T> | ApiFailure;
+diff --git a/src/domain/trips/state.ts b/src/domain/trips/state.ts
+new file mode 100644
+index 0000000..acdb0dc
+--- /dev/null
++++ b/src/domain/trips/state.ts
+@@ -0,0 +1,47 @@
++export const tripStatuses = [
++  'planning',
++  'booked',
++  'traveling',
++  'disrupted',
++  'completed',
++  'cancelled',
++] as const;
++
++export type TripStatus = (typeof tripStatuses)[number];
++
++export const tripStateTransitions: Readonly<Record<TripStatus, readonly TripStatus[]>> = {
++  planning: ['booked', 'cancelled'],
++  booked: ['traveling', 'disrupted', 'cancelled'],
++  traveling: ['disrupted', 'completed'],
++  disrupted: ['traveling', 'cancelled'],
++  completed: [],
++  cancelled: [],
++};
++
++export interface TripState {
++  tripId: string;
++  status: TripStatus;
++  updatedAt: string;
++  demoMode: boolean;
++}
++
++export type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
++
++export interface TripRiskEvent {
++  id: string;
++  tripId: string;
++  riskLevel: RiskLevel;
++  title: string;
++  description: string;
++  observedAt: string;
++  demoMode: boolean;
++}
++
++export interface ChatMessage {
++  id: string;
++  matchId: string;
++  senderId: string;
++  body: string;
++  sentAt: string;
++  demoMode: boolean;
++}
+diff --git a/tests/unit/assistant-schema.test.ts b/tests/unit/assistant-schema.test.ts
+new file mode 100644
+index 0000000..c3ae0cb
+--- /dev/null
++++ b/tests/unit/assistant-schema.test.ts
+@@ -0,0 +1,88 @@
++import { describe, expect, it } from 'vitest';
++import { MockAssistantProvider } from '@/adapters/mock/mock-assistant';
++import { assistantResponseSchema } from '@/domain/assistant/schema';
++
++const completeResponse = {
++  risk_level: 'medium',
++  answer: '建议改乘固定的沙箱备选班次。',
++  alternatives: [
++    {
++      id: 'alt-train-01',
++      title: '大理至丽江沙箱列车方案',
++      cost: '¥128',
++      duration: '2小时18分',
++      risk: '中',
++      actions: ['确认演示行程', '联系人工顾问'],
++    },
++  ],
++  evidence: [
++    {
++      source: '星屿沙箱演示数据',
++      observed_at: '2026-08-16T09:00:00+08:00',
++    },
++  ],
++  data_freshness: '固定沙箱快照：2026-08-16 09:00 CST',
++  requires_human_help: false,
++  demo_mode: true,
++} as const;
++
++describe('assistantResponseSchema', () => {
++  it('accepts a complete structured response', () => {
++    expect(assistantResponseSchema.parse(completeResponse)).toEqual(completeResponse);
++  });
++
++  it.each([
++    ['risk_level'],
++    ['answer'],
++    ['alternatives'],
++    ['evidence'],
++    ['data_freshness'],
++    ['requires_human_help'],
++    ['demo_mode'],
++  ] as const)('rejects a response missing required field %s', (field) => {
++    const incomplete = { ...completeResponse } as Record<string, unknown>;
++    delete incomplete[field];
++
++    expect(assistantResponseSchema.safeParse(incomplete).success).toBe(false);
++  });
++
++  it('rejects an alternative missing required actions', () => {
++    const incompleteAlternative: Record<string, unknown> = { ...completeResponse.alternatives[0] };
++    delete incompleteAlternative.actions;
++
++    expect(
++      assistantResponseSchema.safeParse({
++        ...completeResponse,
++        alternatives: [incompleteAlternative],
++      }).success,
++    ).toBe(false);
++  });
++
++  it('rejects evidence missing its observation timestamp', () => {
++    expect(
++      assistantResponseSchema.safeParse({
++        ...completeResponse,
++        evidence: [{ source: '星屿沙箱演示数据' }],
++      }).success,
++    ).toBe(false);
++  });
++});
++
++describe('MockAssistantProvider', () => {
++  it('returns a deterministic response identified as sandbox data', async () => {
++    const provider = new MockAssistantProvider();
++
++    const first = await provider.answer({ tripId: 'trip-demo-01', question: '如果下雨怎么办？' });
++    const second = await provider.answer({ tripId: 'trip-demo-01', question: '换个问法仍应固定' });
++
++    expect(first).toEqual(second);
++    expect(first.demo_mode).toBe(true);
++    expect(first.evidence).toEqual([
++      {
++        source: '星屿沙箱演示数据',
++        observed_at: '2026-08-16T09:00:00+08:00',
++      },
++    ]);
++    expect(assistantResponseSchema.safeParse(first).success).toBe(true);
++  });
++});
+diff --git a/tests/unit/normalize-offer.test.ts b/tests/unit/normalize-offer.test.ts
+new file mode 100644
+index 0000000..1c8e747
+--- /dev/null
++++ b/tests/unit/normalize-offer.test.ts
+@@ -0,0 +1,59 @@
++import { describe, expect, it } from 'vitest';
++import { MockInventoryProvider } from '@/adapters/mock/mock-inventory';
++import { normalizeOffer } from '@/domain/comparison/normalize-offer';
++
++describe('normalizeOffer', () => {
++  it('sorts by comparable total instead of bare price', () => {
++    const offer = normalizeOffer({
++      id: 'MU-DAL-01',
++      provider: '云程旅行',
++      kind: 'flight',
++      basePrice: 860,
++      taxes: 120,
++      mandatoryFees: 40,
++      baggageIncluded: true,
++      refundable: false,
++      updatedAt: '2026-08-16T09:00:00+08:00',
++    });
++
++    expect(offer.totalPrice).toBe(1020);
++    expect(offer.priceExplanation).toContain('税费 ¥120');
++    expect(offer.priceExplanation).toContain('必付费用 ¥40');
++    expect(offer.demoMode).toBe(false);
++  });
++
++  it('treats omitted taxes and mandatory fees as zero', () => {
++    const offer = normalizeOffer({
++      id: 'HOTEL-DAL-01',
++      provider: '星屿沙箱',
++      kind: 'hotel',
++      basePrice: 680,
++      baggageIncluded: false,
++      refundable: true,
++      updatedAt: '2026-08-16T09:00:00+08:00',
++      demoMode: true,
++    });
++
++    expect(offer.totalPrice).toBe(680);
++    expect(offer.priceExplanation).toBe('基础价 ¥680 · 税费 ¥0 · 必付费用 ¥0');
++  });
++});
++
++describe('MockInventoryProvider', () => {
++  it('returns only fixed sandbox offers that match the search', async () => {
++    const provider = new MockInventoryProvider();
++    const offers = [];
++
++    for await (const offer of provider.search({ destination: '大理', kind: 'flight' })) {
++      offers.push(offer);
++    }
++
++    expect(offers).not.toHaveLength(0);
++    expect(offers.every((offer) => offer.kind === 'flight')).toBe(true);
++    expect(offers.every((offer) => offer.demoMode)).toBe(true);
++    expect(offers.every((offer) => offer.updatedAt === '2026-08-16T09:00:00+08:00')).toBe(true);
++    expect(offers.map((offer) => offer.totalPrice)).toEqual(
++      [...offers].sort((left, right) => left.totalPrice - right.totalPrice).map((offer) => offer.totalPrice),
++    );
++  });
++});
+diff --git a/tests/unit/score-match.test.ts b/tests/unit/score-match.test.ts
+new file mode 100644
+index 0000000..dea53d1
+--- /dev/null
++++ b/tests/unit/score-match.test.ts
+@@ -0,0 +1,64 @@
++import { describe, expect, it } from 'vitest';
++import { scoreMatch } from '@/domain/partners/score-match';
++
++describe('scoreMatch', () => {
++  it('uses the fixed weighted model and explains the top three reasons', () => {
++    const result = scoreMatch(
++      {
++        destination: '川西',
++        dateOverlap: 1,
++        budgetFit: 0.9,
++        paceFit: 1,
++        interestFit: 0.8,
++        routeFit: 1,
++        lodgingFit: 1,
++        scheduleFit: 0.6,
++        socialFit: 0.8,
++      },
++      { id: 'user-muyu', displayName: '木雨' },
++    );
++
++    expect(result.score).toBe(92);
++    expect(result.reasons).toHaveLength(3);
++    expect(result.reasons.map((reason) => reason.key)).toEqual(['date', 'budget', 'pace']);
++  });
++
++  it('breaks equal-point ties in the published signal order', () => {
++    const result = scoreMatch(
++      {
++        destination: '川西',
++        dateOverlap: 0,
++        budgetFit: 0,
++        paceFit: 1,
++        interestFit: 1,
++        routeFit: 0,
++        lodgingFit: 0,
++        scheduleFit: 0,
++        socialFit: 0,
++      },
++      { id: 'user-muyu', displayName: '木雨' },
++    );
++
++    expect(result.reasons.map((reason) => reason.key)).toEqual(['pace', 'interest', 'date']);
++  });
++
++  it('clamps out-of-range fit signals before scoring', () => {
++    const result = scoreMatch(
++      {
++        destination: '川西',
++        dateOverlap: 2,
++        budgetFit: -1,
++        paceFit: 0,
++        interestFit: 0,
++        routeFit: 0,
++        lodgingFit: 0,
++        scheduleFit: 0,
++        socialFit: 0,
++      },
++      { id: 'user-muyu', displayName: '木雨' },
++    );
++
++    expect(result.score).toBe(25);
++    expect(result.reasons[0]).toMatchObject({ key: 'date', points: 25 });
++  });
++});

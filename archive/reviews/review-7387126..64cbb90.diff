@@ -1,0 +1,362 @@
+# COMMITS
+64cbb90 fix: hydrate drafts before square conversion
+
+# STAT
+ src/domain/trips/trip-store.ts            | 27 +++++++++---
+ src/features/square/convert-to-trip.tsx   | 13 ++++--
+ src/features/square/square.module.css     |  2 +
+ src/features/trips/trip-draft-handoff.tsx | 29 +++++++-----
+ tests/component/convert-to-trip.test.tsx  | 73 +++++++++++++++++++++++++++----
+ 5 files changed, 118 insertions(+), 26 deletions(-)
+
+# DIFF
+diff --git a/src/domain/trips/trip-store.ts b/src/domain/trips/trip-store.ts
+index eb252d6..0e99820 100644
+--- a/src/domain/trips/trip-store.ts
++++ b/src/domain/trips/trip-store.ts
+@@ -1,32 +1,49 @@
+ 'use client';
+ 
+ import { create } from 'zustand';
+ import { persist } from 'zustand/middleware';
+ import type { TripDraft } from './extract-draft';
+ 
+ interface TripStore {
+   drafts: Record<string, TripDraft>;
+-  hydrated: boolean;
+   saveDraft: (draft: TripDraft) => void;
+ }
+ 
++interface TripHydrationState {
++  hydrated: boolean;
++  hydrationError: boolean;
++}
++
++export const useTripHydrationStore = create<TripHydrationState>(() => ({
++  hydrated: false,
++  hydrationError: false,
++}));
++
+ export const useTripStore = create<TripStore>()(
+   persist(
+     (set) => ({
+       drafts: {},
+-      hydrated: false,
+       saveDraft: (draft) => set((state) => ({ drafts: { ...state.drafts, [draft.sourcePostSlug]: draft } })),
+     }),
+-    { name: 'xingyu-demo-trip-drafts', skipHydration: true },
++    {
++      name: 'xingyu-demo-trip-drafts',
++      skipHydration: true,
++      onRehydrateStorage: () => (_state, error) => {
++        if (error) useTripHydrationStore.setState({ hydrationError: true });
++      },
++    },
+   ),
+ );
+ 
+ export async function hydrateTripStore() {
+-  if (typeof window === 'undefined' || useTripStore.getState().hydrated) return;
++  if (typeof window === 'undefined' || useTripHydrationStore.getState().hydrated) return;
+ 
+   try {
++    useTripHydrationStore.setState({ hydrated: false, hydrationError: false });
+     await useTripStore.persist.rehydrate();
++  } catch {
++    useTripHydrationStore.setState({ hydrationError: true });
+   } finally {
+-    useTripStore.setState({ hydrated: true });
++    useTripHydrationStore.setState({ hydrated: true });
+   }
+ }
+diff --git a/src/features/square/convert-to-trip.tsx b/src/features/square/convert-to-trip.tsx
+index 97f401e..ec494e9 100644
+--- a/src/features/square/convert-to-trip.tsx
++++ b/src/features/square/convert-to-trip.tsx
+@@ -1,46 +1,53 @@
+ 'use client';
+ 
+ import { ArrowRight, CheckCircle, X } from '@phosphor-icons/react';
+ import { useRouter } from 'next/navigation';
+-import { useRef, useState } from 'react';
++import { useEffect, useRef, useState } from 'react';
+ import type { TravelPost } from '@/data/posts';
+ import { extractTripDraft } from '@/domain/trips/extract-draft';
+-import { useTripStore } from '@/domain/trips/trip-store';
++import { hydrateTripStore, useTripHydrationStore, useTripStore } from '@/domain/trips/trip-store';
+ import { useDialogFocus } from '@/features/comparison/use-dialog-focus';
+ import styles from './square.module.css';
+ 
+ interface ConvertToTripProps {
+   post: TravelPost;
+   onNavigate?: (href: string) => void;
+ }
+ 
+ export function ConvertToTrip({ post, onNavigate }: ConvertToTripProps) {
+   const router = useRouter();
+   const saveDraft = useTripStore((state) => state.saveDraft);
++  const hydrated = useTripHydrationStore((state) => state.hydrated);
+   const [open, setOpen] = useState(false);
+   const triggerRef = useRef<HTMLButtonElement>(null);
+   const dialogRef = useRef<HTMLDivElement>(null);
+   const draft = extractTripDraft(post);
+   useDialogFocus(open, dialogRef, triggerRef, () => setOpen(false));
+ 
++  useEffect(() => {
++    void hydrateTripStore();
++  }, []);
++
+   const confirm = () => {
++    if (!hydrated) return;
+     saveDraft(draft);
+     setOpen(false);
+     const href = `/trips/${post.slug}`;
+     if (onNavigate) onNavigate(href);
+     else router.push(href);
+   };
+ 
+   return (
+     <>
+-      <button className={styles.convertButton} onClick={() => setOpen(true)} ref={triggerRef} type="button">转为行程 <ArrowRight aria-hidden size={18} /></button>
++      <button aria-describedby={hydrated ? undefined : 'trip-draft-loading'} className={styles.convertButton} disabled={!hydrated} onClick={() => setOpen(true)} ref={triggerRef} type="button">转为行程 <ArrowRight aria-hidden size={18} /></button>
++      {!hydrated && <p className={styles.hydrationNotice} id="trip-draft-loading" role="status">正在读取本地草稿…</p>}
+       {open && (
+         <div className={styles.dialogBackdrop}>
+           <div aria-describedby="trip-review-description" aria-labelledby="trip-review-title" aria-modal="true" className={styles.reviewDrawer} ref={dialogRef} role="dialog" tabIndex={-1}>
+             <div className={styles.drawerHeader}><div><p>本地沙箱草稿</p><h2 id="trip-review-title">确认行程草稿</h2></div><button aria-label="关闭行程审核" onClick={() => setOpen(false)} type="button"><X aria-hidden size={22} /></button></div>
+             <p id="trip-review-description">请先核对信息。确认后仅保存到本浏览器的演示草稿，不会预订或发布。</p>
+             <dl className={styles.draftSummary}><div><dt>目的地</dt><dd>{draft.destination}</dd></div><div><dt>天数</dt><dd>{draft.days} 天</dd></div><div><dt>预算</dt><dd>¥{draft.budget.toLocaleString('zh-CN')}</dd></div></dl>
+             <ol className={styles.draftItems}>{draft.items.map((item) => <li key={item.id}><span>DAY {item.day}</span><div><strong>{item.title}</strong><p>{item.location} · {item.description}</p></div></li>)}</ol>
+             <button className={styles.confirmButton} onClick={confirm} type="button"><CheckCircle aria-hidden size={19} weight="fill" /> 确认并保存草稿</button>
+           </div>
+         </div>
+diff --git a/src/features/square/square.module.css b/src/features/square/square.module.css
+index 0586caf..f2d88f6 100644
+--- a/src/features/square/square.module.css
++++ b/src/features/square/square.module.css
+@@ -87,20 +87,22 @@
+ .productCard p { margin: 8px 0 0; color: rgb(16 16 15 / 62%); font-size: 12px; line-height: 1.5; }
+ .productCard span,
+ .productCard strong,
+ .productCard b { display: block; }
+ .productCard span { color: #6d532a; font-size: 11px; }
+ .productCard strong { margin: 4px 0; font-size: 14px; }
+ .productCard b { font-size: 14px; }
+ .convertButton,
+ .confirmButton { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 9px; background: var(--pine); color: var(--ivory); cursor: pointer; }
+ .convertButton { width: 100%; margin-top: 18px; padding: 13px 16px; }
++.convertButton:disabled { cursor: wait; opacity: .62; }
++.hydrationNotice { margin: 8px 0 0; color: rgb(16 16 15 / 62%); font-size: 12px; text-align: center; }
+ 
+ .dialogBackdrop { position: fixed; z-index: 50; inset: 0; display: flex; justify-content: end; background: rgb(16 16 15 / 42%); }
+ .reviewDrawer { width: min(100%, 560px); min-height: 100%; padding: 28px; overflow-y: auto; background: var(--ivory); box-shadow: -16px 0 40px rgb(16 16 15 / 17%); }
+ .drawerHeader { display: flex; justify-content: space-between; gap: 20px; align-items: start; }
+ .drawerHeader h2 { margin: 0; font-family: var(--font-display); font-size: 30px; font-weight: 500; }
+ .reviewDrawer > p { margin: 20px 0; color: rgb(16 16 15 / 68%); line-height: 1.6; }
+ .draftSummary { display: grid; grid-template-columns: repeat(3, 1fr); margin: 0; border-top: 1px solid rgb(16 16 15 / 14%); border-bottom: 1px solid rgb(16 16 15 / 14%); }
+ .draftSummary div { padding: 13px 9px; }
+ .draftSummary dt { color: rgb(16 16 15 / 58%); font-size: 12px; }
+ .draftSummary dd { margin: 5px 0 0; font-size: 15px; }
+diff --git a/src/features/trips/trip-draft-handoff.tsx b/src/features/trips/trip-draft-handoff.tsx
+index 71f45aa..f79f4ee 100644
+--- a/src/features/trips/trip-draft-handoff.tsx
++++ b/src/features/trips/trip-draft-handoff.tsx
+@@ -1,43 +1,52 @@
+ 'use client';
+ 
+ import Link from 'next/link';
+ import { useEffect } from 'react';
+ import { postsBySlug } from '@/data/posts';
+-import { hydrateTripStore, useTripStore } from '@/domain/trips/trip-store';
++import { hydrateTripStore, useTripHydrationStore, useTripStore } from '@/domain/trips/trip-store';
+ import styles from '@/features/square/square.module.css';
+ 
+-interface TripDraftHandoffProps {
+-  slug: string;
+-  hydrate?: () => void | Promise<void>;
+-}
+-
+-export function TripDraftHandoff({ slug, hydrate = hydrateTripStore }: TripDraftHandoffProps) {
++export function TripDraftHandoff({ slug }: { slug: string }) {
+   const draft = useTripStore((state) => state.drafts[slug]);
+-  const hydrated = useTripStore((state) => state.hydrated);
++  const hydrated = useTripHydrationStore((state) => state.hydrated);
++  const hydrationError = useTripHydrationStore((state) => state.hydrationError);
+   const sourceHref = postsBySlug[slug] ? `/square/${slug}` : '/square';
+ 
+   useEffect(() => {
+-    void hydrate();
+-  }, [hydrate]);
++    void hydrateTripStore();
++  }, []);
+ 
+   if (!hydrated) {
+     return (
+       <main className={styles.detailPage}>
+         <section className={styles.handoffPanel} aria-live="polite">
+           <p>LOCAL DRAFT</p>
+           <h1>正在读取本地草稿…</h1>
+         </section>
+       </main>
+     );
+   }
+ 
++  if (hydrationError) {
++    return (
++      <main className={styles.detailPage}>
++        <section className={styles.handoffPanel}>
++          <p>LOCAL DRAFT</p>
++          <h1>本地草稿暂时无法读取</h1>
++          <span>浏览器中的草稿未被覆盖。请返回原攻略，稍后再尝试生成或读取本地草稿。</span>
++          <Link href={sourceHref}>返回原攻略</Link>
++        </section>
++      </main>
++    );
++  }
++
+   if (!draft) {
+     return (
+       <main className={styles.detailPage}>
+         <section className={styles.handoffPanel}>
+           <p>LOCAL DRAFT</p>
+           <h1>未找到本地行程草稿</h1>
+           <span>草稿只保存在创建它的浏览器中。你可以返回攻略重新确认并生成新的本地草稿。</span>
+           <Link href={sourceHref}>返回原攻略</Link>
+         </section>
+       </main>
+diff --git a/tests/component/convert-to-trip.test.tsx b/tests/component/convert-to-trip.test.tsx
+index ec1159a..cc496f5 100644
+--- a/tests/component/convert-to-trip.test.tsx
++++ b/tests/component/convert-to-trip.test.tsx
+@@ -1,26 +1,39 @@
+-import { act, render, screen, within } from '@testing-library/react';
++import { render, screen, waitFor, within } from '@testing-library/react';
+ import userEvent from '@testing-library/user-event';
+-import { beforeEach, describe, expect, it, vi } from 'vitest';
++import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+ import { postsBySlug } from '@/data/posts';
+ import { extractTripDraft } from '@/domain/trips/extract-draft';
+-import { useTripStore } from '@/domain/trips/trip-store';
++import { useTripHydrationStore, useTripStore } from '@/domain/trips/trip-store';
+ import { ConvertToTrip } from '@/features/square/convert-to-trip';
+ import { TripDraftHandoff } from '@/features/trips/trip-draft-handoff';
+ 
+ vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
+ 
+ const dali = postsBySlug['dali-slow-5d'];
++const sichuan = postsBySlug['sichuan-autumn-road'];
++const persistKey = 'xingyu-demo-trip-drafts';
++
++function seedPersistedDrafts(drafts: Record<string, ReturnType<typeof extractTripDraft>>) {
++  window.localStorage.setItem(persistKey, JSON.stringify({ state: { drafts }, version: 0 }));
++}
+ 
+ beforeEach(() => {
+   window.localStorage.clear();
+-  useTripStore.setState({ drafts: {}, hydrated: true });
++  useTripStore.setState({ drafts: {} });
++  useTripHydrationStore.setState({ hydrated: true, hydrationError: false });
++});
++
++afterEach(() => {
++  window.localStorage.clear();
++  useTripStore.setState({ drafts: {} });
++  useTripHydrationStore.setState({ hydrated: false, hydrationError: false });
+ });
+ 
+ describe('ConvertToTrip', () => {
+   it('opens a complete review before saving any draft', async () => {
+     const user = userEvent.setup();
+     render(<ConvertToTrip post={dali} onNavigate={() => undefined} />);
+     const trigger = screen.getByRole('button', { name: /转为行程/ });
+ 
+     await user.click(trigger);
+ 
+@@ -57,39 +70,83 @@ describe('ConvertToTrip', () => {
+     await user.click(screen.getByRole('button', { name: /转为行程/ }));
+     await user.click(screen.getByRole('button', { name: '确认并保存草稿' }));
+ 
+     expect(useTripStore.getState().drafts['dali-slow-5d']).toMatchObject({
+       destination: '大理',
+       days: 5,
+       items: dali.itinerary.map((item, index) => ({ ...item, id: `dali-slow-5d-${index + 1}` })),
+     });
+     expect(navigate).toHaveBeenCalledWith('/trips/dali-slow-5d');
+   });
++
++  it('rehydrates before conversion and preserves seeded drafts in memory and localStorage', async () => {
++    const user = userEvent.setup();
++    const existing = extractTripDraft(sichuan);
++    useTripStore.setState({ drafts: {} });
++    useTripHydrationStore.setState({ hydrated: false, hydrationError: false });
++    seedPersistedDrafts({ [existing.sourcePostSlug]: existing });
++    render(<ConvertToTrip post={dali} onNavigate={() => undefined} />);
++
++    const trigger = screen.getByRole('button', { name: /转为行程/ });
++    expect(trigger).toBeDisabled();
++    expect(screen.getByText('正在读取本地草稿…')).toBeInTheDocument();
++    await waitFor(() => expect(useTripHydrationStore.getState().hydrated).toBe(true));
++    expect(trigger).toBeEnabled();
++
++    await user.click(trigger);
++    await user.click(screen.getByRole('button', { name: '确认并保存草稿' }));
++
++    expect(useTripStore.getState().drafts).toMatchObject({
++      'sichuan-autumn-road': existing,
++      'dali-slow-5d': { destination: '大理', days: 5 },
++    });
++    const persisted = JSON.parse(window.localStorage.getItem(persistKey) ?? '{}');
++    expect(persisted.state.drafts).toMatchObject({
++      'sichuan-autumn-road': existing,
++      'dali-slow-5d': { destination: '大理', days: 5 },
++    });
++  });
+ });
+ 
+ describe('TripDraftHandoff', () => {
+   it('recovers gracefully with a link to the source guide when no local draft exists', () => {
+     render(<TripDraftHandoff slug="dali-slow-5d" />);
+ 
+     expect(screen.getByText('未找到本地行程草稿')).toBeInTheDocument();
+     expect(screen.getByRole('link', { name: '返回原攻略' })).toHaveAttribute('href', '/square/dali-slow-5d');
+   });
+ 
+-  it('shows a neutral state until hydration completes, then hands off every saved item', () => {
+-    useTripStore.setState({ drafts: { 'dali-slow-5d': extractTripDraft(dali) }, hydrated: false });
+-    render(<TripDraftHandoff hydrate={() => undefined} slug="dali-slow-5d" />);
++  it('shows a neutral state until actual seeded hydration completes, then hands off every saved item', async () => {
++    const persistedDraft = extractTripDraft(dali);
++    useTripStore.setState({ drafts: {} });
++    useTripHydrationStore.setState({ hydrated: false, hydrationError: false });
++    seedPersistedDrafts({ 'dali-slow-5d': persistedDraft });
++    render(<TripDraftHandoff slug="dali-slow-5d" />);
+ 
+     expect(screen.getByText('正在读取本地草稿…')).toBeInTheDocument();
+     expect(screen.queryByText('未找到本地行程草稿')).not.toBeInTheDocument();
+ 
+-    act(() => useTripStore.setState({ hydrated: true }));
++    await waitFor(() => expect(useTripHydrationStore.getState().hydrated).toBe(true));
+ 
+     expect(screen.getByRole('heading', { name: /大理 · 5 天行程草稿已保存/ })).toBeInTheDocument();
+     expect(screen.getByText('¥5,200')).toBeInTheDocument();
+     for (const item of dali.itinerary) {
+       expect(screen.getByText(item.title)).toBeInTheDocument();
+       expect(screen.getAllByText(new RegExp(item.location)).length).toBeGreaterThan(0);
+       expect(screen.getByText(new RegExp(item.description))).toBeInTheDocument();
+     }
+     expect(screen.queryByText('未找到本地行程草稿')).not.toBeInTheDocument();
+   });
++
++  it('shows safe recovery copy when persisted draft hydration fails', async () => {
++    useTripStore.setState({ drafts: {} });
++    useTripHydrationStore.setState({ hydrated: false, hydrationError: false });
++    window.localStorage.setItem(persistKey, '{broken');
++    render(<TripDraftHandoff slug="dali-slow-5d" />);
++
++    expect(screen.getByText('正在读取本地草稿…')).toBeInTheDocument();
++    await waitFor(() => expect(useTripHydrationStore.getState().hydrated).toBe(true));
++    expect(screen.getByText('本地草稿暂时无法读取')).toBeInTheDocument();
++    expect(screen.getByRole('link', { name: '返回原攻略' })).toHaveAttribute('href', '/square/dali-slow-5d');
++    expect(window.localStorage.getItem(persistKey)).toBe('{broken');
++  });
+ });

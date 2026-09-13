@@ -1,0 +1,724 @@
+# Review package: acb2fe2..3761f37
+
+## Commits
+3761f37 test: verify the complete local travel library
+
+## Files changed
+ src/features/home/destination-film-carousel.tsx    |  12 ++-
+ src/features/home/featured-destinations.module.css |   5 +-
+ src/features/profile/profile.module.css            |   4 +-
+ src/features/square/square.module.css              |   2 +-
+ src/features/trips/trips.module.css                |   4 +-
+ tests/e2e/accessibility.spec.ts                    |  95 +++++++++++++++--
+ tests/e2e/core-journey.spec.ts                     |   8 +-
+ tests/e2e/local-library.spec.ts                    | 118 +++++++++++++++++++++
+ tests/e2e/responsive.spec.ts                       |  45 +++++---
+ 9 files changed, 259 insertions(+), 34 deletions(-)
+
+## Diff
+diff --git a/src/features/home/destination-film-carousel.tsx b/src/features/home/destination-film-carousel.tsx
+index 7ab82fe..5c3b973 100644
+--- a/src/features/home/destination-film-carousel.tsx
++++ b/src/features/home/destination-film-carousel.tsx
+@@ -2,20 +2,21 @@
+ 
+ import { CaretLeft, CaretRight } from '@phosphor-icons/react';
+ import { motion, useReducedMotion } from 'motion/react';
+ import Image from 'next/image';
+ import Link from 'next/link';
+ import {
+   useCallback,
+   useEffect,
+   useRef,
+   useState,
++  useSyncExternalStore,
+   type CSSProperties,
+   type FocusEvent,
+   type KeyboardEvent,
+   type PointerEvent,
+ } from 'react';
+ import type { PostMedia } from '@/data/posts';
+ import styles from './featured-destinations.module.css';
+ 
+ export interface DestinationFilmItem {
+   destination: string;
+@@ -41,33 +42,42 @@ interface DragOrigin {
+ 
+ interface PauseState {
+   documentHidden: boolean;
+   dragging: boolean;
+   focusWithin: boolean;
+   hovered: boolean;
+ }
+ 
+ const dragThreshold = 64;
+ const maxDragParallax = 36;
++const subscribeToHydration = () => () => undefined;
++const getClientHydrationSnapshot = () => true;
++const getServerHydrationSnapshot = () => false;
+ 
+ function circularOffset(index: number, activeIndex: number, length: number) {
+   let offset = index - activeIndex;
+   if (offset > length / 2) offset -= length;
+   if (offset < -length / 2) offset += length;
+   return offset;
+ }
+ 
+ export function DestinationFilmCarousel({
+   destinations,
+   intervalMs = 6000,
+ }: DestinationFilmCarouselProps) {
+-  const reduceMotion = Boolean(useReducedMotion());
++  const prefersReducedMotion = Boolean(useReducedMotion());
++  const clientHydrated = useSyncExternalStore(
++    subscribeToHydration,
++    getClientHydrationSnapshot,
++    getServerHydrationSnapshot,
++  );
++  const reduceMotion = clientHydrated && prefersReducedMotion;
+   const [activeIndex, setActiveIndex] = useState(0);
+   const [dragOffset, setDragOffset] = useState(0);
+   const [deadlineVersion, setDeadlineVersion] = useState(0);
+   const [pauseState, setPauseState] = useState<PauseState>({
+     documentHidden: typeof document !== 'undefined' && document.hidden,
+     dragging: false,
+     focusWithin: false,
+     hovered: false,
+   });
+   const dragOrigin = useRef<DragOrigin | null>(null);
+diff --git a/src/features/home/featured-destinations.module.css b/src/features/home/featured-destinations.module.css
+index 5e36956..524e707 100644
+--- a/src/features/home/featured-destinations.module.css
++++ b/src/features/home/featured-destinations.module.css
+@@ -333,25 +333,25 @@
+ .proofImage img,
+ .tripStoryImage img { object-fit: cover; }
+ .proofCopy ul { display: grid; gap: 11px; margin: 30px 0 0; padding: 0; list-style: none; color: rgb(244 240 232 / 74%); font-size: 13px; }
+ .proofCopy li { display: flex; align-items: center; gap: 9px; }
+ .proofCopy li svg { color: var(--sand); }
+ 
+ .tripStory { color: var(--ink); background: #ddd7cc; }
+ .tripStoryCopy { order: 2; }
+ .tripStoryImage { order: 1; }
+ .tripStoryCopy > p,
+-.tripStoryCopy > svg { color: #725b35; }
++.tripStoryCopy > svg { color: #6f5732; }
+ .tripStoryCopy > span { color: rgb(16 16 15 / 66%); }
+ .tripStoryCopy dl { display: grid; gap: 15px; margin: 28px 0 0; }
+ .tripStoryCopy dl > div { padding: 13px 0; border-top: 1px solid rgb(16 16 15 / 16%); }
+-.tripStoryCopy dt { color: #725b35; font-size: 11px; letter-spacing: 0.12em; }
++.tripStoryCopy dt { color: #6f5732; font-size: 11px; letter-spacing: 0.12em; }
+ .tripStoryCopy dd { margin: 7px 0 0; color: rgb(16 16 15 / 72%); font-size: 13px; line-height: 1.65; }
+ 
+ .safetyStory {
+   display: grid;
+   grid-template-columns: minmax(260px, 0.72fr) minmax(0, 1.28fr);
+   gap: clamp(42px, 7vw, 110px);
+   padding: clamp(78px, 10vw, 132px) max(32px, calc((100vw - var(--content-max)) / 2));
+   color: var(--ivory);
+   background: #171a18;
+ }
+@@ -372,20 +372,21 @@
+   align-items: center;
+   gap: 28px;
+   width: min(calc(100% - 64px), var(--content-max));
+   margin: 0 auto;
+   padding: 70px 0;
+   color: var(--ink);
+   background: var(--ivory);
+ }
+ 
+ .partnerStory > svg { color: var(--lake-jade); }
++.partnerStory > div > p { color: #6f5732; }
+ .partnerStory h2 { margin-top: 9px; font-size: clamp(27px, 3vw, 40px); }
+ .partnerStory > div > span { display: block; max-width: 760px; margin-top: 12px; color: rgb(16 16 15 / 64%); }
+ .partnerStory > a { margin-top: 0; white-space: nowrap; }
+ 
+ .localShelf { border-top: 1px solid rgb(16 16 15 / 12%); }
+ .localGrid,
+ .localState {
+   width: min(calc(100% - 64px), var(--content-max));
+   margin: 44px auto 0;
+ }
+diff --git a/src/features/profile/profile.module.css b/src/features/profile/profile.module.css
+index 28bb145..0066b44 100644
+--- a/src/features/profile/profile.module.css
++++ b/src/features/profile/profile.module.css
+@@ -55,21 +55,21 @@
+ .safetyGrid a:focus-visible,
+ .emptyState a:focus-visible { outline: 2px solid var(--profile-focus-on-light, #6f5732); outline-offset: 4px; }
+ .safetyDisclosure a:focus-visible { outline: 2px solid var(--profile-focus-on-dark, #b79a68); outline-offset: 4px; }
+ 
+ .tabPanel { padding-top: clamp(38px, 5vw, 66px); outline: none; }
+ .tabPanel:focus-visible { outline: 3px solid var(--profile-focus-on-light, #6f5732); outline-offset: 5px; }
+ .panelStack { display: grid; gap: 30px; }
+ .sectionHeading { display: flex; justify-content: space-between; gap: 24px; align-items: flex-end; }
+ .sectionHeading p { margin: 0 0 8px; color: var(--profile-accent-on-light, #6f5732); font-size: 10px; letter-spacing: 0.17em; }
+ .sectionHeading h2 { margin: 0; font-family: var(--font-display); font-size: clamp(28px, 4vw, 38px); font-weight: 500; }
+-.sectionHeading > span { max-width: 430px; color: rgb(16 16 15 / 58%); font-size: 13px; line-height: 1.7; text-align: right; }
++.sectionHeading > span { max-width: 430px; color: rgb(16 16 15 / 60%); font-size: 13px; line-height: 1.7; text-align: right; }
+ 
+ .summaryGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+ .summaryCard { display: grid; grid-template-columns: auto 1fr auto; gap: 8px 13px; align-items: center; min-height: 126px; padding: 22px; color: var(--ink); text-align: left; text-decoration: none; border: 1px solid rgb(16 16 15 / 11%); background: rgb(255 255 255 / 26%); cursor: pointer; transition: border-color 160ms ease, transform 320ms cubic-bezier(.22, .61, .36, 1); }
+ .summaryCard:hover { border-color: rgb(183 154 104 / 72%); transform: translateY(-3px); }
+ .summaryCard > svg:first-child { grid-row: span 2; color: var(--sand); }
+ .summaryCard > svg:last-child { grid-column: 3; grid-row: 1 / span 2; color: rgb(16 16 15 / 48%); }
+ .summaryCard span { color: rgb(16 16 15 / 58%); font-size: 12px; }
+ .summaryCard strong { font-family: var(--font-display); font-size: 21px; font-weight: 500; }
+ 
+ .overviewColumns { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr); gap: 16px; }
+@@ -136,21 +136,21 @@
+ .safetyGrid a { display: inline-block; margin-top: 12px; color: var(--pine); font-size: 12px; font-weight: 700; text-decoration: none; }
+ .safetyBoundary { display: flex; gap: 14px; align-items: flex-start; padding: 22px 24px; color: var(--ivory); background: var(--ink); }
+ .safetyBoundary svg { flex: 0 0 auto; color: var(--sand); }
+ .safetyBoundary p { margin: 0; color: rgb(244 240 232 / 70%); font-size: 12px; line-height: 1.8; }
+ 
+ .emptyState,
+ .domainUnavailable { display: grid; justify-items: start; min-height: 260px; padding: clamp(28px, 5vw, 48px); border: 1px dashed rgb(16 16 15 / 22%); }
+ .emptyState > svg { color: var(--sand); }
+ .emptyState h2 { margin: 22px 0 8px; font-family: var(--font-display); font-size: 27px; font-weight: 500; }
+ .emptyState p,
+-.domainUnavailable p { margin: 0; color: rgb(16 16 15 / 58%); font-size: 13px; line-height: 1.7; }
++.domainUnavailable p { margin: 0; color: rgb(16 16 15 / 60%); font-size: 13px; line-height: 1.7; }
+ .emptyState > div { display: flex; gap: 10px; margin-top: 30px; }
+ .emptyState a { padding: 10px 14px; color: var(--ivory); background: var(--pine); font-size: 12px; text-decoration: none; }
+ .emptyState a + a { color: var(--ink); border: 1px solid rgb(16 16 15 / 20%); background: transparent; }
+ .domainUnavailable strong { font-family: var(--font-display); font-size: 24px; font-weight: 500; }
+ .compactUnavailable { padding: 20px 0; }
+ .compactUnavailable strong { display: block; font-family: var(--font-display); font-size: 20px; }
+ .compactUnavailable p { color: rgb(16 16 15 / 58%); font-size: 12px; }
+ 
+ @media (max-width: 980px) {
+   .identityContent { grid-template-columns: auto 1fr; }
+diff --git a/src/features/square/square.module.css b/src/features/square/square.module.css
+index baa64af..668a92b 100644
+--- a/src/features/square/square.module.css
++++ b/src/features/square/square.module.css
+@@ -115,21 +115,21 @@
+ .itinerary p { margin: 7px 0; color: rgb(16 16 15 / 68%); font-size: 14px; line-height: 1.6; }
+ .itinerary small { display: flex; align-items: center; gap: 4px; color: #6d532a; }
+ .detailAside { position: sticky; top: 108px; }
+ .detailAside section { padding-bottom: 6px; }
+ .detailAside h2 { margin-top: 0; font-size: 21px; }
+ .locationCard,
+ .productCard { margin-bottom: 10px; padding: 14px; border: 1px solid rgb(16 16 15 / 14%); border-radius: 10px; background: rgb(255 255 255 / 22%); }
+ .locationCard { display: flex; gap: 9px; color: #6d532a; }
+ .locationCard strong,
+ .locationCard span { display: block; color: var(--ink); font-size: 14px; }
+-.locationCard span { margin-top: 3px; color: rgb(16 16 15 / 56%); font-size: 12px; }
++.locationCard span { margin-top: 3px; color: rgb(16 16 15 / 61%); font-size: 12px; }
+ .locationCard p,
+ .productCard p { margin: 8px 0 0; color: rgb(16 16 15 / 62%); font-size: 12px; line-height: 1.5; }
+ .productCard span,
+ .productCard strong,
+ .productCard b { display: block; }
+ .productCard span { color: #6d532a; font-size: 11px; }
+ .productCard strong { margin: 4px 0; font-size: 14px; }
+ .productCard b { font-size: 14px; }
+ .convertButton,
+ .confirmButton { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 9px; background: var(--pine); color: var(--ivory); cursor: pointer; }
+diff --git a/src/features/trips/trips.module.css b/src/features/trips/trips.module.css
+index 6da751d..8f1776b 100644
+--- a/src/features/trips/trips.module.css
++++ b/src/features/trips/trips.module.css
+@@ -420,21 +420,21 @@
+   color: var(--ink);
+   background: var(--sand);
+   font-size: 12px;
+   font-weight: 700;
+   text-decoration: none;
+ }
+ 
+ .collectionSection { padding-top: 32px; }
+ .collectionToolbar { display: flex; align-items: end; justify-content: space-between; gap: 30px; }
+ .collectionToolbar h2 { margin: 0; font-family: var(--font-display); font-size: 30px; font-weight: 500; }
+-.collectionToolbar > div:first-child > span { display: block; margin-top: 7px; color: rgb(16 16 15 / 58%); font-size: 12px; }
++.collectionToolbar > div:first-child > span { display: block; margin-top: 7px; color: rgb(16 16 15 / 60%); font-size: 12px; }
+ .collectionFilters { display: flex; flex-wrap: wrap; justify-content: end; gap: 7px; }
+ .collectionFilters button {
+   min-height: 38px;
+   padding: 8px 13px;
+   color: var(--ink);
+   background: transparent;
+   border: 1px solid rgb(16 16 15 / 20%);
+   border-radius: 999px;
+   cursor: pointer;
+   font-size: 12px;
+@@ -455,21 +455,21 @@
+ .tripCardCover { position: relative; min-height: 210px; overflow: hidden; background: #d7d0c4; }
+ .tripCardCover::after { position: absolute; inset: 0; content: ""; background: linear-gradient(180deg, transparent 48%, rgb(20 25 22 / 42%)); }
+ .tripCardCover img { object-fit: cover; }
+ .tripCardBody { display: flex; min-width: 0; flex-direction: column; padding: 24px; }
+ .tripCardMeta { display: flex; flex-wrap: wrap; gap: 8px 14px; color: #6f5a38; font-size: 11px; }
+ .tripCardMeta span { display: inline-flex; align-items: center; gap: 5px; }
+ .tripCardMeta small { padding: 4px 7px; color: var(--ivory); background: var(--pine); font-size: 10px; }
+ .tripCardBody h3 { margin: 24px 0 8px; font-family: var(--font-display); font-size: clamp(22px, 2.2vw, 30px); font-weight: 500; line-height: 1.25; }
+ .tripCardBody > p { margin: 0; color: rgb(16 16 15 / 59%); font-size: 12px; }
+ .tripCardFooter { display: flex; align-items: end; justify-content: space-between; gap: 14px; margin-top: auto; padding-top: 24px; }
+-.tripCardFooter > span { display: inline-flex; align-items: center; gap: 5px; color: rgb(16 16 15 / 54%); font-size: 10px; }
++.tripCardFooter > span { display: inline-flex; align-items: center; gap: 5px; color: rgb(16 16 15 / 62%); font-size: 10px; }
+ .tripCardFooter a { display: inline-flex; align-items: center; gap: 6px; color: #584322; font-size: 12px; font-weight: 700; text-decoration: none; }
+ 
+ .collectionStatePage { display: grid; min-height: 76vh; place-items: center; padding: 132px 20px 60px; }
+ .collectionState { width: min(100%, 700px); padding: clamp(34px, 7vw, 64px); text-align: center; background: #e9e2d6; border: 1px solid #d0c6b7; }
+ .collectionState h1 { margin: 0 0 14px; font-family: var(--font-display); font-size: clamp(30px, 5vw, 46px); font-weight: 500; }
+ .collectionState > span { display: block; color: rgb(16 16 15 / 64%); line-height: 1.75; }
+ .collectionState > div { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 26px; }
+ .collectionState a { padding: 11px 15px; color: var(--ivory); background: var(--pine); border: 1px solid var(--pine); border-radius: 7px; font-size: 13px; text-decoration: none; }
+ .collectionState a + a { color: var(--ink); background: transparent; border-color: rgb(16 16 15 / 24%); }
+ 
+diff --git a/tests/e2e/accessibility.spec.ts b/tests/e2e/accessibility.spec.ts
+index df0e55f..4cf341c 100644
+--- a/tests/e2e/accessibility.spec.ts
++++ b/tests/e2e/accessibility.spec.ts
+@@ -12,32 +12,51 @@ test.beforeEach(async ({ page }) => {
+   page.on('pageerror', (error) => errors.push(`pageerror: ${error.message}`));
+   page.on('response', (response) => {
+     if (response.status() >= 400) errors.push(`http ${response.status()}: ${response.url()}`);
+   });
+ });
+ 
+ test.afterEach(async ({ page }) => {
+   expect(runtimeErrors.get(page)).toEqual([]);
+ });
+ 
+-const publicRoutes = [
+-  '/',
+-  '/compare?kind=flight&destination=%E5%A4%A7%E7%90%86&from=2026-08-22&to=2026-08-27&travelers=2',
+-  '/square',
+-  '/partners',
+-  '/assistant',
+-  '/guardian/dali-slow-5d',
+-] as const;
+-
+-for (const route of publicRoutes) {
++type Page = import('@playwright/test').Page;
++
++async function createDaliTripThroughUi(page: Page) {
++  await page.goto('/square/dali-slow-5d');
++  const convert = page.getByRole('button', { name: '转为行程' });
++  await expect(convert).toBeEnabled();
++  await convert.click();
++  await page.getByRole('button', { name: '确认并保存行程' }).click();
++  await expect(page).toHaveURL(/\/trips\/dali-slow-5d$/);
++  await expect(page.getByRole('region', { name: '行程设置' })).toBeVisible();
++}
++
++const publicRoutes: readonly {
++  route: string;
++  prepare?: (page: Page) => Promise<void>;
++  ready: (page: Page) => Promise<void>;
++}[] = [
++  { route: '/', ready: async (page) => { await expect(page.getByRole('region', { name: '目的地旅行取景窗' })).toBeVisible(); } },
++  { route: '/square', ready: async (page) => { await expect(page.getByRole('button', { name: '查看兴趣偏好' })).toBeVisible(); } },
++  { route: '/square/dali-slow-5d', ready: async (page) => { await expect(page.getByRole('region', { name: /攻略图片画廊/ })).toBeVisible(); } },
++  { route: '/profile', ready: async (page) => { await expect(page.getByRole('heading', { name: '你好，行屿旅人' })).toBeVisible(); } },
++  { route: '/trips', prepare: createDaliTripThroughUi, ready: async (page) => { await expect(page.getByRole('heading', { name: '我的行程' })).toBeVisible(); } },
++  { route: '/compare?kind=flight&destination=%E5%A4%A7%E7%90%86&from=2026-08-22&to=2026-08-27&travelers=2', ready: async (page) => { await expect(page.getByText('¥1,010 含税总价')).toBeVisible(); } },
++];
++
++for (const { route, prepare, ready } of publicRoutes) {
+   test(`has no critical or serious axe violations on ${route}`, async ({ page }) => {
++    if (prepare) await prepare(page);
+     await page.goto(route);
++    await ready(page);
++    await page.evaluate(() => document.fonts.ready);
+     const results = await new AxeBuilder({ page }).analyze();
+     expect(results.violations.filter((violation) => ['critical', 'serious'].includes(violation.impact ?? ''))).toEqual([]);
+   });
+ }
+ 
+ test('search main path and search tabs work from the keyboard', async ({ page }) => {
+   await page.goto('/');
+   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+   const flightTab = page.getByRole('tab', { name: '机票' });
+   await flightTab.focus();
+@@ -48,20 +67,67 @@ test('search main path and search tabs work from the keyboard', async ({ page })
+ 
+   await page.keyboard.press('Tab');
+   await expect(page.getByRole('textbox', { name: '到达地' })).toBeFocused();
+   await page.keyboard.press('Control+A');
+   await page.keyboard.type('大理');
+   await page.getByRole('button', { name: '开始规划' }).focus();
+   await page.keyboard.press('Enter');
+   await expect(page).toHaveURL(/\/compare\?/);
+ });
+ 
++test('destination carousel pauses while keyboard focus remains inside', async ({ page }) => {
++  await page.goto('/');
++  const carousel = page.getByRole('region', { name: '目的地旅行取景窗' });
++  await carousel.focus();
++  await expect(carousel).toBeFocused();
++  const position = page.getByRole('status', { name: '目的地位置' });
++  const initialPosition = await position.textContent();
++  await page.waitForTimeout(6_200);
++  await expect(position).toHaveText(initialPosition ?? '');
++  await page.keyboard.press('End');
++  await expect(page.getByRole('button', { name: '查看厦门' })).toHaveAttribute('aria-pressed', 'true');
++});
++
++test('guide gallery supports keyboard focus and positional navigation', async ({ page }) => {
++  await page.goto('/square/dali-slow-5d');
++  const gallery = page.getByRole('region', { name: /攻略图片画廊/ });
++  await gallery.focus();
++  await expect(gallery).toBeFocused();
++  await page.keyboard.press('End');
++  await expect(page.getByRole('status', { name: '图片位置' })).toHaveText('4 / 4');
++  await page.keyboard.press('ArrowLeft');
++  await expect(page.getByRole('status', { name: '图片位置' })).toHaveText('3 / 4');
++});
++
++test('profile tabs use arrow keys and move focus with the active tab', async ({ page }) => {
++  await page.goto('/profile');
++  const overview = page.getByRole('tab', { name: '概览' });
++  await overview.focus();
++  await page.keyboard.press('ArrowRight');
++  await expect(page.getByRole('tab', { name: '我的行程' })).toBeFocused();
++  await expect(page.getByRole('tab', { name: '我的行程' })).toHaveAttribute('aria-selected', 'true');
++  await page.keyboard.press('End');
++  await expect(page.getByRole('tab', { name: '兴趣偏好' })).toBeFocused();
++});
++
++test('trip conversion dialog closes with Escape and restores its trigger', async ({ page }) => {
++  await page.goto('/square/dali-slow-5d');
++  const trigger = page.getByRole('button', { name: '转为行程' });
++  await expect(trigger).toBeEnabled();
++  await trigger.click();
++  const dialog = page.getByRole('dialog', { name: '确认行程草稿' });
++  await expect(dialog).toBeVisible();
++  await page.keyboard.press('Escape');
++  await expect(dialog).toBeHidden();
++  await expect(trigger).toBeFocused();
++});
++
+ test('filter dialog traps focus, closes with Escape, and restores its trigger', async ({ page }) => {
+   await page.goto('/compare?kind=flight&destination=%E5%A4%A7%E7%90%86&from=2026-08-22&to=2026-08-27&travelers=2');
+   const trigger = page.getByRole('button', { name: '筛选条件' });
+   await trigger.click();
+   const dialog = page.getByRole('dialog', { name: '筛选条件' });
+   await expect(dialog).toBeVisible();
+   const first = page.getByRole('button', { name: '关闭筛选' });
+   const last = page.getByRole('button', { name: '应用筛选' });
+   await expect(first).toBeFocused();
+   await last.focus();
+@@ -75,17 +141,24 @@ test('filter dialog traps focus, closes with Escape, and restores its trigger',
+ });
+ 
+ test('external quote confirmation remains in the local demo', async ({ page }) => {
+   await page.goto('/compare?kind=flight&destination=%E5%A4%A7%E7%90%86&from=2026-08-22&to=2026-08-27&travelers=2');
+   await page.getByRole('button', { name: /查看 .*演示报价/ }).first().click();
+   await expect(page.getByRole('dialog', { name: '前往外部供应商' })).toBeVisible();
+   await page.getByRole('button', { name: /确认前往外部页面/ }).click();
+   await expect(page).toHaveURL(/\/compare\?/);
+ });
+ 
+-test('reduced motion removes smooth scrolling and motion transitions', async ({ page }) => {
++test('reduced motion removes autoplay, parallax, smooth scrolling, and motion transitions', async ({ page }) => {
+   await page.emulateMedia({ reducedMotion: 'reduce' });
+   await page.goto('/');
+   await expect(page.locator('html')).toHaveCSS('scroll-behavior', 'auto');
++  const viewport = page.getByTestId('destination-film-viewport');
++  await expect(viewport).toHaveAttribute('data-parallax', 'disabled');
++  const position = page.getByRole('status', { name: '目的地位置' });
++  const initialPosition = await position.textContent();
++  await page.waitForTimeout(6_200);
++  await expect(position).toHaveText(initialPosition ?? '');
++  await expect(viewport).toHaveCSS('transform', 'none');
+   const duration = await page.getByRole('tabpanel').evaluate((element) => Number.parseFloat(getComputedStyle(element).transitionDuration));
+   expect(duration).toBeLessThanOrEqual(0.00001);
+ });
+diff --git a/tests/e2e/core-journey.spec.ts b/tests/e2e/core-journey.spec.ts
+index 58e0253..c08e4b0 100644
+--- a/tests/e2e/core-journey.spec.ts
++++ b/tests/e2e/core-journey.spec.ts
+@@ -37,23 +37,27 @@ test('guide to guarded alternative plan through the public UI', async ({ page })
+     destination: '大理',
+     from: '2026-09-18',
+     to: '2026-09-22',
+     travelers: '3',
+   });
+   expect((await quoteStream).status()).toBe(200);
+   await expect(page.getByText('大理 · 沙箱演示报价', { exact: true })).toBeVisible();
+   await expect(page.getByText('¥1,010 含税总价')).toBeVisible();
+ 
+   await page.getByRole('link', { name: '灵感广场' }).click();
+-  await page.getByRole('link', { name: '把大理留给慢下来的人：5 天环洱海松弛路线', exact: true }).click();
++  await page.getByRole('link', { name: '把大理留给慢下来的人：5 天洱海与白族村落路线', exact: true }).click();
+   await page.getByRole('button', { name: '转为行程' }).click();
+-  await page.getByRole('button', { name: '确认并保存草稿' }).click();
++  await page.getByRole('button', { name: '确认并保存行程' }).click();
++  await page.getByRole('switch', { name: '行程守护演示' }).click();
++  await page.getByLabel('我明确同意开启本地守护演示').check();
++  await page.getByRole('button', { name: '确认开启' }).click();
++  await expect(page.getByRole('switch', { name: '行程守护演示' })).toHaveAttribute('aria-checked', 'true');
+   await page.getByRole('button', { name: '发布搭子意愿' }).click();
+   await expect(page.getByRole('status')).toContainText('搭子意愿已保存到本浏览器');
+   await page.getByRole('navigation', { name: '主导航' }).getByRole('link', { name: '寻找搭子' }).click();
+   await expect(page.getByText('已读取本地匹配意愿', { exact: true })).toBeVisible();
+   await expect(page.getByRole('button', { name: '发布匹配意愿' })).toHaveCount(0);
+   await expect(page.getByTestId('partner-card-user-muyu').getByLabel('匹配分 92')).toBeVisible();
+   await page.getByRole('button', { name: '愿意认识木雨' }).click();
+   await page.getByRole('button', { name: '模拟对方同意（沙箱）' }).click();
+   await page.getByRole('link', { name: '进入聊天' }).click();
+   await expect(page.getByText(/其他敏感信息/)).toBeVisible();
+diff --git a/tests/e2e/local-library.spec.ts b/tests/e2e/local-library.spec.ts
+new file mode 100644
+index 0000000..d58daea
+--- /dev/null
++++ b/tests/e2e/local-library.spec.ts
+@@ -0,0 +1,118 @@
++import { expect, test, type Page } from '@playwright/test';
++
++const runtimeErrors = new WeakMap<Page, string[]>();
++
++test.beforeEach(async ({ page }) => {
++  const errors: string[] = [];
++  runtimeErrors.set(page, errors);
++  page.on('console', (message) => {
++    if (message.type() === 'error') errors.push(`console.error: ${message.text()}`);
++  });
++  page.on('pageerror', (error) => errors.push(`pageerror: ${error.message}`));
++  page.on('response', (response) => {
++    if (response.status() >= 400) errors.push(`http ${response.status()}: ${response.url()}`);
++  });
++});
++
++test.afterEach(async ({ page }) => {
++  expect(runtimeErrors.get(page)).toEqual([]);
++});
++
++test.describe('local closed loop', () => {
++  test('interest clear -> re-add -> recommendation survives reload', async ({ page }) => {
++    await page.goto('/profile?tab=preferences');
++    await expect(page.getByRole('heading', { name: '推荐与兴趣偏好' })).toBeVisible();
++
++    await page.getByRole('button', { name: '清除全部兴趣' }).click();
++    await page.getByRole('button', { name: '确认清除' }).click();
++    await expect(page.getByRole('switch', { name: '个性化推荐' })).toBeDisabled();
++
++    await page.getByRole('button', { name: '海岛', exact: true }).click();
++    await page.getByRole('button', { name: '城市漫游', exact: true }).click();
++    const recommendation = page.getByRole('switch', { name: '个性化推荐' });
++    await expect(recommendation).toBeEnabled();
++    await recommendation.click();
++
++    await page.reload();
++    await expect(page.getByRole('heading', { name: '推荐与兴趣偏好' })).toBeVisible();
++    await expect(page.getByRole('button', { name: '海岛', exact: true })).toHaveAttribute('aria-pressed', 'true');
++    await expect(page.getByRole('button', { name: '城市漫游', exact: true })).toHaveAttribute('aria-pressed', 'true');
++    await expect(page.getByRole('switch', { name: '个性化推荐' })).toHaveAttribute('aria-checked', 'true');
++  });
++
++  test('like guide -> reload -> profile likes -> unlike', async ({ page }) => {
++    const title = '三亚 5 日：海湾清晨、后海慢住与雨林降温';
++
++    await page.goto('/square');
++    await expect(page.getByRole('button', { name: '查看兴趣偏好' })).toBeVisible();
++    const favorite = page.getByRole('button', { name: `喜欢 ${title}` });
++    await expect(favorite).toBeEnabled();
++    await favorite.click();
++    await expect(favorite).toHaveAttribute('aria-pressed', 'true');
++
++    await page.reload();
++    await expect(page.getByRole('button', { name: '查看兴趣偏好' })).toBeVisible();
++    await expect(page.getByRole('button', { name: `喜欢 ${title}` })).toHaveAttribute('aria-pressed', 'true');
++
++    await page.goto('/profile?tab=likes');
++    await expect(page.getByRole('link', { name: title, exact: true })).toBeVisible();
++    const profileFavorite = page.getByRole('button', { name: `喜欢 ${title}` });
++    await expect(profileFavorite).toHaveAttribute('aria-pressed', 'true');
++    await profileFavorite.click();
++    await expect(page.getByRole('heading', { name: '喜欢的攻略会保存在这里' })).toBeVisible();
++  });
++
++  test('guide conversion -> My Trips -> workbench -> compare', async ({ page }) => {
++    await page.goto('/square/dali-slow-5d');
++    const convert = page.getByRole('button', { name: '转为行程' });
++    await expect(convert).toBeEnabled();
++    await convert.click();
++    await expect(page.getByRole('dialog', { name: '确认行程草稿' })).toBeVisible();
++    await page.getByRole('button', { name: '确认并保存行程' }).click();
++
++    await expect(page).toHaveURL(/\/trips\/dali-slow-5d$/);
++    await expect(page.getByRole('heading', { name: '大理慢行计划' })).toBeVisible();
++    await page.getByRole('link', { name: '我的行程' }).click();
++    await expect(page).toHaveURL(/\/trips$/);
++    await expect(page.getByRole('heading', { name: '我的行程' })).toBeVisible();
++
++    await page.getByRole('link', { name: '继续规划大理慢行计划' }).click();
++    await expect(page.getByRole('region', { name: '行程设置' })).toBeVisible();
++    await page.getByRole('link', { name: '进入比价' }).click();
++    await expect(page).toHaveURL(/\/compare\?/);
++    await expect(page.getByText('大理 · 沙箱演示报价', { exact: true })).toBeVisible();
++  });
++
++  test('favorite offer + alert -> profile -> re-search -> remove confirmation', async ({ page }) => {
++    await page.goto('/compare?kind=flight&destination=%E5%A4%A7%E7%90%86&from=2026-09-18&to=2026-09-22&travelers=3');
++    const favorite = page.getByRole('button', { name: /^收藏 .* 报价$/ }).first();
++    await expect(favorite).toBeEnabled();
++    await favorite.click();
++    await expect(favorite).toHaveAttribute('aria-pressed', 'true');
++
++    const alert = page.getByRole('switch', { name: '降价提醒' });
++    await expect(alert).toBeEnabled();
++    await alert.click();
++    await expect(page.getByText('已保存提醒设置；本演示不会在关闭页面后推送')).toBeVisible();
++
++    await page.goto('/profile?tab=offers');
++    await expect(page.getByRole('heading', { name: '收藏报价' })).toBeVisible();
++    await expect(page.getByText('数据时间')).toBeVisible();
++    await expect(page.getByText('已保存（关闭页面后不会推送）')).toBeVisible();
++    await page.getByRole('link', { name: '重新比价' }).first().click();
++    await expect(page).toHaveURL(/\/compare\?/);
++
++    const savedFavorite = page.getByRole('button', { name: /^收藏 .* 报价$/ }).first();
++    await expect(savedFavorite).toHaveAttribute('aria-pressed', 'true');
++    await savedFavorite.click();
++    const confirmation = page.getByRole('dialog', { name: '移除收藏报价' });
++    await expect(confirmation).toBeVisible();
++    await page.getByRole('button', { name: '确认移除并关闭提醒' }).click();
++    await expect(confirmation).toBeHidden();
++    await expect(savedFavorite).toHaveAttribute('aria-pressed', 'false');
++    await expect(page.getByRole('switch', { name: '降价提醒' })).toBeDisabled();
++
++    await page.goto('/profile?tab=offers');
++    await expect(page.getByRole('heading', { name: '收藏的报价会保存在这里' })).toBeVisible();
++  });
++});
+diff --git a/tests/e2e/responsive.spec.ts b/tests/e2e/responsive.spec.ts
+index 718962f..10de7e5 100644
+--- a/tests/e2e/responsive.spec.ts
++++ b/tests/e2e/responsive.spec.ts
+@@ -75,71 +75,90 @@ async function expectDisclosureClearsMainContent(page: Page) {
+   const [disclosureBox, contentBox] = await Promise.all([
+     page.getByRole('note', { name: '演示环境说明' }).boundingBox(),
+     page.locator('body > main > :first-child').first().boundingBox(),
+   ]);
+ 
+   expect(disclosureBox).not.toBeNull();
+   expect(contentBox).not.toBeNull();
+   expect(contentBox!.y).toBeGreaterThanOrEqual(disclosureBox!.y + disclosureBox!.height);
+ }
+ 
++async function createDaliTripThroughUi(page: Page, enableGuardian = false) {
++  await page.goto('/square/dali-slow-5d', { waitUntil: 'commit' });
++  const convert = page.getByRole('button', { name: '转为行程' });
++  await expect(convert).toBeEnabled();
++  await convert.click();
++  await page.getByRole('button', { name: '确认并保存行程' }).click();
++  await expect(page).toHaveURL(/\/trips\/dali-slow-5d$/);
++  await expect(page.getByRole('region', { name: '行程设置' })).toBeVisible();
++
++  if (!enableGuardian) return;
++  await page.getByRole('switch', { name: '行程守护演示' }).click();
++  await page.getByLabel('我明确同意开启本地守护演示').check();
++  await page.getByRole('button', { name: '确认开启' }).click();
++  await expect(page.getByRole('switch', { name: '行程守护演示' })).toHaveAttribute('aria-checked', 'true');
++}
++
+ const responsiveCases: ResponsiveCase[] = [
+   {
+     route: '/compare?kind=flight&destination=%E5%A4%A7%E7%90%86&from=2026-08-22&to=2026-08-27&travelers=2',
+     ready: async (page) => { await expect(page.getByText('¥1,010 含税总价')).toBeVisible(); },
+   },
+   {
+     route: '/square',
+     ready: async (page) => { await expect(page.getByRole('button', { name: '查看兴趣偏好' })).toBeVisible(); },
+   },
+   {
+-    route: '/trips/dali-slow-5d',
+-    prepare: async (page) => {
+-      await page.goto('/square/dali-slow-5d', { waitUntil: 'commit' });
+-      await page.getByRole('button', { name: '转为行程' }).click();
+-      await page.getByRole('button', { name: '确认并保存草稿' }).click();
+-      await expect(page).toHaveURL(/\/trips\/dali-slow-5d$/);
+-    },
++    route: '/square/dali-slow-5d',
+     ready: async (page) => {
+-      await expect(page.getByRole('heading', { name: '大理慢行计划' })).toBeVisible();
+-      await expect(page.getByRole('region', { name: '行程设置' })).toBeVisible();
++      await expect(page.getByRole('region', { name: /攻略图片画廊/ })).toBeVisible();
+     },
+   },
++  {
++    route: '/profile',
++    ready: async (page) => { await expect(page.getByRole('heading', { name: '你好，行屿旅人' })).toBeVisible(); },
++  },
++  {
++    route: '/trips',
++    prepare: async (page) => { await createDaliTripThroughUi(page); },
++    ready: async (page) => { await expect(page.getByRole('heading', { name: '我的行程' })).toBeVisible(); },
++  },
+   {
+     route: '/partners',
+     ready: async (page) => { await expect(page.getByRole('button', { name: '发布匹配意愿' })).toBeVisible(); },
+   },
+   {
+     route: '/assistant',
+     ready: async (page) => { await expect(page.getByLabel('你的问题')).toBeVisible(); },
+   },
+   {
+     route: '/guardian/dali-slow-5d',
++    prepare: async (page) => { await createDaliTripThroughUi(page, true); },
+     ready: async (page) => { await expect(page.getByRole('button', { name: /选择 Plan A/ })).toBeVisible(); },
+   },
+ ];
+ 
+ test.describe('mobile public MVP', () => {
+   test.use({ viewport: { width: 390, height: 844 } });
+ 
+   test('mobile navigation is available without horizontal overflow', async ({ page }) => {
+     await page.goto('/', { waitUntil: 'commit' });
+     await waitForResponsiveReady(page, async () => {
+       await expect(page.getByRole('button', { name: '开始规划' })).toBeVisible();
+     });
+     await expectClosedAndOpenLayoutsFit(page);
+   });
+ 
+   for (const { route, prepare, ready } of responsiveCases) {
+     test(`does not horizontally overflow on ${route}`, async ({ page }) => {
+       if (prepare) await prepare(page);
+-      else await page.goto(route, { waitUntil: 'commit' });
++      await page.goto(route, { waitUntil: 'commit' });
+       await waitForResponsiveReady(page, () => ready(page));
+       await expectDisclosureClearsMainContent(page);
+       await expectClosedAndOpenLayoutsFit(page);
+     });
+   }
+ });
+ 
+ test.describe('desktop design disclosure', () => {
+   test.use({ viewport: { width: 1440, height: 1024 } });
+ 
+@@ -150,28 +169,28 @@ test.describe('desktop design disclosure', () => {
+     const [headerBox, disclosureBox] = await Promise.all([
+       page.locator('header').boundingBox(),
+       page.getByRole('note', { name: '演示环境说明' }).boundingBox(),
+     ]);
+ 
+     expect(headerBox).not.toBeNull();
+     expect(disclosureBox).not.toBeNull();
+     expect(disclosureBox!.y).toBeGreaterThanOrEqual(headerBox!.y + headerBox!.height - 1);
+   });
+ 
+-  test('keeps the planning controls and seasonal destinations in the first viewport', async ({ page }) => {
++  test('keeps the planning controls and signature destination film in the first viewport', async ({ page }) => {
+     await page.goto('/', { waitUntil: 'commit' });
+     await page.waitForFunction(() => document.fonts.status === 'loaded');
+ 
+     const [titleBox, composerBox, destinationBox] = await Promise.all([
+       page.getByRole('heading', { name: '把远方， 变成一段安心抵达的旅程' }).boundingBox(),
+       page.locator('form[action="/compare"]').boundingBox(),
+-      page.getByRole('article').first().boundingBox(),
++      page.getByRole('region', { name: '目的地旅行取景窗' }).boundingBox(),
+     ]);
+ 
+     expect(titleBox).not.toBeNull();
+     expect(composerBox).not.toBeNull();
+     expect(destinationBox).not.toBeNull();
+     expect.soft(titleBox!.y).toBeLessThanOrEqual(210);
+     expect.soft(composerBox!.y).toBeLessThanOrEqual(540);
+-    expect.soft(destinationBox!.y).toBeLessThanOrEqual(820);
++    expect.soft(destinationBox!.y).toBeLessThanOrEqual(1024);
+   });
+ });

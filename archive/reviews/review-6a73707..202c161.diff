@@ -1,0 +1,423 @@
+# COMMITS
+202c161 fix: complete square conversion and feed behavior
+
+# STAT
+ src/app/square/page.tsx                   |  2 +-
+ src/app/trips/[slug]/page.tsx             | 13 ++++++
+ src/data/posts.ts                         | 18 +++++++--
+ src/features/square/feed-controls.tsx     |  2 +-
+ src/features/square/square.module.css     | 15 ++++---
+ src/features/trips/trip-draft-handoff.tsx | 36 +++++++++++++++++
+ tests/component/convert-to-trip.test.tsx  | 66 +++++++++++++++++++++++++++++++
+ tests/component/square-feed.test.tsx      | 27 +++++++++++++
+ tests/unit/extract-trip-draft.test.ts     |  9 ++++-
+ 9 files changed, 177 insertions(+), 11 deletions(-)
+
+# DIFF
+diff --git a/src/app/square/page.tsx b/src/app/square/page.tsx
+index df2d8b8..27573cd 100644
+--- a/src/app/square/page.tsx
++++ b/src/app/square/page.tsx
+@@ -13,17 +13,17 @@ export default function SquarePage() {
+   const [mode, setMode] = useState<FeedMode>('recommended');
+   const [interestTags, setInterestTags] = useState<readonly string[]>(initialInterestTags);
+   const posts = orderPosts(mode, interestTags);
+ 
+   return (
+     <>
+       <SiteHeader activePath="/square" />
+       <main className={styles.squarePage}>
+         <header className={styles.hero}><p>GUIDE SQUARE</p><h1>在别人的路书里，找到自己的出发理由。</h1><span>真实的旅行片段，整理成可继续编辑的本地行程草稿。</span></header>
+         <section aria-labelledby="feed-title" className={styles.feedSection}>
+-          <div className={styles.feedHeading}><div><p>编辑精选</p><h2 id="feed-title">旅行者正在分享</h2></div><FeedControls interestTags={interestTags} mode={mode} onClearInterestTags={() => setInterestTags([])} onModeChange={setMode} /></div>
++          <div className={styles.feedHeading}><div><p>编辑精选</p><h2 id="feed-title">旅行者正在分享</h2></div><FeedControls interestTags={interestTags} mode={mode} onClearInterestTags={() => { setInterestTags([]); setMode('chronological'); }} onModeChange={setMode} /></div>
+           <div className={styles.masonry}>{posts.map((post) => <PostCard key={post.slug} post={post} />)}</div>
+         </section>
+       </main>
+     </>
+   );
+ }
+diff --git a/src/app/trips/[slug]/page.tsx b/src/app/trips/[slug]/page.tsx
+new file mode 100644
+index 0000000..f356bb2
+--- /dev/null
++++ b/src/app/trips/[slug]/page.tsx
+@@ -0,0 +1,13 @@
++import { SiteHeader } from '@/components/site-header';
++import { TripDraftHandoff } from '@/features/trips/trip-draft-handoff';
++
++export default async function TripDraftPage({ params }: { params: Promise<{ slug: string }> }) {
++  const { slug } = await params;
++
++  return (
++    <>
++      <SiteHeader />
++      <TripDraftHandoff slug={slug} />
++    </>
++  );
++}
+diff --git a/src/data/posts.ts b/src/data/posts.ts
+index 7b32391..484bac0 100644
+--- a/src/data/posts.ts
++++ b/src/data/posts.ts
+@@ -89,53 +89,65 @@ export const posts: readonly TravelPost[] = [
+   {
+     slug: 'sichuan-autumn-road',
+     title: '川西金秋自驾：把雪山留在后视镜里',
+     excerpt: '从新都桥到塔公，沿着海拔缓慢上升的公路追赶秋色。',
+     destination: '川西',
+     days: 4,
+     budget: 6800,
+     media: [media.sichuan, media.guardian],
+     locations: [{ name: '塔公草原', area: '甘孜', note: '午后云层变化快，注意保暖。' }],
+     tags: ['自驾', '雪山', '秋色'],
+-    itinerary: [{ day: 1, title: '抵达新都桥', description: '适应海拔，早点休息。', location: '新都桥' }],
++    itinerary: [
++      { day: 1, title: '抵达新都桥', description: '适应海拔，早点休息。', location: '新都桥' },
++      { day: 2, title: '沿 318 向塔公', description: '避开晨雾，慢慢开进草原与雪山之间。', location: '塔公草原' },
++      { day: 3, title: '塔公到墨石公园', description: '午后回到新都桥，留时间整理照片。', location: '墨石公园' },
++      { day: 4, title: '晨光返程', description: '在观景台看完日出后返回康定。', location: '新都桥' },
++    ],
+     products: [],
+     author: { name: '陈野', role: '公路摄影师', avatar: '陈' },
+     publishedAt: '2026-08-14T12:00:00+08:00',
+     ai: { generated: false, rewritten: false },
+   },
+   {
+     slug: 'guilin-river-morning',
+     title: '桂林的清晨，先交给一段江面',
+     excerpt: '不追打卡，只在漓江最安静的时候坐一次船。',
+     destination: '桂林',
+     days: 3,
+     budget: 3600,
+     media: [media.guilin, media.dali],
+     locations: [{ name: '漓江', area: '桂林', note: '选清晨航段，雾气和山水层次更好。' }],
+     tags: ['山水', '周末', '轻徒步'],
+-    itinerary: [{ day: 1, title: '江上清晨', description: '预留早起时间去码头。', location: '漓江' }],
++    itinerary: [
++      { day: 1, title: '江上清晨', description: '预留早起时间去码头。', location: '漓江' },
++      { day: 2, title: '骑行遇龙河', description: '只骑最平缓的一段，把午后留给树荫。', location: '阳朔' },
++      { day: 3, title: '山水收尾', description: '在象鼻山附近吃早餐后返程。', location: '桂林市区' },
++    ],
+     products: [],
+     author: { name: '周舟', role: '旅行编辑', avatar: '周' },
+     publishedAt: '2026-08-13T09:15:00+08:00',
+     ai: { generated: false, rewritten: true },
+   },
+   {
+     slug: 'rainy-mountain-notes',
+     title: '下雨的山路，也值得慢慢开',
+     excerpt: '把天气预警当成路书的一部分，雨天同样能抵达风景。',
+     destination: '高原山地',
+     days: 2,
+     budget: 2400,
+     media: [media.guardian],
+     locations: [{ name: '折多山', area: '甘孜', note: '雨天降低车速并检查路况。' }],
+     tags: ['雨天出行', '安全', '自驾'],
+-    itinerary: [{ day: 1, title: '观察天气再出发', description: '跟随官方路况信息调整时间。', location: '折多山' }],
++    itinerary: [
++      { day: 1, title: '观察天气再出发', description: '跟随官方路况信息调整时间。', location: '折多山' },
++      { day: 2, title: '确认路况后返程', description: '雨势减弱后分段下山，避免夜间赶路。', location: '康定' },
++    ],
+     products: [],
+     author: { name: '沈雨', role: '山地领队', avatar: '沈' },
+     publishedAt: '2026-08-12T16:20:00+08:00',
+     ai: { generated: false, rewritten: false },
+   },
+ ];
+ 
+ export const postsBySlug: Readonly<Record<string, TravelPost>> = Object.fromEntries(
+   posts.map((post) => [post.slug, post]),
+ );
+diff --git a/src/features/square/feed-controls.tsx b/src/features/square/feed-controls.tsx
+index 44343eb..86d17f2 100644
+--- a/src/features/square/feed-controls.tsx
++++ b/src/features/square/feed-controls.tsx
+@@ -27,20 +27,20 @@ export function FeedControls({
+         <button aria-pressed={personalized} className={styles.modeButton} onClick={() => onModeChange('recommended')} type="button">
+           <Sparkle aria-hidden size={17} weight="fill" /> 为你推荐
+         </button>
+         <button aria-pressed={!personalized} className={styles.modeButton} onClick={() => onModeChange('chronological')} type="button">
+           按时间排序
+         </button>
+       </div>
+       <div className={styles.preferences}>
+         <button aria-expanded={preferencesOpen} aria-label="查看兴趣偏好" className={styles.preferencesTrigger} onClick={() => setPreferencesOpen((open) => !open)} type="button"><FunnelSimple aria-hidden size={16} /> 兴趣偏好</button>
+         {preferencesOpen && <div className={styles.preferencePanel}>
+-          <p>{interestTags.length ? '推荐会参考这些演示偏好：' : '已关闭个性化推荐。'}</p>
++          <p>{personalized && interestTags.length ? '推荐会参考这些演示偏好：' : '个性化推荐已关闭，当前按时间排序。'}</p>
+           {interestTags.length > 0 && <div className={styles.tagList}>{interestTags.map((tag) => <span key={tag}>{tag}</span>)}</div>}
+           {onClearInterestTags && interestTags.length > 0 && (
+             <button className={styles.clearButton} onClick={onClearInterestTags} type="button"><X aria-hidden size={15} /> 清除兴趣偏好</button>
+           )}
+         </div>}
+       </div>
+     </div>
+   );
+ }
+diff --git a/src/features/square/square.module.css b/src/features/square/square.module.css
+index c473835..f2821a7 100644
+--- a/src/features/square/square.module.css
++++ b/src/features/square/square.module.css
+@@ -22,24 +22,24 @@
+ .preferences { position: relative; }
+ .preferencesTrigger { display: flex; align-items: center; gap: 6px; padding: 10px 3px; font-size: 13px; }
+ .preferencePanel { position: absolute; z-index: 3; right: 0; width: 250px; margin-top: 6px; padding: 14px; border: 1px solid rgb(16 16 15 / 15%); border-radius: var(--radius-control); background: var(--ivory); box-shadow: 0 13px 30px rgb(16 16 15 / 14%); }
+ .preferencePanel p { margin: 0 0 10px; font-size: 13px; line-height: 1.5; }
+ .tagList,
+ .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+ .tagList span,
+ .tags span { padding: 4px 7px; border-radius: 999px; background: rgb(183 154 104 / 16%); color: #6d532a; font-size: 12px; }
+ .clearButton { display: inline-flex; align-items: center; gap: 4px; margin-top: 12px; color: #8e3328; font-size: 12px; }
+ 
+-.masonry { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; align-items: start; }
+-.postCard { break-inside: avoid; border: 1px solid rgb(16 16 15 / 12%); border-radius: var(--radius-panel); overflow: hidden; background: rgb(255 255 255 / 23%); box-shadow: 0 10px 25px rgb(16 16 15 / 4%); }
++.masonry { columns: 3; column-gap: 22px; }
++.postCard { display: inline-block; width: 100%; margin: 0 0 22px; break-inside: avoid; border: 1px solid rgb(16 16 15 / 12%); border-radius: var(--radius-panel); overflow: hidden; background: rgb(255 255 255 / 23%); box-shadow: 0 10px 25px rgb(16 16 15 / 4%); }
+ .postImageLink { display: block; background: var(--mist); }
+-.postImage { display: block; width: 100%; height: auto; aspect-ratio: 1.3; object-fit: cover; transition: transform 220ms ease; }
++.postImage { display: block; width: 100%; height: auto; transition: transform 220ms ease; }
+ .postImageLink:hover .postImage { transform: scale(1.025); }
+ .postBody { padding: 17px 17px 14px; }
+ .postMeta { display: flex; align-items: center; gap: 4px; color: #6d532a; font-size: 12px; }
+ .postBody h2 { margin: 10px 0 8px; font-family: var(--font-display); font-size: 23px; font-weight: 500; line-height: 1.32; }
+ .postBody h2 a { text-decoration: none; }
+ .postBody > p { min-height: 3em; margin: 0 0 12px; color: rgb(16 16 15 / 66%); font-size: 13px; line-height: 1.55; }
+ .cardFooter { display: flex; justify-content: space-between; align-items: center; margin-top: 15px; }
+ .author,
+ .detailAuthor { display: flex; align-items: center; gap: 7px; font-size: 12px; }
+ .author b,
+@@ -101,17 +101,22 @@
+ .draftSummary { display: grid; grid-template-columns: repeat(3, 1fr); margin: 0; border-top: 1px solid rgb(16 16 15 / 14%); border-bottom: 1px solid rgb(16 16 15 / 14%); }
+ .draftSummary div { padding: 13px 9px; }
+ .draftSummary dt { color: rgb(16 16 15 / 58%); font-size: 12px; }
+ .draftSummary dd { margin: 5px 0 0; font-size: 15px; }
+ .draftItems { display: grid; gap: 14px; margin: 23px 0; padding: 0; list-style: none; }
+ .draftItems li { display: grid; grid-template-columns: 54px 1fr; gap: 10px; }
+ .draftItems li > span { color: var(--sand); font-size: 11px; font-weight: 700; }
+ .draftItems strong { font-size: 14px; }
+ .draftItems p { margin: 3px 0 0; color: rgb(16 16 15 / 62%); font-size: 12px; line-height: 1.5; }
+ .confirmButton { width: 100%; padding: 14px; }
++.handoffPanel { width: min(100%, 690px); margin: 42px auto; padding: clamp(24px, 5vw, 52px); border: 1px solid rgb(16 16 15 / 14%); border-radius: var(--radius-panel); background: rgb(255 255 255 / 23%); }
++.handoffPanel > p { margin: 0 0 12px; color: var(--sand); font-size: 12px; font-weight: 700; letter-spacing: .16em; }
++.handoffPanel h1 { margin: 0; font-family: var(--font-display); font-size: clamp(30px, 4vw, 48px); font-weight: 500; line-height: 1.2; }
++.handoffPanel > span { display: block; margin: 17px 0 25px; color: rgb(16 16 15 / 65%); line-height: 1.7; }
++.handoffPanel > a { display: inline-block; padding: 11px 15px; border-radius: 8px; background: var(--pine); color: var(--ivory); text-decoration: none; }
+ 
+ button:focus-visible,
+ a:focus-visible,
+ .preferencesTrigger:focus-visible { outline: 2px solid var(--sand); outline-offset: 3px; }
+ 
+-@media (max-width: 900px) { .masonry { grid-template-columns: repeat(2, minmax(0, 1fr)); } .detailLayout { grid-template-columns: 1fr; } .detailAside { position: static; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; } .detailAside .convertButton { grid-column: 1 / -1; } }
+-@media (max-width: 640px) { .squarePage, .detailPage { padding: 145px 20px 48px; } .hero { padding: 24px 0 48px; } .feedHeading { display: block; } .feedControls { justify-content: start; margin-top: 18px; } .masonry { grid-template-columns: 1fr; } .detailAside { display: block; } .detailAuthor { flex-wrap: wrap; } .detailAuthor time { width: 100%; margin-left: 41px; } .mediaGrid { grid-template-columns: 1fr; } .mediaGrid img:first-child { grid-column: auto; } .itinerary li { grid-template-columns: 60px 1fr; } }
++@media (max-width: 900px) { .masonry { columns: 2; } .detailLayout { grid-template-columns: 1fr; } .detailAside { position: static; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; } .detailAside .convertButton { grid-column: 1 / -1; } }
++@media (max-width: 640px) { .squarePage, .detailPage { padding: 145px 20px 48px; } .hero { padding: 24px 0 48px; } .feedHeading { display: block; } .feedControls { justify-content: start; margin-top: 18px; } .masonry { columns: 1; } .detailAside { display: block; } .detailAuthor { flex-wrap: wrap; } .detailAuthor time { width: 100%; margin-left: 41px; } .mediaGrid { grid-template-columns: 1fr; } .mediaGrid img:first-child { grid-column: auto; } .itinerary li { grid-template-columns: 60px 1fr; } }
+diff --git a/src/features/trips/trip-draft-handoff.tsx b/src/features/trips/trip-draft-handoff.tsx
+new file mode 100644
+index 0000000..d6eeed1
+--- /dev/null
++++ b/src/features/trips/trip-draft-handoff.tsx
+@@ -0,0 +1,36 @@
++'use client';
++
++import Link from 'next/link';
++import { postsBySlug } from '@/data/posts';
++import { useTripStore } from '@/domain/trips/trip-store';
++import styles from '@/features/square/square.module.css';
++
++export function TripDraftHandoff({ slug }: { slug: string }) {
++  const draft = useTripStore((state) => state.drafts[slug]);
++  const sourceHref = postsBySlug[slug] ? `/square/${slug}` : '/square';
++
++  if (!draft) {
++    return (
++      <main className={styles.detailPage}>
++        <section className={styles.handoffPanel}>
++          <p>LOCAL DRAFT</p>
++          <h1>未找到本地行程草稿</h1>
++          <span>草稿只保存在创建它的浏览器中。你可以返回攻略重新确认并生成新的本地草稿。</span>
++          <Link href={sourceHref}>返回原攻略</Link>
++        </section>
++      </main>
++    );
++  }
++
++  return (
++    <main className={styles.detailPage}>
++      <section className={styles.handoffPanel}>
++        <p>LOCAL DRAFT</p>
++        <h1>{draft.destination} · {draft.days} 天行程草稿已保存</h1>
++        <span>已完成攻略到本地草稿的交接。完整行程工作台将继续在此草稿上编辑。</span>
++        <dl className={styles.draftSummary}><div><dt>预算</dt><dd>¥{draft.budget.toLocaleString('zh-CN')}</dd></div><div><dt>行程节点</dt><dd>{draft.items.length} 个</dd></div><div><dt>状态</dt><dd>待编辑</dd></div></dl>
++        <Link href={`/square/${draft.sourcePostSlug}`}>返回原攻略</Link>
++      </section>
++    </main>
++  );
++}
+diff --git a/tests/component/convert-to-trip.test.tsx b/tests/component/convert-to-trip.test.tsx
+new file mode 100644
+index 0000000..d03c51d
+--- /dev/null
++++ b/tests/component/convert-to-trip.test.tsx
+@@ -0,0 +1,66 @@
++import { render, screen, within } from '@testing-library/react';
++import userEvent from '@testing-library/user-event';
++import { beforeEach, describe, expect, it, vi } from 'vitest';
++import { postsBySlug } from '@/data/posts';
++import { useTripStore } from '@/domain/trips/trip-store';
++import { ConvertToTrip } from '@/features/square/convert-to-trip';
++import { TripDraftHandoff } from '@/features/trips/trip-draft-handoff';
++
++vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
++
++const dali = postsBySlug['dali-slow-5d'];
++
++beforeEach(() => {
++  window.localStorage.clear();
++  useTripStore.setState({ drafts: {} });
++});
++
++describe('ConvertToTrip', () => {
++  it('opens a complete review before saving any draft', async () => {
++    const user = userEvent.setup();
++    render(<ConvertToTrip post={dali} onNavigate={() => undefined} />);
++    const trigger = screen.getByRole('button', { name: /转为行程/ });
++
++    await user.click(trigger);
++
++    const dialog = screen.getByRole('dialog', { name: '确认行程草稿' });
++    expect(dialog).toHaveTextContent('大理');
++    expect(dialog).toHaveTextContent('5 天');
++    expect(dialog).toHaveTextContent('¥5,200');
++    expect(within(dialog).getAllByText(/DAY [1-5]/)).toHaveLength(5);
++    expect(useTripStore.getState().drafts).toEqual({});
++  });
++
++  it('closes the review with Escape and restores trigger focus', async () => {
++    const user = userEvent.setup();
++    render(<ConvertToTrip post={dali} onNavigate={() => undefined} />);
++    const trigger = screen.getByRole('button', { name: /转为行程/ });
++    await user.click(trigger);
++
++    expect(screen.getByRole('button', { name: '关闭行程审核' })).toHaveFocus();
++    await user.keyboard('{Escape}');
++    expect(screen.queryByRole('dialog', { name: '确认行程草稿' })).not.toBeInTheDocument();
++    expect(trigger).toHaveFocus();
++  });
++
++  it('saves only on confirmation and navigates to the exact draft destination', async () => {
++    const user = userEvent.setup();
++    const navigate = vi.fn();
++    render(<ConvertToTrip post={dali} onNavigate={navigate} />);
++
++    await user.click(screen.getByRole('button', { name: /转为行程/ }));
++    await user.click(screen.getByRole('button', { name: '确认并保存草稿' }));
++
++    expect(useTripStore.getState().drafts['dali-slow-5d']).toMatchObject({ destination: '大理', days: 5 });
++    expect(navigate).toHaveBeenCalledWith('/trips/dali-slow-5d');
++  });
++});
++
++describe('TripDraftHandoff', () => {
++  it('recovers gracefully with a link to the source guide when no local draft exists', () => {
++    render(<TripDraftHandoff slug="dali-slow-5d" />);
++
++    expect(screen.getByText('未找到本地行程草稿')).toBeInTheDocument();
++    expect(screen.getByRole('link', { name: '返回原攻略' })).toHaveAttribute('href', '/square/dali-slow-5d');
++  });
++});
+diff --git a/tests/component/square-feed.test.tsx b/tests/component/square-feed.test.tsx
+index b66fd2f..74fa75d 100644
+--- a/tests/component/square-feed.test.tsx
++++ b/tests/component/square-feed.test.tsx
+@@ -1,14 +1,15 @@
+ import { render, screen } from '@testing-library/react';
+ import userEvent from '@testing-library/user-event';
+ import { describe, expect, it, vi } from 'vitest';
+ import { FeedControls } from '@/features/square/feed-controls';
++import SquarePage from '@/app/square/page';
+ 
+ describe('FeedControls', () => {
+   it('lets users switch off recommendations', async () => {
+     const user = userEvent.setup();
+     const change = vi.fn();
+     render(<FeedControls mode="recommended" onModeChange={change} />);
+ 
+     await user.click(screen.getByRole('button', { name: '按时间排序' }));
+ 
+     expect(change).toHaveBeenCalledWith('chronological');
+@@ -24,11 +25,37 @@ describe('FeedControls', () => {
+         onClearInterestTags={clear}
+         onModeChange={() => undefined}
+       />,
+     );
+ 
+     await user.click(screen.getByRole('button', { name: '查看兴趣偏好' }));
+     expect(screen.getByText('慢旅行')).toBeInTheDocument();
+     await user.click(screen.getByRole('button', { name: '清除兴趣偏好' }));
+     expect(clear).toHaveBeenCalledOnce();
+   });
++
++  it('states that personalization is off when chronological mode is active, even when tags exist', async () => {
++    const user = userEvent.setup();
++    render(
++      <FeedControls
++        mode="chronological"
++        interestTags={['慢旅行']}
++        onModeChange={() => undefined}
++      />,
++    );
++
++    expect(screen.getByRole('button', { name: '按时间排序' })).toHaveAttribute('aria-pressed', 'true');
++    await user.click(screen.getByRole('button', { name: '查看兴趣偏好' }));
++    expect(screen.getByText('个性化推荐已关闭，当前按时间排序。')).toBeInTheDocument();
++  });
++
++  it('clears interests by moving the square feed into chronological mode', async () => {
++    const user = userEvent.setup();
++    render(<SquarePage />);
++
++    await user.click(screen.getByRole('button', { name: '查看兴趣偏好' }));
++    await user.click(screen.getByRole('button', { name: '清除兴趣偏好' }));
++
++    expect(screen.getByRole('button', { name: '按时间排序' })).toHaveAttribute('aria-pressed', 'true');
++    expect(screen.getByText('个性化推荐已关闭，当前按时间排序。')).toBeInTheDocument();
++  });
+ });
+diff --git a/tests/unit/extract-trip-draft.test.ts b/tests/unit/extract-trip-draft.test.ts
+index ed01a57..60d9fac 100644
+--- a/tests/unit/extract-trip-draft.test.ts
++++ b/tests/unit/extract-trip-draft.test.ts
+@@ -1,12 +1,12 @@
+ import { describe, expect, it } from 'vitest';
+-import { orderPosts, postsBySlug } from '@/data/posts';
++import { orderPosts, posts, postsBySlug } from '@/data/posts';
+ import { extractTripDraft } from '@/domain/trips/extract-draft';
+ 
+ describe('extractTripDraft', () => {
+   it('extracts a reviewable itinerary draft from a guide', () => {
+     const draft = extractTripDraft(postsBySlug['dali-slow-5d']);
+ 
+     expect(draft).toMatchObject({ destination: '大理', days: 5, budget: 5200 });
+     expect(draft.items).toHaveLength(5);
+     expect(draft.items.map((item) => item.id)).toEqual([
+       'dali-slow-5d-1',
+@@ -28,11 +28,18 @@ describe('extractTripDraft', () => {
+       'guilin-river-morning',
+       'rainy-mountain-notes',
+     ]);
+     expect(recommended).toEqual([
+       'sichuan-autumn-road',
+       'rainy-mountain-notes',
+       'dali-slow-5d',
+       'guilin-river-morning',
+     ]);
+   });
++
++  it('keeps every published guide convertible for each declared day', () => {
++    for (const post of posts) {
++      expect(post.itinerary).toHaveLength(post.days);
++      expect(extractTripDraft(post).items).toHaveLength(post.days);
++    }
++  });
+ });

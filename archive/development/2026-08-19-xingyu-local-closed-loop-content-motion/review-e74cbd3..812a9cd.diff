@@ -1,0 +1,548 @@
+# Review package: e74cbd3..812a9cd
+
+## Commits
+812a9cd feat: persist local travel library
+
+## Files changed
+ src/stores/library-store.ts      | 297 +++++++++++++++++++++++++++++++++++++++
+ tests/unit/library-store.test.ts | 228 ++++++++++++++++++++++++++++++
+ 2 files changed, 525 insertions(+)
+
+## Diff
+diff --git a/src/stores/library-store.ts b/src/stores/library-store.ts
+new file mode 100644
+index 0000000..f90c123
+--- /dev/null
++++ b/src/stores/library-store.ts
+@@ -0,0 +1,297 @@
++'use client';
++
++import { create } from 'zustand';
++import { createStore } from 'zustand/vanilla';
++import { createJSONStorage, persist } from 'zustand/middleware';
++import { z } from 'zod';
++import { offerIdentity } from '@/domain/comparison/offer-identity';
++import { comparisonProductKinds, type ComparisonProductKind, type NormalizedOffer } from '@/domain/comparison/types';
++
++const libraryStorageKey = 'xingyu-library-demo-v1';
++const libraryStorageVersion = 1;
++const maxLikedPostSlugs = 500;
++const maxFavoriteOffers = 200;
++const validityWindowMilliseconds = 15 * 60 * 1000;
++
++export interface FavoriteOfferSnapshot {
++  key: string;
++  provider: string;
++  productKind: ComparisonProductKind;
++  destination: string;
++  totalPrice: number;
++  currency: 'CNY';
++  policySummary: string;
++  observedAt: string;
++  expiresAt: string;
++  deepLink?: string;
++}
++
++export interface PriceAlert {
++  offerKey: string;
++  enabled: boolean;
++  createdAt: string;
++}
++
++export interface LibraryStoreState {
++  likedPostSlugs: string[];
++  favoriteOffers: Record<string, FavoriteOfferSnapshot>;
++  priceAlerts: Record<string, PriceAlert>;
++  togglePostLike: (slug: string) => void;
++  saveOffer: (offer: NormalizedOffer) => void;
++  removeOffer: (offerKey: string) => void;
++  setPriceAlert: (offerKey: string, enabled: boolean) => void;
++  resetLibrary: () => void;
++}
++
++interface LibraryStoreHydrationState {
++  hydrated: boolean;
++  hydrationError: boolean;
++}
++
++interface CreateLibraryStoreOptions {
++  onHydrationError?: (error: unknown) => void;
++}
++
++const initialLibraryState = {
++  likedPostSlugs: [],
++  favoriteOffers: {},
++  priceAlerts: {},
++} satisfies Pick<LibraryStoreState, 'likedPostSlugs' | 'favoriteOffers' | 'priceAlerts'>;
++
++const nonEmptyText = z.string().trim().min(1).max(500);
++const isoTimestamp = z.string().datetime({ offset: true }).superRefine((value, context) => {
++  if (Number.isNaN(Date.parse(value))) context.addIssue({ code: 'custom', message: 'invalid timestamp' });
++});
++const policySummaries = ['可退款｜含行李', '可退款｜不含行李', '不可退款｜含行李', '不可退款｜不含行李'] as const;
++
++const favoriteOfferSnapshotSchema = z.object({
++  key: nonEmptyText,
++  provider: nonEmptyText,
++  productKind: z.enum(comparisonProductKinds),
++  destination: nonEmptyText,
++  totalPrice: z.number().finite().nonnegative(),
++  currency: z.literal('CNY'),
++  policySummary: z.enum(policySummaries),
++  observedAt: isoTimestamp,
++  expiresAt: isoTimestamp,
++  deepLink: z.string().url().optional(),
++}).strict().superRefine((snapshot, context) => {
++  const identity = parseOfferIdentity(snapshot.key);
++  if (!identity || identity.provider !== snapshot.provider || snapshot.key !== offerIdentity(identity)) {
++    context.addIssue({ code: 'custom', path: ['key'], message: 'invalid offer identity' });
++  }
++  if (Date.parse(snapshot.expiresAt) !== Date.parse(snapshot.observedAt) + validityWindowMilliseconds) {
++    context.addIssue({ code: 'custom', path: ['expiresAt'], message: 'invalid offer validity window' });
++  }
++});
++
++const priceAlertSchema = z.object({
++  offerKey: nonEmptyText,
++  enabled: z.literal(true),
++  createdAt: isoTimestamp,
++}).strict();
++
++const persistedLibraryStateSchema = z.object({
++  likedPostSlugs: z.array(nonEmptyText).max(maxLikedPostSlugs),
++  favoriteOffers: z.record(z.string(), favoriteOfferSnapshotSchema),
++  priceAlerts: z.record(z.string(), priceAlertSchema),
++}).strict().superRefine((state, context) => {
++  if (new Set(state.likedPostSlugs).size !== state.likedPostSlugs.length) {
++    context.addIssue({ code: 'custom', path: ['likedPostSlugs'], message: 'duplicate post slug' });
++  }
++  if (Object.keys(state.favoriteOffers).length > maxFavoriteOffers) {
++    context.addIssue({ code: 'custom', path: ['favoriteOffers'], message: 'too many favorite offers' });
++  }
++  for (const [offerKey, snapshot] of Object.entries(state.favoriteOffers)) {
++    if (snapshot.key !== offerKey) {
++      context.addIssue({ code: 'custom', path: ['favoriteOffers', offerKey], message: 'snapshot key mismatch' });
++    }
++  }
++  for (const [offerKey, alert] of Object.entries(state.priceAlerts)) {
++    if (!state.favoriteOffers[offerKey] || alert.offerKey !== offerKey) {
++      context.addIssue({ code: 'custom', path: ['priceAlerts', offerKey], message: 'orphaned alert' });
++    }
++  }
++});
++
++type PersistedLibraryState = Pick<
++  LibraryStoreState,
++  'likedPostSlugs' | 'favoriteOffers' | 'priceAlerts'
++>;
++
++function parseOfferIdentity(key: string): { provider: string; id: string } | undefined {
++  try {
++    const parsed: unknown = JSON.parse(key);
++    if (!Array.isArray(parsed) || parsed.length !== 2 ||
++      typeof parsed[0] !== 'string' || typeof parsed[1] !== 'string' ||
++      !parsed[0].trim() || !parsed[1].trim()) return undefined;
++    return { provider: parsed[0], id: parsed[1] };
++  } catch {
++    return undefined;
++  }
++}
++
++function parsePersistedLibraryState(state: unknown): PersistedLibraryState {
++  const parsed = persistedLibraryStateSchema.safeParse(state);
++  if (parsed.success) return parsed.data;
++  throw new Error('LIBRARY_INVALID_PERSISTED_STATE');
++}
++
++function snapshotFromOffer(offer: NormalizedOffer): FavoriteOfferSnapshot {
++  const destination = offer.destination?.trim();
++  const offerKey = offerIdentity(offer);
++  const observedAt = offer.updatedAt;
++  const observedAtMilliseconds = Date.parse(observedAt);
++  if (!destination || !comparisonProductKinds.includes(offer.kind as ComparisonProductKind) ||
++    !Number.isFinite(offer.totalPrice) || offer.totalPrice < 0 || Number.isNaN(observedAtMilliseconds) ||
++    !z.string().datetime({ offset: true }).safeParse(observedAt).success ||
++    !offer.provider.trim() || !offer.id.trim()) {
++    throw new Error('LIBRARY_INVALID_OFFER');
++  }
++  return {
++    key: offerKey,
++    provider: offer.provider,
++    productKind: offer.kind as ComparisonProductKind,
++    destination,
++    totalPrice: offer.totalPrice,
++    currency: 'CNY',
++    policySummary: `${offer.refundable ? '可退款' : '不可退款'}｜${offer.baggageIncluded ? '含行李' : '不含行李'}`,
++    observedAt,
++    expiresAt: new Date(observedAtMilliseconds + validityWindowMilliseconds).toISOString(),
++  };
++}
++
++function omitRecordEntry<T>(record: Record<string, T>, key: string): Record<string, T> {
++  return Object.fromEntries(Object.entries(record).filter(([candidateKey]) => candidateKey !== key));
++}
++
++function stateCreator(
++  set: (recipe: (state: LibraryStoreState) => Partial<LibraryStoreState>) => void,
++  registerHydrationFailure?: (handler: () => void) => void,
++  allowPersistence?: () => void,
++): LibraryStoreState {
++  registerHydrationFailure?.(() => set(() => ({ ...initialLibraryState })));
++  return {
++    ...initialLibraryState,
++    togglePostLike: (rawSlug) => set((state) => {
++      const slug = rawSlug.trim();
++      if (!slug) throw new Error('LIBRARY_INVALID_POST_SLUG');
++      if (state.likedPostSlugs.includes(slug)) {
++        return { likedPostSlugs: state.likedPostSlugs.filter((existingSlug) => existingSlug !== slug) };
++      }
++      if (state.likedPostSlugs.length >= maxLikedPostSlugs) throw new Error('LIBRARY_LIKED_POST_LIMIT');
++      return { likedPostSlugs: [...state.likedPostSlugs, slug] };
++    }),
++    saveOffer: (offer) => set((state) => {
++      const snapshot = snapshotFromOffer(offer);
++      if (!state.favoriteOffers[snapshot.key] && Object.keys(state.favoriteOffers).length >= maxFavoriteOffers) {
++        throw new Error('LIBRARY_FAVORITE_OFFER_LIMIT');
++      }
++      return { favoriteOffers: { ...state.favoriteOffers, [snapshot.key]: snapshot } };
++    }),
++    removeOffer: (offerKey) => set((state) => {
++      return {
++        favoriteOffers: omitRecordEntry(state.favoriteOffers, offerKey),
++        priceAlerts: omitRecordEntry(state.priceAlerts, offerKey),
++      };
++    }),
++    setPriceAlert: (offerKey, enabled) => set((state) => {
++      if (!enabled) {
++        return { priceAlerts: omitRecordEntry(state.priceAlerts, offerKey) };
++      }
++      if (!state.favoriteOffers[offerKey]) throw new Error('LIBRARY_OFFER_NOT_SAVED');
++      return {
++        priceAlerts: {
++          ...state.priceAlerts,
++          [offerKey]: { offerKey, enabled: true, createdAt: new Date().toISOString() },
++        },
++      };
++    }),
++    resetLibrary: () => {
++      allowPersistence?.();
++      set(() => ({ ...initialLibraryState }));
++    },
++  };
++}
++
++function persistenceOptions(options: CreateLibraryStoreOptions = {}) {
++  return {
++    name: libraryStorageKey,
++    version: libraryStorageVersion,
++    skipHydration: true,
++    partialize: (state: LibraryStoreState): PersistedLibraryState => ({
++      likedPostSlugs: state.likedPostSlugs,
++      favoriteOffers: state.favoriteOffers,
++      priceAlerts: state.priceAlerts,
++    }),
++    merge: (persistedState: unknown, currentState: LibraryStoreState): LibraryStoreState => {
++      if (persistedState === undefined) return currentState;
++      return { ...currentState, ...parsePersistedLibraryState(persistedState) };
++    },
++    migrate: (_persistedState: unknown, version: number): PersistedLibraryState => {
++      throw new Error(`LIBRARY_UNSUPPORTED_PERSISTED_VERSION:${version}`);
++    },
++    onRehydrateStorage: () => (_state: LibraryStoreState | undefined, error: unknown) => {
++      if (error) options.onHydrationError?.(error);
++    },
++  };
++}
++
++function createPersistedLibraryState(options: CreateLibraryStoreOptions = {}) {
++  let preserveMalformedBytes = false;
++  let failClosed = () => {};
++  const libraryStorage = createJSONStorage<PersistedLibraryState>(() => localStorage) ?? {
++    getItem: () => null,
++    setItem: () => {},
++    removeItem: () => {},
++  };
++  const preserveMalformedBytesForRecovery = () => { preserveMalformedBytes = true; };
++  const allowPersistence = () => { preserveMalformedBytes = false; };
++  const safeOptions = {
++    ...options,
++    onHydrationError: (error: unknown) => {
++      preserveMalformedBytesForRecovery();
++      options.onHydrationError?.(error);
++      failClosed();
++    },
++  };
++
++  return persist<LibraryStoreState, [], [], PersistedLibraryState>(
++    (set) => stateCreator(set, (handler) => { failClosed = handler; }, allowPersistence),
++    {
++      ...persistenceOptions(safeOptions),
++      storage: {
++        getItem: (name) => libraryStorage.getItem(name),
++        setItem: (name, value) => (preserveMalformedBytes ? undefined : libraryStorage.setItem(name, value)),
++        removeItem: (name) => (preserveMalformedBytes ? undefined : libraryStorage.removeItem(name)),
++      },
++    },
++  );
++}
++
++export function createLibraryStore(options: CreateLibraryStoreOptions = {}) {
++  return createStore<LibraryStoreState>()(createPersistedLibraryState(options));
++}
++
++export const useLibraryStoreHydration = create<LibraryStoreHydrationState>(() => ({
++  hydrated: false,
++  hydrationError: false,
++}));
++
++export const useLibraryStore = create<LibraryStoreState>()(
++  createPersistedLibraryState({
++    onHydrationError: () => useLibraryStoreHydration.setState({ hydrationError: true }),
++  }),
++);
++
++export async function hydrateLibraryStore() {
++  if (typeof window === 'undefined' || useLibraryStoreHydration.getState().hydrated) return;
++  try {
++    useLibraryStoreHydration.setState({ hydrated: false, hydrationError: false });
++    await useLibraryStore.persist.rehydrate();
++  } catch {
++    useLibraryStoreHydration.setState({ hydrationError: true });
++  } finally {
++    useLibraryStoreHydration.setState({ hydrated: true });
++  }
++}
+diff --git a/tests/unit/library-store.test.ts b/tests/unit/library-store.test.ts
+new file mode 100644
+index 0000000..29abedf
+--- /dev/null
++++ b/tests/unit/library-store.test.ts
+@@ -0,0 +1,228 @@
++import { beforeEach, describe, expect, it } from 'vitest';
++import { offerIdentity } from '@/domain/comparison/offer-identity';
++import type { NormalizedOffer } from '@/domain/comparison/types';
++import { createLibraryStore } from '@/stores/library-store';
++
++const storageKey = 'xingyu-library-demo-v1';
++
++beforeEach(() => window.localStorage.clear());
++
++describe('liked guides', () => {
++  it('toggles a guide slug without duplicating it', () => {
++    const store = createLibraryStore();
++
++    store.getState().togglePostLike('sanya-coast-rainforest');
++    store.getState().togglePostLike('sanya-coast-rainforest');
++
++    expect(store.getState().likedPostSlugs).toEqual([]);
++  });
++
++  it('enforces the 500 liked-guide limit', () => {
++    const store = createLibraryStore();
++
++    for (let index = 0; index < 500; index += 1) store.getState().togglePostLike(`guide-${index}`);
++
++    expect(() => store.getState().togglePostLike('guide-over-limit')).toThrow('LIBRARY_LIKED_POST_LIMIT');
++    expect(store.getState().likedPostSlugs).toHaveLength(500);
++  });
++});
++
++describe('favorite offer snapshots', () => {
++  it('uses offerIdentity so delimiter-containing provider and id pairs remain distinct', () => {
++    const store = createLibraryStore();
++    const first = makeOffer({ provider: 'a:b', id: 'same:id' });
++    const second = makeOffer({ provider: 'a', id: 'b:same:id' });
++
++    store.getState().saveOffer(first);
++    store.getState().saveOffer(second);
++
++    expect(Object.keys(store.getState().favoriteOffers).sort()).toEqual([
++      '["a","b:same:id"]',
++      '["a:b","same:id"]',
++    ]);
++  });
++
++  it('derives the durable snapshot and its fifteen-minute validity window from a normalized offer', () => {
++    const store = createLibraryStore();
++    const offer = makeOffer({
++      destination: '  大理  ',
++      refundable: true,
++      baggageIncluded: false,
++      updatedAt: '2026-08-19T10:00:00.000Z',
++    });
++
++    store.getState().saveOffer(offer);
++
++    expect(store.getState().favoriteOffers[offerIdentity(offer)]).toEqual({
++      key: '["mock-provider","offer-1"]',
++      provider: 'mock-provider',
++      productKind: 'flight',
++      destination: '大理',
++      totalPrice: 1280,
++      currency: 'CNY',
++      policySummary: '可退款｜不含行李',
++      observedAt: '2026-08-19T10:00:00.000Z',
++      expiresAt: '2026-08-19T10:15:00.000Z',
++    });
++  });
++
++  it.each<[string, Partial<NormalizedOffer>]>([
++    ['an empty destination', { destination: '   ' }],
++    ['a non-comparison product kind', { kind: 'train' }],
++    ['a negative total price', { totalPrice: -1 }],
++    ['an invalid timestamp', { updatedAt: 'not-a-date' }],
++  ])('rejects %s instead of saving an invalid snapshot', (_label, patch) => {
++    const store = createLibraryStore();
++
++    expect(() => store.getState().saveOffer(makeOffer(patch))).toThrow('LIBRARY_INVALID_OFFER');
++    expect(store.getState().favoriteOffers).toEqual({});
++  });
++
++  it('enforces the 200 saved-offer limit without blocking replacement of an existing offer', () => {
++    const store = createLibraryStore();
++
++    for (let index = 0; index < 200; index += 1) {
++      store.getState().saveOffer(makeOffer({ provider: `provider-${index}`, id: `offer-${index}` }));
++    }
++    store.getState().saveOffer(makeOffer({ provider: 'provider-0', id: 'offer-0', totalPrice: 777 }));
++
++    expect(store.getState().favoriteOffers['["provider-0","offer-0"]'].totalPrice).toBe(777);
++    expect(() => store.getState().saveOffer(makeOffer({ provider: 'provider-over-limit', id: 'offer-over-limit' })))
++      .toThrow('LIBRARY_FAVORITE_OFFER_LIMIT');
++    expect(Object.keys(store.getState().favoriteOffers)).toHaveLength(200);
++  });
++});
++
++describe('local price alerts', () => {
++  it('requires a saved offer before enabling an alert', () => {
++    const store = createLibraryStore();
++
++    expect(() => store.getState().setPriceAlert('["missing","offer"]', true)).toThrow('LIBRARY_OFFER_NOT_SAVED');
++    expect(store.getState().priceAlerts).toEqual({});
++  });
++
++  it('removing a favorite offer also disables its local alert', () => {
++    const store = createLibraryStore();
++    const offer = makeOffer();
++    store.getState().saveOffer(offer);
++    store.getState().setPriceAlert(offerIdentity(offer), true);
++
++    store.getState().removeOffer(offerIdentity(offer));
++
++    expect(store.getState().priceAlerts).toEqual({});
++  });
++});
++
++describe('persistence and recovery', () => {
++  it('persists a liked post, normalized offer snapshot, and alert for a fresh store to rehydrate', async () => {
++    const source = createLibraryStore();
++    const offer = makeOffer({ id: 'same:id', provider: 'a:b' });
++    await source.persist.rehydrate();
++    source.getState().togglePostLike('sanya-coast-rainforest');
++    source.getState().saveOffer(offer);
++    source.getState().setPriceAlert(offerIdentity(offer), true);
++
++    const rehydrated = createLibraryStore();
++    await rehydrated.persist.rehydrate();
++
++    expect(rehydrated.getState().likedPostSlugs).toEqual(['sanya-coast-rainforest']);
++    expect(rehydrated.getState().favoriteOffers[offerIdentity(offer)]).toMatchObject({
++      key: '["a:b","same:id"]',
++      expiresAt: '2026-08-19T10:15:00.000Z',
++    });
++    expect(rehydrated.getState().priceAlerts[offerIdentity(offer)]).toMatchObject({
++      offerKey: '["a:b","same:id"]',
++      enabled: true,
++    });
++  });
++
++  it('fails closed and preserves malformed bytes until an explicit reset', async () => {
++    const malformedBytes = JSON.stringify({
++      state: { likedPostSlugs: [], favoriteOffers: {}, priceAlerts: {}, unexpected: true },
++      version: 1,
++    });
++    window.localStorage.setItem(storageKey, malformedBytes);
++    let hydrationError = false;
++    const store = createLibraryStore({ onHydrationError: () => { hydrationError = true; } });
++
++    await store.persist.rehydrate();
++    store.getState().togglePostLike('dali-slow-5d');
++
++    expect(hydrationError).toBe(true);
++    expect(store.getState().likedPostSlugs).toEqual(['dali-slow-5d']);
++    expect(window.localStorage.getItem(storageKey)).toBe(malformedBytes);
++
++    store.getState().resetLibrary();
++
++    expect(store.getState().likedPostSlugs).toEqual([]);
++    expect(JSON.parse(window.localStorage.getItem(storageKey) ?? '{}')).toMatchObject({
++      state: { likedPostSlugs: [], favoriteOffers: {}, priceAlerts: {} },
++      version: 1,
++    });
++  });
++
++  it('clears pre-existing in-memory library data when a later rehydrate is malformed', async () => {
++    const store = createLibraryStore();
++    store.getState().togglePostLike('dali-slow-5d');
++    const malformedBytes = JSON.stringify({
++      state: { likedPostSlugs: [], favoriteOffers: {}, priceAlerts: {}, unexpected: true },
++      version: 1,
++    });
++    window.localStorage.setItem(storageKey, malformedBytes);
++
++    await store.persist.rehydrate();
++
++    expect(store.getState().likedPostSlugs).toEqual([]);
++    expect(window.localStorage.getItem(storageKey)).toBe(malformedBytes);
++  });
++
++  it('rejects persisted snapshots with unknown nested keys', async () => {
++    const snapshot = {
++      key: '["mock-provider","offer-1"]',
++      provider: 'mock-provider',
++      productKind: 'flight',
++      destination: '大理',
++      totalPrice: 1280,
++      currency: 'CNY',
++      policySummary: '可退款｜含行李',
++      observedAt: '2026-08-19T10:00:00.000Z',
++      expiresAt: '2026-08-19T10:15:00.000Z',
++      injected: true,
++    };
++    const malformedBytes = JSON.stringify({
++      state: { likedPostSlugs: [], favoriteOffers: { [snapshot.key]: snapshot }, priceAlerts: {} },
++      version: 1,
++    });
++    window.localStorage.setItem(storageKey, malformedBytes);
++    const store = createLibraryStore();
++
++    await store.persist.rehydrate();
++
++    expect(store.getState()).toMatchObject({ likedPostSlugs: [], favoriteOffers: {}, priceAlerts: {} });
++    expect(window.localStorage.getItem(storageKey)).toBe(malformedBytes);
++  });
++});
++
++function makeOffer(patch: Partial<NormalizedOffer> = {}): NormalizedOffer {
++  return {
++    id: 'offer-1',
++    provider: 'mock-provider',
++    kind: 'flight',
++    title: '大理往返机票',
++    origin: '上海',
++    destination: '大理',
++    basePrice: 1000,
++    taxes: 180,
++    mandatoryFees: 100,
++    baggageIncluded: true,
++    refundable: true,
++    providerVerified: true,
++    includedBenefits: ['随身行李'],
++    updatedAt: '2026-08-19T10:00:00.000Z',
++    demoMode: true,
++    currency: 'CNY',
++    totalPrice: 1280,
++    priceExplanation: '含税费与必缴费用',
++    ...patch,
++  } as NormalizedOffer;
++}

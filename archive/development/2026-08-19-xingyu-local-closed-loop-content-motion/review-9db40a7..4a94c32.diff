@@ -1,0 +1,217 @@
+# Review package: 9db40a7..4a94c32
+
+## Commits
+4a94c32 fix: preserve carousel focus pause contracts
+
+## Files changed
+ .../task-8-report.md                               | 10 +++++
+ src/features/home/featured-destinations.module.css |  4 +-
+ tests/component/destination-film-carousel.test.tsx | 46 ++++++++++++++++++++++
+ tests/unit/home-film-style-contract.test.ts        | 17 ++++++++
+ 4 files changed, 75 insertions(+), 2 deletions(-)
+
+## Diff
+diff --git a/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/task-8-report.md b/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/task-8-report.md
+index 3eaf5f6..ae18e46 100644
+--- a/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/task-8-report.md
++++ b/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/task-8-report.md
+@@ -33,20 +33,28 @@ Focused GREEN:
+ - Covered timing, every pause source, pointer drag and cancellation, keyboard endpoints, pagination, reduced motion, real image/route metadata, all narrative CTAs, neutral hydration, local trip/like reveal, and the unchanged search composer.
+ 
+ Review round 1 RED/GREEN:
+ 
+ - Initial RED command: `pnpm test tests/component/destination-film-carousel.test.tsx tests/component/home-shell.test.tsx`
+ - Initial RED result: 7 expected failures and 10 existing passes. Failures demonstrated the premature nested-link pointer capture, non-restartable interval, adjacent tabbability, eager image mounting, eight-item production mapping, and oldest-first liked-guide selection.
+ - Additional interaction-boundary RED: the inactive-slide `inert` assertion failed 1 of 12 carousel tests before production added the inert boundary.
+ - GREEN command: `pnpm test tests/component/destination-film-carousel.test.tsx tests/component/home-shell.test.tsx tests/component/search-composer.test.tsx`
+ - GREEN result: 3 files and 23 tests passed.
+ 
++Review round 2 focus-contract resolution:
++
++- The timer concern conflicted with the approved product behavior: autoplay must remain paused while keyboard or pointer focus is anywhere inside the carousel. A native pointer/focus/click regression now selects the next destination, holds it indefinitely while the control retains focus, moves focus outside the carousel, then proves that autoplay waits a fresh 5999ms and advances only on the final millisecond.
++- That focus regression passed against the existing production implementation before any production edit, so timer logic was intentionally left unchanged. Making a clicked or focused control autoplay would regress keyboard and pointer accessibility.
++- Valid RED: the new control-size contract reported the existing previous/next dimensions as 42px, below the required 44px minimum.
++- GREEN: previous/next controls are now 44×44px; focused carousel plus style-contract run passed 2 files and 14 tests.
++- The four discovery-only CTAs are asserted as exact encoded links to the existing `/square` route. Query-seeding behavior was not expanded.
++
+ ## ImageGen Assets and Provenance
+ 
+ Each discovery-only city used exactly one call to the built-in `image_gen` tool. Generation was not performed through a CLI. Originals remain in the generated-image directory; copies live at clear production paths. All four copies were individually opened with `view_image`, confirmed as 1536×1024, and accepted for destination geography, natural photographic treatment, responsive crop, and absence of overlay text, readable signs, logos, watermarks, or recognizable faces.
+ 
+ ### Beijing
+ 
+ - Exact prompt: `Create one photorealistic natural editorial travel photograph at exactly 1536×1024 pixels (3:2 landscape) for a premium China destination carousel. Beijing at dawn: a geographically accurate elevated long-lens view along Beijing’s historic central axis with the Forbidden City palace roofs and Meridian Gate architecture recognizable in warm first light, subtle morning haze, restrained cinematic color, believable stone and glazed-tile texture, calm spacious composition with the visual subject centered for responsive cropping. No gradients or illustration styling. No text, no readable signs, no logos, no watermark, no borders, no UI, no recognizable faces; any people must be tiny anonymous background silhouettes.`
+ - Generated original: `C:/Users/lenovo/.codex/generated_images/01a01db4-a504-7232-95e8-d3187a66dcad/exec-a64474ac-73bc-4457-afaa-96afde3dbb27.png`
+ - Workspace copy: `public/assets/home-film/beijing-forbidden-city-dawn.png`
+ - SHA-256: `61FF2127073A3320233C1431C4D4D85062BA0C18693014DCBBF69211174CDCA3`
+@@ -78,32 +86,34 @@ Each discovery-only city used exactly one call to the built-in `image_gen` tool.
+ 
+ ## Design Evidence
+ 
+ - Read and followed the approved homepage target `docs/design/selected-homepage-option-1.png`, the content target `docs/design/xingyu-content-hub-target.png`, the full Task 8 brief, and the homepage/motion sections of the approved plan and spec.
+ - Followed the Product Design critical override at `C:/Users/lenovo/.codex/plugins/cache/openai-curated-remote/product-design/0.1.52/references/critical-overrides.md` and the local frontend-design guidance.
+ - Reused the approved tokens `#10100F`, `#F4F0E8`, `#B79A68`, `#26312B`, `#4D6B63`, and `#A94032`, plus the existing Noto Serif/Sans roles.
+ - Kept the moving travel viewfinder as the single new signature motion surface. Supporting cards use only state-driven focus/hover treatment; lift is 6px and image scale is capped at 1.035.
+ - Sand glow appears only on the active carousel card, active pagination, and hovered controls. No gradient, CSS drawing, inline/handcrafted SVG, fake map line, decorative numbering, or generic metric dashboard was added.
+ - The 390px rules collapse all grids, keep adjacent film edges visible inside an overflow-clipped viewport, preserve readable copy and focus, and remove large transforms under reduced motion.
+ - Twelve 44px pagination targets wrap within a 354px mobile content width while their visual pills stay restrained; no horizontal overflow is introduced.
++- Previous/next controls also use a measured 44×44px target while retaining the existing restrained circular treatment.
+ 
+ ## React Review Evidence
+ 
+ - Direct imports keep the client bundle boundary explicit; the static post-to-film mapping remains in the server composition.
+ - High-frequency pointer origin and drag intent stay in a ref; pause booleans live in state because they own timeout lifecycle and must synchronously clear/restart the single autoplay deadline.
+ - Store subscriptions select only the liked slugs, trip records, and individual hydration booleans they render.
+ - Derived recent-trip and newest-valid liked-guide data is memoized; reversing a copy preserves store order and no effect mirrors derived render state.
+ - `useSyncExternalStore` provides a stable false server snapshot and true client snapshot for hydration-safe local content without `setState` inside an effect.
+ - All controls are DOM-native buttons/links with Phosphor icons, visible focus, semantic grouping, and no child-key hijacking.
+ 
+ ## Fresh Verification
+ 
++- Review round 2 focused carousel/home/style contract: 3 files, 19 tests passed.
+ - Focused home/search: 3 files, 23 tests passed.
+ - Full Vitest: 40 files, 323 tests passed; exit 0.
+ - `pnpm lint`: exit 0.
+ - `pnpm typecheck`: exit 0.
+ - `pnpm build`: exit 0; Next.js 16.2.12 compiled successfully and generated 14/14 static pages.
+ - `git diff --check`: no whitespace errors; only the repository's existing LF-to-CRLF notices were printed.
+ - No browser, Playwright/E2E, ledger, deployment, or unrelated MasterGo process action was performed.
+ 
+ ## Files
+ 
+diff --git a/src/features/home/featured-destinations.module.css b/src/features/home/featured-destinations.module.css
+index db7278e..5e36956 100644
+--- a/src/features/home/featured-destinations.module.css
++++ b/src/features/home/featured-destinations.module.css
+@@ -174,22 +174,22 @@
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   gap: 16px;
+   width: min(calc(100% - 48px), 440px);
+   margin: 18px auto 0;
+ }
+ 
+ .filmControls button {
+   display: grid;
+-  width: 42px;
+-  height: 42px;
++  width: 44px;
++  height: 44px;
+   padding: 0;
+   place-items: center;
+   color: var(--ivory);
+   border: 1px solid rgb(244 240 232 / 24%);
+   border-radius: 50%;
+   background: transparent;
+   cursor: pointer;
+   transition: color 320ms ease, border-color 320ms ease, background-color 320ms ease, box-shadow 320ms ease;
+ }
+ 
+diff --git a/tests/component/destination-film-carousel.test.tsx b/tests/component/destination-film-carousel.test.tsx
+index d102d1c..cf7d095 100644
+--- a/tests/component/destination-film-carousel.test.tsx
++++ b/tests/component/destination-film-carousel.test.tsx
+@@ -87,20 +87,53 @@ describe('DestinationFilmCarousel', () => {
+ 
+     fireEvent.mouseLeave(carousel);
+     expect(autoplayDeadlineCount()).toBe(2);
+     act(() => vi.advanceTimersByTime(5999));
+     expect(position()).toHaveTextContent('1 / 4');
+     act(() => vi.advanceTimersByTime(1));
+     expect(position()).toHaveTextContent('2 / 4');
+     expect(autoplayDeadlineCount()).toBe(3);
+   });
+ 
++  it('keeps a native-clicked control paused until focus leaves, then starts a fresh dwell', () => {
++    vi.useFakeTimers();
++    render(
++      <>
++        <DestinationFilmCarousel destinations={destinations} intervalMs={6000} />
++        <button type="button">取景窗外的控件</button>
++      </>,
++    );
++
++    act(() => vi.advanceTimersByTime(5900));
++    const nextButton = screen.getByRole('button', { name: '下一个目的地' });
++    fireEvent.pointerDown(nextButton, { pointerId: 1 });
++    act(() => nextButton.focus());
++    fireEvent.pointerUp(nextButton, { pointerId: 1 });
++    fireEvent.click(nextButton);
++    expect(nextButton).toHaveFocus();
++    expect(position()).toHaveTextContent('2 / 4');
++
++    act(() => vi.advanceTimersByTime(12_000));
++    expect(position()).toHaveTextContent('2 / 4');
++
++    const outsideButton = screen.getByRole('button', { name: '取景窗外的控件' });
++    fireEvent.pointerDown(outsideButton, { pointerId: 2 });
++    act(() => outsideButton.focus());
++    fireEvent.pointerUp(outsideButton, { pointerId: 2 });
++    fireEvent.click(outsideButton);
++    expect(outsideButton).toHaveFocus();
++    act(() => vi.advanceTimersByTime(5999));
++    expect(position()).toHaveTextContent('2 / 4');
++    act(() => vi.advanceTimersByTime(1));
++    expect(position()).toHaveTextContent('3 / 4');
++  });
++
+   it('restarts the autoplay deadline after controls, pagination, and drag selection', () => {
+     vi.useFakeTimers();
+     render(<DestinationFilmCarousel destinations={destinations} intervalMs={6000} />);
+     const viewport = screen.getByTestId('destination-film-viewport');
+ 
+     act(() => vi.advanceTimersByTime(5900));
+     fireEvent.click(screen.getByRole('button', { name: '下一个目的地' }));
+     act(() => vi.advanceTimersByTime(5999));
+     expect(position()).toHaveTextContent('2 / 4');
+     act(() => vi.advanceTimersByTime(1));
+@@ -268,12 +301,25 @@ describe('DestinationFilmCarousel', () => {
+     expect(screen.getByRole('status', { name: '目的地位置' })).toHaveTextContent('1 / 12');
+     for (const destination of destinationNames) {
+       expect(screen.getByRole('button', { name: `查看${destination}` })).toBeInTheDocument();
+       const link = screen.getByRole('link', { name: `打开${destination}攻略`, hidden: true });
+       expect(link.getAttribute('href')).toMatch(/^\/(square(?:\/[^?]+|\?destination=)|compare\?)/);
+       const article = link.closest('article');
+       expect(article).not.toBeNull();
+       expect(within(article as HTMLElement).getByText(/\d+ 天 · \S+/)).toBeInTheDocument();
+       expect(within(article as HTMLElement).getByText(/。$/)).toBeInTheDocument();
+     }
++
++    const discoveryRoutes = {
++      北京: '/square?destination=%E5%8C%97%E4%BA%AC',
++      西安: '/square?destination=%E8%A5%BF%E5%AE%89',
++      重庆: '/square?destination=%E9%87%8D%E5%BA%86',
++      厦门: '/square?destination=%E5%8E%A6%E9%97%A8',
++    } as const;
++    for (const [destination, href] of Object.entries(discoveryRoutes)) {
++      expect(screen.getByRole('link', {
++        name: `打开${destination}攻略`,
++        hidden: true,
++      })).toHaveAttribute('href', href);
++    }
+   });
+ });
+diff --git a/tests/unit/home-film-style-contract.test.ts b/tests/unit/home-film-style-contract.test.ts
+new file mode 100644
+index 0000000..7921645
+--- /dev/null
++++ b/tests/unit/home-film-style-contract.test.ts
+@@ -0,0 +1,17 @@
++import { readFileSync } from 'node:fs';
++import { resolve } from 'node:path';
++import { expect, it } from 'vitest';
++
++const homeFilmCss = readFileSync(
++  resolve('src/features/home/featured-destinations.module.css'),
++  'utf8',
++);
++
++it('keeps previous and next controls at least 44px in both dimensions', () => {
++  const controlRule = /\.filmControls button\s*\{([^}]*)\}/.exec(homeFilmCss)?.[1] ?? '';
++  const width = Number(/width:\s*(\d+)px/.exec(controlRule)?.[1]);
++  const height = Number(/height:\s*(\d+)px/.exec(controlRule)?.[1]);
++
++  expect(width).toBeGreaterThanOrEqual(44);
++  expect(height).toBeGreaterThanOrEqual(44);
++});

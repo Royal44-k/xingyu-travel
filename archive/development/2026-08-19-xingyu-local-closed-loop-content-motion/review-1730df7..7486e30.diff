@@ -1,0 +1,216 @@
+# Review package: 1730df7..7486e30
+
+## Commits
+7486e30 fix: reject duplicate trip source slugs
+
+## Files changed
+ src/stores/trip-store.ts      | 21 +++++++++++
+ tests/unit/trip-store.test.ts | 81 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 102 insertions(+)
+
+## Diff
+diff --git a/src/stores/trip-store.ts b/src/stores/trip-store.ts
+index 8d351b1..612f065 100644
+--- a/src/stores/trip-store.ts
++++ b/src/stores/trip-store.ts
+@@ -170,20 +170,40 @@ function validateTripIntegrity(
+     context.addIssue({ code: 'custom', path: ['candidates'], message: 'duplicate candidate id' });
+   }
+   const memberIds = new Set<string>(demoMembers.map((member) => member.id));
+   for (const [memberId, candidateId] of Object.entries(trip.votes)) {
+     if (!memberIds.has(memberId) || !candidateIds.has(candidateId)) {
+       context.addIssue({ code: 'custom', path: ['votes', memberId], message: 'invalid vote' });
+     }
+   }
+ }
+ 
++function refineUniqueTripSourceSlugs(
++  trips: Record<string, { sourcePostSlug?: unknown }>,
++  context: z.RefinementCtx,
++) {
++  const firstTripIdBySourceSlug = new Map<string, string>();
++  for (const [tripId, trip] of Object.entries(trips)) {
++    const sourcePostSlug = trip.sourcePostSlug;
++    if (typeof sourcePostSlug !== 'string' || sourcePostSlug.length === 0) continue;
++    if (firstTripIdBySourceSlug.has(sourcePostSlug)) {
++      context.addIssue({
++        code: 'custom',
++        path: ['trips', tripId, 'sourcePostSlug'],
++        message: 'duplicate source post slug',
++      });
++      continue;
++    }
++    firstTripIdBySourceSlug.set(sourcePostSlug, tripId);
++  }
++}
++
+ function persistedTripStateSchemaFor(tripSchema: typeof workbenchTripSchema | typeof workbenchTripV1Schema) {
+   return z.object({
+   trips: z.record(z.string(), tripSchema),
+   partnerIntents: z.record(z.string(), z.boolean()),
+   guardianPlans: z.record(z.string(), z.object({
+     id: z.string().min(1).max(120),
+     title: z.string().min(1).max(160),
+   }).strict()).default({}),
+ }).strict().superRefine((state, context) => {
+   for (const [tripId, trip] of Object.entries(state.trips)) {
+@@ -194,20 +214,21 @@ function persistedTripStateSchemaFor(tripSchema: typeof workbenchTripSchema | ty
+   for (const tripId of Object.keys(state.partnerIntents)) {
+     if (!state.trips[tripId]) {
+       context.addIssue({ code: 'custom', path: ['partnerIntents', tripId], message: 'orphan intent' });
+     }
+   }
+   for (const tripId of Object.keys(state.guardianPlans)) {
+     if (!state.trips[tripId]) {
+       context.addIssue({ code: 'custom', path: ['guardianPlans', tripId], message: 'orphan guardian plan' });
+     }
+   }
++  refineUniqueTripSourceSlugs(state.trips, context);
+   });
+ }
+ 
+ const persistedTripStateV1Schema = persistedTripStateSchemaFor(workbenchTripV1Schema);
+ const persistedTripStateSchema = persistedTripStateSchemaFor(workbenchTripSchema);
+ const persistedTripEnvelopeSchema = z.object({
+   state: z.unknown(),
+   version: z.number().int().nonnegative(),
+ }).strict();
+ 
+diff --git a/tests/unit/trip-store.test.ts b/tests/unit/trip-store.test.ts
+index 6c3f248..5595474 100644
+--- a/tests/unit/trip-store.test.ts
++++ b/tests/unit/trip-store.test.ts
+@@ -312,20 +312,94 @@ describe('draft merge and persistence', () => {
+     const safeState = structuredClone(store.getState().trips);
+     window.localStorage.setItem(canonicalKey, malformedBytes);
+ 
+     await store.persist.rehydrate();
+ 
+     expect(hydrationError).toBe(true);
+     expect(store.getState().trips).toEqual(safeState);
+     expect(window.localStorage.getItem(canonicalKey)).toBe(malformedBytes);
+   });
+ 
++  it('rejects duplicate source slugs in an exact v2 envelope and preserves its raw bytes', async () => {
++    const first = acceptedTrip();
++    const duplicateId = 'draft-dali-duplicate';
++    const duplicate = { ...structuredClone(first), id: duplicateId };
++    const raw = JSON.stringify({
++      state: {
++        trips: { [first.id]: first, [duplicate.id]: duplicate },
++        partnerIntents: { [duplicate.id]: true },
++        guardianPlans: { [first.id]: { id: 'PLAN-A', title: '室内备选' } },
++      },
++      version: 2,
++    });
++    window.localStorage.setItem(canonicalKey, raw);
++    let hydrationError = false;
++    const store = createTripStore({ onHydrationError: () => { hydrationError = true; } });
++
++    await store.persist.rehydrate();
++
++    expect(hydrationError).toBe(true);
++    expect(store.getState().trips).toEqual({});
++    expect(store.getState().partnerIntents).toEqual({});
++    expect(store.getState().guardianPlans).toEqual({});
++    expect(window.localStorage.getItem(canonicalKey)).toBe(raw);
++  });
++
++  it.each([0, 1])('rejects duplicate source slugs during version-%i migration', async (version) => {
++    const first = withoutV2Fields(acceptedTrip());
++    const duplicateId = 'draft-dali-duplicate';
++    const duplicate = { ...structuredClone(first), id: duplicateId };
++    const raw = JSON.stringify({
++      state: {
++        trips: { [daliDraft.id]: first, [duplicateId]: duplicate },
++        partnerIntents: { [duplicateId]: true },
++        guardianPlans: {},
++      },
++      version,
++    });
++    window.localStorage.setItem(canonicalKey, raw);
++    let hydrationError = false;
++    const store = createTripStore({ onHydrationError: () => { hydrationError = true; } });
++
++    await store.persist.rehydrate();
++
++    expect(hydrationError).toBe(true);
++    expect(store.getState().trips).toEqual({});
++    expect(store.getState().partnerIntents).toEqual({});
++    expect(window.localStorage.getItem(canonicalKey)).toBe(raw);
++  });
++
++  it('reports missing source slugs independently instead of treating absence as a duplicate', async () => {
++    const first = acceptedTrip() as unknown as Record<string, unknown>;
++    const second = { ...acceptedTrip(), id: 'draft-without-source-two' } as unknown as Record<string, unknown>;
++    delete first.sourcePostSlug;
++    delete second.sourcePostSlug;
++    const raw = JSON.stringify({
++      state: {
++        trips: { [String(first.id)]: first, [String(second.id)]: second },
++        partnerIntents: {},
++        guardianPlans: {},
++      },
++      version: 2,
++    });
++    window.localStorage.setItem(canonicalKey, raw);
++    let hydrationFailure: unknown;
++    const store = createTripStore({ onHydrationError: (error) => { hydrationFailure = error; } });
++
++    await store.persist.rehydrate();
++
++    const issues = hydrationIssues(hydrationFailure);
++    expect(issues.filter((issue) => issue.path.at(-1) === 'sourcePostSlug')).toHaveLength(2);
++    expect(issues.map((issue) => issue.message)).not.toContain('duplicate source post slug');
++    expect(window.localStorage.getItem(canonicalKey)).toBe(raw);
++  });
++
+   it('does not duplicate a legacy draft already represented by source slug', async () => {
+     const canonical = createTripStore();
+     canonical.getState().acceptDraft(daliDraft);
+     const canonicalTrip = structuredClone(canonical.getState().trips[daliDraft.id]);
+     window.localStorage.setItem(canonicalKey, JSON.stringify({
+       state: { trips: { [daliDraft.id]: canonicalTrip }, partnerIntents: {}, guardianPlans: {} },
+       version: 2,
+     }));
+     const changedDraft = { ...daliDraft, budget: 9999 };
+     const legacyBytes = JSON.stringify({
+@@ -333,20 +407,22 @@ describe('draft merge and persistence', () => {
+       version: 0,
+     });
+     window.localStorage.setItem(legacyDraftKey, legacyBytes);
+     const store = createTripStore();
+ 
+     await store.persist.rehydrate();
+     await store.persist.rehydrate();
+ 
+     expect(Object.keys(store.getState().trips)).toEqual([daliDraft.id]);
+     expect(store.getState().trips[daliDraft.id].budget).toBe(daliDraft.budget);
++    const persisted = JSON.parse(window.localStorage.getItem(canonicalKey) ?? '{}');
++    expect(Object.keys(persisted.state.trips)).toEqual([daliDraft.id]);
+     expect(window.localStorage.getItem(legacyDraftKey)).toBe(legacyBytes);
+   });
+ 
+   it('persists a newly discovered legacy draft into an existing v2 canonical state once', async () => {
+     const canonical = createTripStore();
+     canonical.getState().acceptDraft(daliDraft);
+     const canonicalTrip = structuredClone(canonical.getState().trips[daliDraft.id]);
+     window.localStorage.setItem(canonicalKey, JSON.stringify({
+       state: { trips: { [daliDraft.id]: canonicalTrip }, partnerIntents: {}, guardianPlans: {} },
+       version: 2,
+@@ -391,10 +467,15 @@ function acceptedTrip() {
+   const store = createTripStore();
+   store.getState().acceptDraft(daliDraft);
+   return structuredClone(store.getState().trips[daliDraft.id]);
+ }
+ 
+ function withoutV2Fields(trip: ReturnType<typeof acceptedTrip>) {
+   return Object.fromEntries(Object.entries(trip).filter(
+     ([key]) => key !== 'createdAt' && key !== 'updatedAt' && key !== 'coverImage',
+   ));
+ }
++
++function hydrationIssues(error: unknown): Array<{ message: string; path: PropertyKey[] }> {
++  const cause = (error as { cause?: { issues?: Array<{ message: string; path: PropertyKey[] }> } })?.cause;
++  return cause?.issues ?? [];
++}

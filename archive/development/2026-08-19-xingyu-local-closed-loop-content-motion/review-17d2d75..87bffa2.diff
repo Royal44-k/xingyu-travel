@@ -1,0 +1,1250 @@
+# Review package: 17d2d75..87bffa2
+
+## Commits
+87bffa2 feat: expand xingyu destination stories
+
+## Files changed
+ docs/design/asset-provenance.md            |  53 ++++
+ docs/design/destination-asset-prompts.md   | 467 +++++++++++++++++++++++++++++
+ public/assets/destinations/dali/01.png     | Bin 0 -> 2487912 bytes
+ public/assets/destinations/dali/02.png     | Bin 0 -> 2783522 bytes
+ public/assets/destinations/dali/03.png     | Bin 0 -> 2788422 bytes
+ public/assets/destinations/dali/04.png     | Bin 0 -> 2432131 bytes
+ public/assets/destinations/guilin/01.png   | Bin 0 -> 2173777 bytes
+ public/assets/destinations/guilin/02.png   | Bin 0 -> 2931317 bytes
+ public/assets/destinations/guilin/03.png   | Bin 0 -> 3248743 bytes
+ public/assets/destinations/guilin/04.png   | Bin 0 -> 2609061 bytes
+ public/assets/destinations/guizhou/01.png  | Bin 0 -> 3461510 bytes
+ public/assets/destinations/guizhou/02.png  | Bin 0 -> 2802685 bytes
+ public/assets/destinations/guizhou/03.png  | Bin 0 -> 2864187 bytes
+ public/assets/destinations/guizhou/04.png  | Bin 0 -> 2452418 bytes
+ public/assets/destinations/hangzhou/01.png | Bin 0 -> 2658185 bytes
+ public/assets/destinations/hangzhou/02.png | Bin 0 -> 3459494 bytes
+ public/assets/destinations/hangzhou/03.png | Bin 0 -> 3245205 bytes
+ public/assets/destinations/hangzhou/04.png | Bin 0 -> 2245999 bytes
+ public/assets/destinations/nanjing/01.png  | Bin 0 -> 3016680 bytes
+ public/assets/destinations/nanjing/02.png  | Bin 0 -> 3458625 bytes
+ public/assets/destinations/nanjing/03.png  | Bin 0 -> 2411180 bytes
+ public/assets/destinations/nanjing/04.png  | Bin 0 -> 2917949 bytes
+ public/assets/destinations/sanya/01.png    | Bin 0 -> 2273385 bytes
+ public/assets/destinations/sanya/02.png    | Bin 0 -> 3238730 bytes
+ public/assets/destinations/sanya/03.png    | Bin 0 -> 2598942 bytes
+ public/assets/destinations/sanya/04.png    | Bin 0 -> 3762848 bytes
+ public/assets/destinations/shanghai/01.png | Bin 0 -> 2397174 bytes
+ public/assets/destinations/shanghai/02.png | Bin 0 -> 3238117 bytes
+ public/assets/destinations/shanghai/03.png | Bin 0 -> 2743007 bytes
+ public/assets/destinations/shanghai/04.png | Bin 0 -> 2135161 bytes
+ public/assets/destinations/sichuan/01.png  | Bin 0 -> 2959320 bytes
+ public/assets/destinations/sichuan/02.png  | Bin 0 -> 2579336 bytes
+ public/assets/destinations/sichuan/03.png  | Bin 0 -> 3391694 bytes
+ public/assets/destinations/sichuan/04.png  | Bin 0 -> 3046750 bytes
+ src/data/assets.ts                         |   3 +
+ src/data/destination-assets.ts             |  72 +++++
+ src/data/posts.ts                          | 290 +++++++++++++-----
+ tests/unit/assets.test.ts                  |  26 +-
+ tests/unit/content-invariants.test.ts      |  46 +++
+ 39 files changed, 883 insertions(+), 74 deletions(-)
+
+## Diff
+diff --git a/docs/design/asset-provenance.md b/docs/design/asset-provenance.md
+new file mode 100644
+index 0000000..30f4811
+--- /dev/null
++++ b/docs/design/asset-provenance.md
+@@ -0,0 +1,53 @@
++# 行屿目的地图片资产来源与检查记录
++
++Task 6 的 32 张目的地图片均由 Codex 内置 ImageGen 逐张独立生成，没有使用 CLI、外部图片 API、拼图或批量替代。最终调用的逐字提示词记录在 [destination-asset-prompts.md](./destination-asset-prompts.md)，下表的“提示词”列与该文件中的同名条目一一对应。实际输出均为 PNG、1536×1024、3:2 横图。
++
++检查口径：在接受每个生成结果前用 `view_image` 目视检查地点特征、构图差异、自然写实质感，并排除可辨识人脸、可读文字、徽标、水印、过度 HDR 与灾难/事故画面；复制到注册路径后再次逐张检查。文件大小不是视觉检查的替代。
++
++| 提示词 | 注册文件 | 内置 ImageGen 原始输出 | 实际尺寸 | 最终检查 |
++| --- | --- | --- | --- | --- |
++| dali/01 | `public/assets/destinations/dali/01.png` | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-10a17045-8982-4c3c-92c3-46076560b775.png` | 1536×1024 | 接受：白族院落可信；无人脸、文字、徽标或水印。 |
++| dali/02 | `public/assets/destinations/dali/02.png` | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-cdef4333-ad0d-469b-ab29-308722ad5165.png` | 1536×1024 | 接受：洱海骑行路径、湖与苍山层次可信；无禁用元素。 |
++| dali/03 | `public/assets/destinations/dali/03.png` | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-4077396d-c263-4157-a695-80cc200dd650.png` | 1536×1024 | 接受：修正后为低矮白族农宅与喜洲稻田；墙面空白，无伪文字。 |
++| dali/04 | `public/assets/destinations/dali/04.png` | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-815c8c1f-28ee-4be8-b885-25ffd262c8a4.png` | 1536×1024 | 接受：双廊湖岸、洱海与苍山关系可信；无禁用元素。 |
++| guilin/01 | `public/assets/destinations/guilin/01.png` | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-e37fb085-f51b-4083-9a72-f8657c5f93ba.png` | 1536×1024 | 接受：漓江晨雾及喀斯特层次可信；远舟无可辨识人物。 |
++| guilin/02 | `public/assets/destinations/guilin/02.png` | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-e7f150e6-5513-4e40-8bf9-4aa599649b39.png` | 1536×1024 | 接受：遇龙河竹筏与浅水可信；无人脸、文字或品牌。 |
++| guilin/03 | `public/assets/destinations/guilin/03.png` | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-cd8a88b9-64aa-4e90-a49f-92d8d4be3cee.png` | 1536×1024 | 接受：阳朔乡间骑行路与峰林可信；构图不重复。 |
++| guilin/04 | `public/assets/destinations/guilin/04.png` | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-ef4e346a-a4ad-4fae-b65d-e229d9c341db.png` | 1536×1024 | 接受：桂林城市水岸与近城喀斯特可信；灯光克制。 |
++| sichuan/01 | `public/assets/destinations/sichuan/01.png` | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-eab038e2-62d5-45d5-ba11-51c07f5325a7.png` | 1536×1024 | 接受：新都桥秋林公路安全、地貌可信；无车辆事故。 |
++| sichuan/02 | `public/assets/destinations/sichuan/02.png` | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-7f45a864-6da5-496d-90ac-2c11c9375694.png` | 1536×1024 | 接受：塔公草原与雅拉雪峰尺度可信；无可辨识人物。 |
++| sichuan/03 | `public/assets/destinations/sichuan/03.png` | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-ff619ebe-4f22-46b8-90c3-140c79d9b698.png` | 1536×1024 | 接受：墨石地貌与完整栈道可信；无危险情节。 |
++| sichuan/04 | `public/assets/destinations/sichuan/04.png` | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-9e6b8589-6dbf-4768-b391-7aae7f464f22.png` | 1536×1024 | 接受：康定山路完整、安全、天气稳定；无禁用元素。 |
++| sanya/01 | `public/assets/destinations/sanya/01.png` | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-341aa225-ac49-47c3-b2f4-0a03aa8e4792.png` | 1536×1024 | 接受：亚龙湾黎明海岸可信；无人群、品牌或过饱和海水。 |
++| sanya/02 | `public/assets/destinations/sanya/02.png` | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-ead3ee0d-b24e-4754-aea9-7acf83af4f5e.png` | 1536×1024 | 接受：蜈支洲岛浅水与礁岸可信；无禁用元素。 |
++| sanya/03 | `public/assets/destinations/sanya/03.png` | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-756c7c01-cac2-44f0-ade3-3e8ea5cc7122.png` | 1536×1024 | 接受：后海村巷和无品牌冲浪板可信；门面无文字。 |
++| sanya/04 | `public/assets/destinations/sanya/04.png` | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-cd6e12ab-2075-441e-bb78-ea4edc7a5feb.png` | 1536×1024 | 接受：呀诺达雨林与维护步道可信；无危险或灾害画面。 |
++| hangzhou/01 | `public/assets/destinations/hangzhou/01.png` | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-79cc58ad-ff11-4f0d-a592-3966fadb6360.png` | 1536×1024 | 接受：西湖晨雾和湖岸尺度可信；无禁用元素。 |
++| hangzhou/02 | `public/assets/destinations/hangzhou/02.png` | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-f7b6aa34-131c-400f-a14d-4c0e27874bfd.png` | 1536×1024 | 接受：龙井茶坡和村落层次可信；无人脸、文字或品牌。 |
++| hangzhou/03 | `public/assets/destinations/hangzhou/03.png` | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-acef7fb0-54b6-42af-ab1c-6034a8a3a8fb.png` | 1536×1024 | 接受：灵隐竹石小径可信；无危险或宗教伪文字。 |
++| hangzhou/04 | `public/assets/destinations/hangzhou/04.png` | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-db478708-8c1e-4de9-9804-faf339015639.png` | 1536×1024 | 接受：修正为宽阔杭州运河与大型三孔桥；无可读文字。 |
++| nanjing/01 | `public/assets/destinations/nanjing/01.png` | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-d99057cb-db80-45fe-ac46-e4f994d22c22.png` | 1536×1024 | 接受：明城墙与城市晨景可信；无禁用元素。 |
++| nanjing/02 | `public/assets/destinations/nanjing/02.png` | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-d2dd5d53-1ca3-4141-92fa-f7e68897e05b.png` | 1536×1024 | 接受：梧桐大道秋色可信；无人脸、车辆或品牌。 |
++| nanjing/03 | `public/assets/destinations/nanjing/03.png` | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-465c68da-432a-41f9-9876-7d6d78720f42.png` | 1536×1024 | 接受：修正为宽阔城市秦淮河与多孔桥；灯笼、门面无文字。 |
++| nanjing/04 | `public/assets/destinations/nanjing/04.png` | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-57e955a9-ecdf-4cc0-bfa8-cc232d75fb5a.png` | 1536×1024 | 接受：中山陵林荫中轴与台阶可信；无人脸和文字。 |
++| shanghai/01 | `public/assets/destinations/shanghai/01.png` | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-1eecba26-5202-4f3c-b570-73bfe600b1f1.png` | 1536×1024 | 接受：二次检查后重生；外滩蓝调城市尺度可信，立面仅普通窗光，无可读文字、徽标或水印。 |
++| shanghai/02 | `public/assets/destinations/shanghai/02.png` | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-7e4c4ff3-a7b0-4aa9-9e64-76180c8b1b59.png` | 1536×1024 | 接受：武康路树影与街廓可信；无人脸、车牌或招牌。 |
++| shanghai/03 | `public/assets/destinations/shanghai/03.png` | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-155727eb-8c08-4685-90a1-71abe62ba94b.png` | 1536×1024 | 接受：苏州河桥与仓库层次可信；无文字或品牌。 |
++| shanghai/04 | `public/assets/destinations/shanghai/04.png` | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-1d4c65c7-dd33-43b1-9fdf-931b58dd47bc.png` | 1536×1024 | 接受：修正为纯窗光的陆家嘴长焦夜景；无屏幕、伪文字或徽标。 |
++| guizhou/01 | `public/assets/destinations/guizhou/01.png` | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-edc973f3-e630-4f17-90cc-4fae2801cc4d.png` | 1536×1024 | 接受：小七孔石桥与水色可信；无人脸、文字或灾害画面。 |
++| guizhou/02 | `public/assets/destinations/guizhou/02.png` | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-1cf5a87c-b58c-4cd7-995d-442a21d5d3bd.png` | 1536×1024 | 接受：西江苗寨晨雾与木楼层次可信；无伪文字。 |
++| guizhou/03 | `public/assets/destinations/guizhou/03.png` | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-67c8fa32-b99a-4299-b986-28f86753a7f4.png` | 1536×1024 | 接受：加榜梯田地理与层叠关系可信；画面较偏蓄水/早季、非最浓金秋，仍符合最终提示词的绿金梯田范围。 |
++| guizhou/04 | `public/assets/destinations/guizhou/04.png` | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-9e7ed1ac-f60c-4db1-bec0-a1820edc08eb.png` | 1536×1024 | 接受：贵阳山城密度和山谷层次可信；无可读楼名或徽标。 |
++
++## 被拒绝的生成结果与修正
++
++总计 38 次独立 ImageGen 调用，32 张接受、6 张拒绝。拒绝结果未保留在最终产品注册路径。
++
++| 目标 | 被拒绝的原始输出 | 原因 | 修正结果 |
++| --- | --- | --- | --- |
++| dali/03（第一次） | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-896dc30f-50b0-4d57-b343-a5d14cf74b4d.png` | 农宅呈徽派马头墙气质，地点错误。 | 加强大理喜洲、低矮白族农宅与禁徽派约束后重生。 |
++| dali/03（第二次） | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-f6ebaa12-4fb7-4c80-95d3-749bdc8cadce.png` | 建筑更接近白族，但墙面出现伪书写/装饰带。 | 要求所有墙面完全素白、无符号装饰后再次重生并接受。 |
++| hangzhou/04 | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-373ddd1f-22f2-470e-b5c6-70ba1c85457d.png` | 画面像乌镇窄水巷，不符合杭州大运河宽阔城市尺度。 | 指定拱宸桥历史区、宽阔可通航水面和大型三孔桥后重生并接受。 |
++| nanjing/03 | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-e193136c-1028-4215-b27c-3465d79d7f91.png` | 像通用江南窄河巷，且局部疑似伪文字，秦淮城市尺度不足。 | 指定宽阔中心秦淮河、城市石岸和多孔桥后重生并接受。 |
++| shanghai/01 | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-e626f601-3669-4e4d-a872-9a0092fdb345.png` | 复制后的二次视觉检查发现一处小型徽标/字母状立面标记。 | 强化所有立面只能有普通窗光、不得形成字符或品牌图案后重生并接受。 |
++| shanghai/04 | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-3e2dc898-541d-4489-9552-dec9b6113731.png` | 楼体屏幕出现伪字符和徽标状色块。 | 改为纯办公室窗光、无屏幕/冠灯/立面照明的长焦夜景后重生并接受。 |
+diff --git a/docs/design/destination-asset-prompts.md b/docs/design/destination-asset-prompts.md
+new file mode 100644
+index 0000000..7f1d4a5
+--- /dev/null
++++ b/docs/design/destination-asset-prompts.md
+@@ -0,0 +1,467 @@
++# 行屿目的地图片提示词清单
++
++本清单是 Task 6 的最终 32 镜生成清单。每一节内容作为一次独立的内置 ImageGen 调用，不拼图、不批量替代。全部资产用于攻略画廊，目标源尺寸为 1536×1024、3:2 横图。
++
++## 大理
++
++### dali/01.png — 白族院落清晨
++
++```text
++Use case: photorealistic-natural
++Asset type: Xingyu destination-guide gallery photograph, 1536×1024 landscape, 3:2.
++Scene/backdrop: a quiet traditional Bai courtyard in Dali, Yunnan at early morning, white limewashed walls, dark timber frames, grey tiled roofs, a stone tea table, subtle green plants, and lived-in weathering.
++Subject: the courtyard architecture and tactile stone-and-timber details, with no people present.
++Style/medium: photorealistic natural editorial travel photography, restrained low-saturation cinematic color, authentic material grain and slight everyday imperfection.
++Composition/framing: eye-level 35 mm lens, layered doorway framing, the stone table in the lower middle, enough breathing room for a 3:2 gallery crop; composition distinct from every other destination shot.
++Lighting/mood: soft oblique morning sunlight with gentle shadow detail, calm and intimate, no theatrical beams.
++Constraints: geographically credible Dali Bai vernacular; real architecture and plants; clean natural perspective; no staged luxury-resort styling.
++Avoid: text, letters, numbers, signs, logos, watermarks, recognizable faces, foreground people, over-HDR sky, oversaturation, fantasy architecture, disaster or emergency imagery.
++```
++
++### dali/02.png — 洱海湖畔自行车道
++
++```text
++Use case: photorealistic-natural
++Asset type: Xingyu destination-guide gallery photograph, 1536×1024 landscape, 3:2.
++Scene/backdrop: the Erhai lakeside bicycle path near Dali on a clear mild morning, calm blue-grey lake, reeds, low stone edge, distant Cangshan mountain silhouette, and one simple unbranded bicycle parked beside the path.
++Subject: the quiet curving cycling path and lake relationship, no rider and no people.
++Style/medium: photorealistic natural editorial travel photography, restrained low-saturation cinematic color, realistic asphalt, reeds, water, and mountain haze.
++Composition/framing: low eye-level 28 mm lens, path enters from a lower corner and curves toward the lake, bicycle kept small and secondary, open middle distance for safe 3:2 cropping.
++Lighting/mood: clean cool morning light with a thin veil of haze, relaxed and airy, no dramatic sunset.
++Constraints: geographically credible Erhai shoreline and Cangshan scale; safe, dry, well-maintained travel path.
++Avoid: text, letters, numbers, road signs, logos, watermarks, recognizable faces, foreground people, over-HDR sky, neon water, fake peaks, traffic incidents, disaster or emergency imagery.
++```
++
++### dali/03.png — 喜洲稻田
++
++```text
++Use case: photorealistic-natural
++Asset type: Xingyu destination-guide gallery photograph, 1536×1024 landscape, 3:2.
++Scene/backdrop: mature green-gold rice fields outside Xizhou, Dali, crossed by narrow irrigation channels, with only a few distant authentic Bai farm compounds using low simple grey-tile roofs and completely plain unadorned whitewashed walls, while Cangshan is softened by humid air.
++Subject: rhythmic rice rows, field texture, and the small village edge; no people.
++Style/medium: photorealistic natural editorial travel photography, restrained low-saturation cinematic grade, authentic crops, soil, water, local plaster, and tile texture.
++Composition/framing: slightly elevated 50 mm lens, diagonal field patterns lead toward the distant village, compressed mountain layers, no centered postcard symmetry.
++Lighting/mood: warm late-afternoon side light without orange cast, quiet agricultural atmosphere and natural cloud detail.
++Constraints: specifically geographically credible Xizhou countryside in Dali; ordinary working fields; low tiled rooflines; every visible wall and facade must be completely blank, plain, and free of ornament, writing, symbols, murals, or decorative bands.
++Avoid: Huizhou horse-head gables, dramatic upturned eaves, grand ancestral halls, decorative wall borders, pseudo-writing, text, letters, numbers, signs, logos, watermarks, recognizable faces, workers, over-HDR sky, oversaturated green, fantasy terraces, disaster or emergency imagery.
++```
++
++### dali/04.png — 双廊落日
++
++```text
++Use case: photorealistic-natural
++Asset type: Xingyu destination-guide gallery photograph, 1536×1024 landscape, 3:2.
++Scene/backdrop: Shuanglang village waterfront on Erhai at sunset, old stone quay and tiled roof edge in the foreground, calm water with subtle reflections, Cangshan across the lake.
++Subject: the meeting of weathered lakeside architecture, water, and distant mountain; no people or boats with markings.
++Style/medium: photorealistic natural editorial travel photography, low-saturation cinematic color, realistic stone, tile, water ripples, and atmospheric haze.
++Composition/framing: 40 mm lens from a shaded waterfront lane, asymmetrical roof edge frames one side while the lake opens wide, horizon level and enough safe crop room.
++Lighting/mood: muted amber afterglow and cool shadows, reflective and quiet, sun near but not blown out.
++Constraints: geographically credible Erhai and Shuanglang vernacular; natural dynamic range.
++Avoid: text, letters, numbers, signs, logos, watermarks, recognizable faces, crowds, over-HDR sky, magenta sunset, fantasy pagodas, disaster or emergency imagery.
++```
++
++## 桂林
++
++### guilin/01.png — 漓江晨雾
++
++```text
++Use case: photorealistic-natural
++Asset type: Xingyu destination-guide gallery photograph, 1536×1024 landscape, 3:2.
++Scene/backdrop: the Li River near Guilin at dawn, dark limestone karst peaks receding through pale river mist, still water, dense subtropical banks, and one tiny unmarked wooden skiff far in the middle distance.
++Subject: layered karst silhouettes and mist over the river, with the distant skiff used only for scale.
++Style/medium: photorealistic natural editorial travel photography, restrained low-saturation cinematic grade, realistic humidity, foliage, rock, and water texture.
++Composition/framing: 70 mm lens from a shaded riverbank, compressed alternating mountain layers, low river horizon, distinct from the wider sunset Guilin reference imagery.
++Lighting/mood: blue-grey dawn slowly warming at the horizon, serene, soft tonal transitions, no dramatic sun disk.
++Constraints: geographically credible Guilin karst geology and Li River vegetation; distant person, if any, must be unrecognizable.
++Avoid: text, letters, numbers, signs, logos, watermarks, recognizable faces, close people, over-HDR sky, fake vertical mountains, fantasy mist, disaster or emergency imagery.
++```
++
++### guilin/02.png — 遇龙河竹筏山水
++
++```text
++Use case: photorealistic-natural
++Asset type: Xingyu destination-guide gallery photograph, 1536×1024 landscape, 3:2.
++Scene/backdrop: Yulong River countryside near Yangshuo, clear slow water, bamboo-lined banks, rounded karst hills, and two empty traditional bamboo rafts tied quietly at a natural landing with no signage.
++Subject: the bamboo rafts, transparent river shallows, and intimate karst landscape; no people.
++Style/medium: photorealistic natural editorial travel photography, restrained low-saturation cinematic color, true bamboo, rope, wet stone, and water textures.
++Composition/framing: medium-wide 35 mm lens at bank height, rafts occupy the lower third and point into the winding river, hills offset rather than centered.
++Lighting/mood: softly overcast late morning after mist, luminous greens without saturation, peaceful and tactile.
++Constraints: geographically credible Yulong River scale; rafts appear safe, moored, and structurally plausible.
++Avoid: text, letters, numbers, signs, logos, watermarks, recognizable faces, tourists, over-HDR sky, turquoise fantasy water, impossible rafts, disaster or emergency imagery.
++```
++
++### guilin/03.png — 阳朔喀斯特骑行路
++
++```text
++Use case: photorealistic-natural
++Asset type: Xingyu destination-guide gallery photograph, 1536×1024 landscape, 3:2.
++Scene/backdrop: a narrow paved cycling road outside Yangshuo winding between vegetable plots and bamboo groves, rounded limestone karst towers rising close behind, one small unbranded bicycle resting against a low field wall.
++Subject: the road as a calm route through cultivated karst countryside; no rider and no people.
++Style/medium: photorealistic natural editorial travel photography, low-saturation cinematic grade, authentic pavement wear, soil, crops, bamboo, and limestone texture.
++Composition/framing: eye-level 28 mm lens, S-curved road begins at lower center then slips behind foliage, karst peaks form an uneven backdrop, ample side detail for 3:2 crop.
++Lighting/mood: broken afternoon cloud with gentle patches of sun, fresh but not glossy.
++Constraints: geographically credible Yangshuo rural road; safe dry surface, no traffic conflict.
++Avoid: text, letters, numbers, signs, logos, watermarks, recognizable faces, vehicles, over-HDR sky, impossible cliff forms, crashes, landslides, disaster or emergency imagery.
++```
++
++### guilin/04.png — 桂林滨水暮色
++
++```text
++Use case: photorealistic-natural
++Asset type: Xingyu destination-guide gallery photograph, 1536×1024 landscape, 3:2.
++Scene/backdrop: central Guilin waterfront at dusk, calm river, mature trees, a restrained traditional pavilion silhouette and low city buildings beneath nearby karst hills, warm lamps reflecting softly on water.
++Subject: the transition between everyday city waterfront and karst landscape; promenade empty in the foreground.
++Style/medium: photorealistic natural editorial travel photography, low-saturation cinematic blue-hour color, realistic masonry, foliage, lamps, water, and atmospheric depth.
++Composition/framing: 45 mm lens across the river, reflections form vertical accents while the pavilion sits off-center, skyline low and secondary.
++Lighting/mood: natural blue hour with small warm pools of light, quiet urban evening, shadows retain detail.
++Constraints: credible Guilin waterfront scale; buildings have blank or unreadable facades and no branded lighting.
++Avoid: text, letters, numbers, signs, logos, watermarks, recognizable faces, crowds, over-HDR sky, neon spectacle, fake skyline, disaster or emergency imagery.
++```
++
++## 川西
++
++### sichuan/01.png — 新都桥秋日公路
++
++```text
++Use case: photorealistic-natural
++Asset type: Xingyu destination-guide gallery photograph, 1536×1024 landscape, 3:2.
++Scene/backdrop: a safe dry two-lane road near Xinduqiao in western Sichuan during autumn, golden poplar trees, low Tibetan stone houses without signage, tawny fields, and layered plateau mountains.
++Subject: the empty road moving through autumn plateau settlement, no vehicles or people.
++Style/medium: photorealistic natural editorial travel photography, restrained low-saturation cinematic grade, realistic asphalt, stone, dry grass, bark, and high-altitude clarity.
++Composition/framing: 55 mm lens from a legal roadside viewpoint, road recedes diagonally rather than dead-center, poplars make vertical rhythm, no drone perspective.
++Lighting/mood: warm low morning side light with long soft shadows, crisp but not HDR.
++Constraints: geographically credible Xinduqiao plateau landscape; stable shoulders and uneventful safe travel conditions.
++Avoid: text, letters, numbers, road signs, logos, watermarks, recognizable faces, cars, over-HDR sky, extreme cliff roads, crashes, landslides, fire, disaster or emergency imagery.
++```
++
++### sichuan/02.png — 塔公草原与雪峰
++
++```text
++Use case: photorealistic-natural
++Asset type: Xingyu destination-guide gallery photograph, 1536×1024 landscape, 3:2.
++Scene/backdrop: Tagong grassland in western Sichuan, broad tawny-green highland meadow, a modest distant Tibetan village and prayer-flag colors too small to read as symbols, with Yala snow peaks rising behind.
++Subject: open grassland scale and the relationship between settlement and snow mountains; no visible people.
++Style/medium: photorealistic natural editorial travel photography, low-saturation cinematic grade, authentic grass, stone, distant snow, and thin high-altitude atmosphere.
++Composition/framing: wide 35 mm lens at human eye level, meadow occupies the lower half with a shallow stream leading sideways, snow peak offset from center, no lone heroic figure.
++Lighting/mood: cool clear late afternoon with a thin veil of cloud, contemplative and expansive, snow highlights preserved.
++Constraints: geographically credible Tagong grassland and western Sichuan mountain scale; no sacred structure as invented spectacle.
++Avoid: text, letters, numbers, signs, logos, watermarks, recognizable faces, close people, over-HDR sky, oversaturated flags, fantasy peaks, avalanche, fire, disaster or emergency imagery.
++```
++
++### sichuan/03.png — 墨石地貌
++
++```text
++Use case: photorealistic-natural
++Asset type: Xingyu destination-guide gallery photograph, 1536×1024 landscape, 3:2.
++Scene/backdrop: Moshi Park stone forest landscape in western Sichuan, dark grey folded mylonite ridges emerging from muted alpine grass, a simple empty timber boardwalk tracing the terrain.
++Subject: the unusual stone texture and controlled visitor path, with no people.
++Style/medium: photorealistic natural editorial travel photography, restrained low-saturation cinematic color, detailed mineral striations, weathered wood, grass, and natural haze.
++Composition/framing: slightly elevated 40 mm lens, boardwalk enters from lower left and provides scale across alternating ridges, geological texture fills the frame without artificial symmetry.
++Lighting/mood: diffuse high-altitude afternoon light after cloud, subdued and geological, no ominous storm.
++Constraints: geographically credible Moshi mylonite formations; safe intact boardwalk and stable terrain.
++Avoid: text, letters, numbers, signs, logos, watermarks, recognizable faces, tourists, over-HDR sky, black fantasy spikes, ruins, rockfall, landslide, disaster or emergency imagery.
++```
++
++### sichuan/04.png — 康定山路
++
++```text
++Use case: photorealistic-natural
++Asset type: Xingyu destination-guide gallery photograph, 1536×1024 landscape, 3:2.
++Scene/backdrop: a well-maintained mountain road outside Kangding in western Sichuan, sweeping gently across a green-brown alpine slope, fir-covered valley and layered mountains beyond under stable weather.
++Subject: the safe empty road and broad mountain context, no vehicles and no people.
++Style/medium: photorealistic natural editorial travel photography, low-saturation cinematic grade, realistic asphalt, guardrail, vegetation, rock, and atmospheric perspective.
++Composition/framing: 70 mm lens from a protected roadside overlook, one smooth bend crosses the lower third and leads toward the valley, no vertigo or dramatic cliff-edge framing.
++Lighting/mood: calm late-morning light with soft broken clouds, reassuring and open.
++Constraints: geographically credible Kangding terrain; intact road, guardrail, dry surface, normal safe travel conditions.
++Avoid: text, letters, numbers, road signs, logos, watermarks, recognizable faces, cars, over-HDR sky, extreme danger, crashes, landslides, falling rocks, flooding, disaster or emergency imagery.
++```
++
++## 三亚
++
++### sanya/01.png — 亚龙湾黎明
++
++```text
++Use case: photorealistic-natural
++Asset type: Xingyu destination-guide gallery photograph, 1536×1024 landscape, 3:2.
++Scene/backdrop: Yalong Bay, Sanya at dawn, a long clean crescent of pale sand, calm South China Sea, natural tropical tree line and distant low headland, with no resort branding.
++Subject: the quiet shoreline and first light on small waves; beach empty.
++Style/medium: photorealistic natural editorial travel photography, restrained low-saturation cinematic color, realistic sand grains, foam, humid air, and foliage.
++Composition/framing: wide 32 mm lens from the wet-sand line, shoreline sweeps diagonally through the frame, headland small in distance, low natural horizon.
++Lighting/mood: pale peach and blue dawn before strong sun, soft and clean rather than tropical-ad glossy.
++Constraints: geographically credible sheltered Sanya bay; natural beach without invented cliffs or foreign landmarks.
++Avoid: text, letters, numbers, signs, logos, watermarks, recognizable faces, swimmers, crowds, over-HDR sky, neon turquoise water, litter, storm damage, disaster or emergency imagery.
++```
++
++### sanya/02.png — 蜈支洲岛清水海岸
++
++```text
++Use case: photorealistic-natural
++Asset type: Xingyu destination-guide gallery photograph, 1536×1024 landscape, 3:2.
++Scene/backdrop: a quiet rocky-and-sandy coastal cove on Wuzhizhou Island near Sanya, clear shallow water revealing rounded stones, dense tropical greenery, and a small weathered unmarked wooden landing.
++Subject: water transparency, coastal rock texture, and lush island edge; no boats or people.
++Style/medium: photorealistic natural editorial travel photography, low-saturation cinematic grade, authentic coral-sand tone, wet rock, water caustics, and tropical leaves.
++Composition/framing: medium-wide 35 mm lens from low shore height, rocks anchor one foreground edge while clear water fills the center and vegetation curves around the cove.
++Lighting/mood: soft mid-morning light filtered by thin cloud, luminous but not glossy.
++Constraints: credible tropical Hainan island coast; healthy natural environment and safe calm water.
++Avoid: text, letters, numbers, signs, logos, watermarks, recognizable faces, tourists, over-HDR sky, fluorescent water, Maldives-style villas, storm damage, disaster or emergency imagery.
++```
++
++### sanya/03.png — 后海冲浪村外景
++
++```text
++Use case: photorealistic-natural
++Asset type: Xingyu destination-guide gallery photograph, 1536×1024 landscape, 3:2.
++Scene/backdrop: Houhai surf village near Sanya in gentle morning light, a narrow sandy lane approaching the sea, modest weathered low-rise village exteriors, palms, drying surf leashes, and two plain unbranded surfboards leaning by a doorway.
++Subject: the lived-in coastal village exterior and glimpse of the sea; no people.
++Style/medium: photorealistic natural editorial travel photography, restrained low-saturation cinematic color, real plaster wear, timber, sand, fabric, and tropical foliage.
++Composition/framing: eye-level 40 mm lens down the lane, buildings frame both sides, sea horizon small at the end, surfboards secondary and naturally placed.
++Lighting/mood: warm early morning with cool shaded walls, casual and quiet, not a commercial lifestyle shoot.
++Constraints: credible Hainan village scale; storefronts and doors are blank with no legible signage or branding.
++Avoid: text, letters, numbers, signs, logos, watermarks, recognizable faces, surfers, crowds, over-HDR sky, luxury resort styling, damaged buildings, disaster or emergency imagery.
++```
++
++### sanya/04.png — 呀诺达雨林步道
++
++```text
++Use case: photorealistic-natural
++Asset type: Xingyu destination-guide gallery photograph, 1536×1024 landscape, 3:2.
++Scene/backdrop: a maintained rainforest trail in Yanoda, Hainan, dense broadleaf canopy, giant ferns, mossy rocks, humid air, and a simple empty timber footpath crossing a shallow clear stream.
++Subject: layered tropical foliage and safe boardwalk disappearing into the forest; no people.
++Style/medium: photorealistic natural editorial travel photography, restrained low-saturation cinematic green, authentic wet wood, moss, leaf, rock, and water texture.
++Composition/framing: 28 mm lens at walking height, boardwalk begins in lower center then bends behind ferns, canopy creates depth without a tunnel cliché.
++Lighting/mood: diffuse daylight filtered through leaves, fresh and humid with natural shadow detail.
++Constraints: credible Hainan rainforest ecology; intact non-slip path and calm normal conditions.
++Avoid: text, letters, numbers, signs, logos, watermarks, recognizable faces, tourists, over-HDR highlights, fluorescent green, fantasy jungle, flood, fallen trees, disaster or emergency imagery.
++```
++
++## 杭州
++
++### hangzhou/01.png — 西湖晨雾
++
++```text
++Use case: photorealistic-natural
++Asset type: Xingyu destination-guide gallery photograph, 1536×1024 landscape, 3:2.
++Scene/backdrop: West Lake in Hangzhou just after dawn, pale mist over still water, a stone causeway edge, willow branches, distant low wooded hills and one small traditional pavilion barely visible through haze.
++Subject: mist, water, willow texture, and restrained human-made landscape; no people or boats.
++Style/medium: photorealistic natural editorial travel photography, low-saturation cinematic color, realistic humidity, stone, bark, leaves, and soft reflections.
++Composition/framing: 65 mm lens from the lakeside, willow branches frame one upper corner, causeway enters shallowly from the lower side, pavilion far off-center.
++Lighting/mood: cool pearl-grey dawn with the faintest warm lift, poetic but fully natural, no dramatic sun rays.
++Constraints: geographically credible West Lake scale and Jiangnan vegetation; quiet public landscape.
++Avoid: text, letters, numbers, signs, logos, watermarks, recognizable faces, crowds, over-HDR sky, fantasy pagoda, excessive fog, disaster or emergency imagery.
++```
++
++### hangzhou/02.png — 龙井茶园梯坡
++
++```text
++Use case: photorealistic-natural
++Asset type: Xingyu destination-guide gallery photograph, 1536×1024 landscape, 3:2.
++Scene/backdrop: Longjing tea terraces in the low hills of Hangzhou, clipped tea bushes following soft contours, a narrow stone footpath, bamboo and mixed woodland at the upper edge, no buildings.
++Subject: repeating tea-row texture and the intimate scale of the hillside path; no people.
++Style/medium: photorealistic natural editorial travel photography, restrained low-saturation cinematic grade, authentic tea leaves, damp soil, stone, and bamboo texture.
++Composition/framing: slightly elevated 50 mm lens, curved rows sweep diagonally and the footpath interrupts the pattern naturally, no aerial view or perfect symmetry.
++Lighting/mood: soft overcast morning after light rain, deep but believable greens and subtle leaf sheen.
++Constraints: credible Longjing cultivation and Hangzhou hill scale; ordinary working tea garden.
++Avoid: text, letters, numbers, signs, logos, watermarks, recognizable faces, workers, over-HDR sky, oversaturated green, grand rice terraces, landslide, disaster or emergency imagery.
++```
++
++### hangzhou/03.png — 灵隐竹石小径
++
++```text
++Use case: photorealistic-natural
++Asset type: Xingyu destination-guide gallery photograph, 1536×1024 landscape, 3:2.
++Scene/backdrop: a quiet bamboo-and-stone walking path near Lingyin in Hangzhou, mature bamboo, weathered mossy stone retaining walls, fern clusters and a glimpse of traditional dark eaves without signage.
++Subject: tactile path, bamboo rhythm, and moss-covered stone; no people.
++Style/medium: photorealistic natural editorial travel photography, restrained low-saturation cinematic color, authentic bamboo joints, old stone, moss, damp paving, and leaf litter.
++Composition/framing: eye-level 45 mm lens, path bends from lower right into shadow, vertical bamboo offsets the horizontal wall, shallow atmospheric depth rather than strong blur.
++Lighting/mood: filtered late-morning light with cool green shade, contemplative and grounded.
++Constraints: credible Lingyin-area landscape and Jiangnan material language; blank architectural surfaces with no characters.
++Avoid: text, letters, numbers, carved characters, signs, logos, watermarks, recognizable faces, monks, tourists, over-HDR light, fantasy temple, disaster or emergency imagery.
++```
++
++### hangzhou/04.png — 京杭运河夜色倒影
++
++```text
++Use case: photorealistic-natural
++Asset type: Xingyu destination-guide gallery photograph, 1536×1024 landscape, 3:2.
++Scene/backdrop: the wide Beijing–Hangzhou Grand Canal at Hangzhou beside the Gongchen Bridge historic district at early night, a broad navigable waterway, one large old three-arch stone bridge spanning the canal, and restrained restored low warehouse facades set back along the bank.
++Subject: the broad urban canal, substantial bridge engineering, and long broken warm reflections; no people or boats.
++Style/medium: photorealistic natural editorial travel photography, low-saturation cinematic night color, realistic old stone, brick, plaster, timber, glass, embankment, and dark water.
++Composition/framing: 50 mm lens from a public embankment across the broad canal, the large bridge sits off-center and crosses deep into the middle distance, open water fills the lower half, low facades create quiet bank rhythm.
++Lighting/mood: deep blue hour transitioning to night, restrained warm practical lights with controlled highlights and detailed shadows.
++Constraints: specifically geographically credible Hangzhou Grand Canal scale, not a narrow Jiangnan water town; the waterway must feel broad and urban; facades are blank or too distant for legible writing, no commercial lighting.
++Avoid: Wuzhen-style narrow canals, tiny single-arch footbridges, Venice, text, letters, numbers, signs, logos, watermarks, recognizable faces, crowds, over-HDR glow, neon spectacle, flood, disaster or emergency imagery.
++```
++
++## 南京
++
++### nanjing/01.png — 明城墙黎明
++
++```text
++Use case: photorealistic-natural
++Asset type: Xingyu destination-guide gallery photograph, 1536×1024 landscape, 3:2.
++Scene/backdrop: a preserved section of Nanjing Ming city wall at dawn, massive weathered grey-brown bricks, battlement profile, mature trees and a faint city haze beyond, empty walkway.
++Subject: authentic wall masonry, scale, and quiet dawn atmosphere; no people.
++Style/medium: photorealistic natural editorial travel photography, restrained low-saturation cinematic color, detailed old brick, lime mortar, stone paving, and foliage.
++Composition/framing: low eye-level 35 mm lens along the wall rather than facing it straight on, parapet creates a strong receding line, city kept soft and secondary.
++Lighting/mood: pale warm dawn grazing the brick, gentle cool shadow detail, historic without nostalgia filter.
++Constraints: credible Nanjing Ming wall construction and scale; preserved, safe, intact site.
++Avoid: text, letters, numbers, plaques, signs, logos, watermarks, recognizable faces, crowds, over-HDR sky, fantasy fortress, ruins, collapse, disaster or emergency imagery.
++```
++
++### nanjing/02.png — 梧桐大道秋色
++
++```text
++Use case: photorealistic-natural
++Asset type: Xingyu destination-guide gallery photograph, 1536×1024 landscape, 3:2.
++Scene/backdrop: a broad plane-tree avenue in Nanjing during late autumn, mature mottled trunks, amber leaves, quiet historic residential walls and wet pavement after a light shower.
++Subject: the deep tree canopy and reflective pedestrian edge, with no people and no identifiable vehicles.
++Style/medium: photorealistic natural editorial travel photography, low-saturation cinematic grade, realistic bark, fallen leaves, damp asphalt, brick, and soft city haze.
++Composition/framing: 70 mm lens compressing staggered trunks and canopy, roadway offset to one side, fallen leaves form irregular foreground texture rather than perfect symmetry.
++Lighting/mood: subdued overcast afternoon with small warm breaks, intimate city autumn.
++Constraints: credible Nanjing urban avenue; safe ordinary conditions; walls and gates have no legible markings.
++Avoid: text, letters, numbers, traffic signs, logos, watermarks, recognizable faces, cars, over-HDR sky, orange oversaturation, storm damage, disaster or emergency imagery.
++```
++
++### nanjing/03.png — 秦淮河夜色
++
++```text
++Use case: photorealistic-natural
++Asset type: Xingyu destination-guide gallery photograph, 1536×1024 landscape, 3:2.
++Scene/backdrop: the broad central Qinhuai River in Nanjing near the Confucius Temple district at early night, substantial stone embankments, a wide multi-bay historic bridge, low dark-tiled riverside buildings mixed with restrained urban depth, and sparse plain warm lantern light reflected across open water.
++Subject: the broad city river, bridge structure, roof silhouettes, and layered reflections; no people and no close boats.
++Style/medium: photorealistic natural editorial travel photography, restrained low-saturation cinematic night color, authentic stone, plaster, tile, timber, and broad-river water texture.
++Composition/framing: 65 mm lens from a public embankment low across the wide river, bridge offset into the middle distance, open water fills the lower half, buildings form an urban horizontal layer rather than a village lane.
++Lighting/mood: blue-black evening with controlled amber practical light, visually quiet and credible, with detailed shadows.
++Constraints: specifically credible central Nanjing Qinhuai waterfront at city scale, not a narrow Suzhou or Wuzhen water town; all facades and lanterns are completely free of writing and commercial branding.
++Avoid: narrow canals, tiny footbridges, rows of oversized red lanterns, calligraphy, couplets, pseudo-writing, text, letters, numbers, signs, logos, watermarks, recognizable faces, crowds, over-HDR glow, neon theme-park color, flood, fire, disaster or emergency imagery.
++```
++
++### nanjing/04.png — 中山陵中轴景观
++
++```text
++Use case: photorealistic-natural
++Asset type: Xingyu destination-guide gallery photograph, 1536×1024 landscape, 3:2.
++Scene/backdrop: the landscape axis approaching Sun Yat-sen Mausoleum in Nanjing, long broad stone stair and terraces rising through dense dark-green woodland toward restrained blue-glazed-roof architecture, no readable plaques.
++Subject: monumental axial landscape, steps, and surrounding forest; no people.
++Style/medium: photorealistic natural editorial travel photography, restrained low-saturation cinematic color, realistic pale stone, aged joints, roof tile, and mature foliage.
++Composition/framing: 85 mm lens from a lower terrace compressing the stair sequence, strict central axis appropriate to the real site, enough side woodland for 3:2 crop.
++Lighting/mood: quiet clear morning with soft directional light, dignified and calm, no theatrical rays.
++Constraints: geographically and architecturally credible Zhongshan Mausoleum axis; protected intact site; any inscription area is out of view or unreadable.
++Avoid: text, letters, Chinese characters, numbers, plaques, signs, logos, watermarks, recognizable faces, crowds, over-HDR sky, invented monuments, damage, disaster or emergency imagery.
++```
++
++## 上海
++
++### shanghai/01.png — 外滩蓝调时刻步道
++
++```text
++Use case: photorealistic-natural
++Asset type: Xingyu destination-guide gallery photograph, 1536×1024 landscape, 3:2.
++Scene/backdrop: the Bund promenade in Shanghai at blue hour before crowds, weathered stone balustrade and paving in the foreground, the Huangpu River, and the recognizable Pudong skyline across the water, with every tower facade rendered only as plain glass and sparse ordinary office windows.
++Subject: the promenade perspective and river-city relationship; no people in the near or middle ground and no boats.
++Style/medium: photorealistic natural editorial travel photography, restrained low-saturation cinematic color, authentic stone, water, glass, steel, and humid atmospheric texture.
++Composition/framing: 45 mm lens along the balustrade, promenade line leads diagonally while skyline remains across the river and off-center, architectural verticals corrected, with the skyline distant enough that no facade detail resembles lettering.
++Lighting/mood: natural cobalt blue hour with controlled warm window lights only, elegant and quiet, not a neon advertisement.
++Constraints: geographically credible Bund and Pudong orientation; every building facade must be entirely free of names, logos, symbols, letters, numbers, billboards, display screens, colored brand panels, crown lettering, or sign-like light patterns; windows may glow individually but must not form words or logos.
++Avoid: text, pseudo-text, letters, numbers, signs, logos, watermarks, billboards, media screens, facade emblems, recognizable faces, crowds, over-HDR sky, neon saturation, fake towers, boat advertising, disaster or emergency imagery.
++```
++
++### shanghai/02.png — 武康路建筑
++
++```text
++Use case: photorealistic-natural
++Asset type: Xingyu destination-guide gallery photograph, 1536×1024 landscape, 3:2.
++Scene/backdrop: a quiet section of Wukang Road in Shanghai, mature plane trees, carefully preserved early twentieth-century brick-and-stucco residences, iron balconies, shaded pavement and a plain bicycle near a garden wall.
++Subject: architectural texture and leafy street scale, with no people or identifiable vehicles.
++Style/medium: photorealistic natural editorial travel photography, restrained low-saturation cinematic grade, real brick, stucco patina, iron, bark, leaves, and pavement.
++Composition/framing: eye-level 50 mm lens from the opposite footpath, tree trunks partly layer the facade, street recedes at a shallow angle, no centered landmark postcard.
++Lighting/mood: soft late-morning dappled light, urbane and lived-in, natural shadows.
++Constraints: credible former French Concession residential architecture; doors, storefronts, and plaques blank or unreadable.
++Avoid: text, letters, numbers, signs, logos, watermarks, recognizable faces, pedestrians, over-HDR highlights, Paris clichés, luxury staging, fire, disaster or emergency imagery.
++```
++
++### shanghai/03.png — 苏州河桥影
++
++```text
++Use case: photorealistic-natural
++Asset type: Xingyu destination-guide gallery photograph, 1536×1024 landscape, 3:2.
++Scene/backdrop: Suzhou Creek in central Shanghai on a calm overcast afternoon, layered steel and concrete bridges, renovated brick warehouses, plane trees and modest modern buildings reflected in olive-grey water.
++Subject: overlapping bridge geometry and the working river corridor; no people or branded boats.
++Style/medium: photorealistic natural editorial travel photography, restrained low-saturation cinematic color, realistic steel weathering, brick, concrete, foliage, and river texture.
++Composition/framing: 65 mm lens from a riverside path, bridges overlap at different depths and reflections create a second geometry, skyline intentionally absent.
++Lighting/mood: soft cloud-filtered daylight, understated industrial calm and fine shadow detail.
++Constraints: credible Shanghai creek scale and mixed-era architecture; bridge surfaces have no legible signage.
++Avoid: text, letters, numbers, signs, logos, watermarks, recognizable faces, crowds, over-HDR sky, neon lighting, fantasy bridges, polluted sludge, flood, disaster or emergency imagery.
++```
++
++### shanghai/04.png — 陆家嘴夜景
++
++```text
++Use case: photorealistic-natural
++Asset type: Xingyu destination-guide gallery photograph, 1536×1024 landscape, 3:2.
++Scene/backdrop: Lujiazui skyline in Shanghai at early night viewed in a tight telephoto composition across a calm bend of the Huangpu River, recognizable tower silhouettes, sparse warm-neutral office window lights, and a nearly black stone river embankment as a thin foreground strip.
++Subject: the asymmetrical tower massing and subtle water reflections, with no people and no boats.
++Style/medium: photorealistic natural editorial travel photography, restrained low-saturation cinematic night grade, realistic glass, steel, humid haze, dark water, and controlled highlights.
++Composition/framing: 100 mm lens across the river for a compressed skyline portrait clearly distinct from a promenade view, towers clustered off-center, verticals straight, ample deep-blue night sky, foreground only a narrow dark anchor.
++Lighting/mood: calm deep-blue night with windows as the only building lights, no show lighting, lasers, facade outlines, crown lighting, or color displays.
++Constraints: geographically credible Lujiazui skyline; every facade must be blank and free of names, logos, screens, billboards, illuminated symbols, red characters, or lettering.
++Avoid: text, letters, numbers, signs, logos, watermarks, billboards, media screens, colored facade panels, recognizable faces, crowds, over-HDR glow, neon rainbow lighting, duplicated towers, fire, disaster or emergency imagery.
++```
++
++## 贵州
++
++### guizhou/01.png — 小七孔碧水
++
++```text
++Use case: photorealistic-natural
++Asset type: Xingyu destination-guide gallery photograph, 1536×1024 landscape, 3:2.
++Scene/backdrop: Xiaoqikong scenic area in Libo, Guizhou, clear blue-green karst water flowing gently beneath an old low multi-arch stone bridge, dense subtropical forest and mossy limestone banks.
++Subject: bridge masonry, translucent water, and forest depth; no people.
++Style/medium: photorealistic natural editorial travel photography, restrained low-saturation cinematic color, authentic old stone, moss, leaf, water, and limestone textures.
++Composition/framing: 40 mm lens from low riverbank height, arches cross the upper-middle frame while water and stones fill the foreground, no perfect centered symmetry.
++Lighting/mood: diffuse morning light through light mist, luminous yet natural, fine water detail preserved.
++Constraints: geographically credible Xiaoqikong bridge and Libo karst ecology; calm normal water level and intact heritage structure.
++Avoid: text, letters, numbers, signs, logos, watermarks, recognizable faces, tourists, over-HDR sky, fluorescent turquoise water, fantasy bridge, flood, collapse, disaster or emergency imagery.
++```
++
++### guizhou/02.png — 西江苗寨山雾建筑
++
++```text
++Use case: photorealistic-natural
++Asset type: Xingyu destination-guide gallery photograph, 1536×1024 landscape, 3:2.
++Scene/backdrop: Xijiang Miao village in Guizhou after dawn rain, dense tiers of traditional dark-timber stilt houses following the green valley slope, thin mist threading between roofs and forested ridges.
++Subject: layered village architecture and mountain mist, no people visible.
++Style/medium: photorealistic natural editorial travel photography, restrained low-saturation cinematic grade, authentic aged timber, dark tile, wet vegetation, earth, and humid air.
++Composition/framing: 85 mm lens from a legitimate hillside overlook, compressed roof layers occupy the lower two-thirds, misty ridge forms a soft diagonal background, no drone spectacle.
++Lighting/mood: cool soft morning with a faint warm glow behind cloud, inhabited but serene.
++Constraints: credible Xijiang Miao architectural density and valley topography; no invented ceremonial symbols; no legible signs.
++Avoid: text, letters, numbers, signs, logos, watermarks, recognizable faces, crowds, over-HDR sky, excessive smoke, fantasy village, fire, landslide, collapse, disaster or emergency imagery.
++```
++
++### guizhou/03.png — 加榜梯田
++
++```text
++Use case: photorealistic-natural
++Asset type: Xingyu destination-guide gallery photograph, 1536×1024 landscape, 3:2.
++Scene/backdrop: Jiabang rice terraces in Guizhou during early autumn, irregular contour-following paddies wrapping steep green hills, small dark-timber village clusters and low cloud lifting from the valley.
++Subject: hand-shaped terrace patterns, village scale, and valley atmosphere; no people.
++Style/medium: photorealistic natural editorial travel photography, restrained low-saturation cinematic color, authentic rice, water, mud banks, timber roofs, and mist.
++Composition/framing: 60 mm lens from a hillside footpath, terraces sweep diagonally rather than forming a centered amphitheater, village offset and small, layered ridges recede naturally.
++Lighting/mood: gentle early-morning side light emerging through cloud, quiet agricultural depth without golden fantasy glow.
++Constraints: credible Jiabang mountain-terrace scale and Guizhou vernacular; stable ordinary conditions.
++Avoid: text, letters, numbers, signs, logos, watermarks, recognizable faces, workers, over-HDR sky, oversaturated rice, perfect CGI terraces, landslide, flood, disaster or emergency imagery.
++```
++
++### guizhou/04.png — 贵阳山城夜色
++
++```text
++Use case: photorealistic-natural
++Asset type: Xingyu destination-guide gallery photograph, 1536×1024 landscape, 3:2.
++Scene/backdrop: Guiyang at early night from a wooded hillside viewpoint, dense mid-rise mountain-city neighborhoods stepping across dark green slopes, layered roads and warm window lights, distant towers softened by humid haze.
++Subject: the city climbing around hills and valleys; no people in the foreground and no landmark used as a billboard.
++Style/medium: photorealistic natural editorial travel photography, restrained low-saturation cinematic night grade, realistic concrete, glass, foliage, humidity, and restrained light reflections.
++Composition/framing: 65 mm lens through a subtle frame of leaves, neighborhoods create diagonal layers across the valley, skyline low and asymmetrical, no aerial drone view.
++Lighting/mood: deep blue humid evening with warm-neutral urban lights, energetic but not neon.
++Constraints: geographically credible Guiyang mountain-city density and terrain; facade writing and logos absent or too small to read.
++Avoid: text, letters, numbers, signs, logos, watermarks, recognizable faces, crowds, over-HDR glow, cyberpunk neon, fake megatowers, fire, flood, disaster or emergency imagery.
++```
+diff --git a/public/assets/destinations/dali/01.png b/public/assets/destinations/dali/01.png
+new file mode 100644
+index 0000000..e953d78
+Binary files /dev/null and b/public/assets/destinations/dali/01.png differ
+diff --git a/public/assets/destinations/dali/02.png b/public/assets/destinations/dali/02.png
+new file mode 100644
+index 0000000..b2830fa
+Binary files /dev/null and b/public/assets/destinations/dali/02.png differ
+diff --git a/public/assets/destinations/dali/03.png b/public/assets/destinations/dali/03.png
+new file mode 100644
+index 0000000..8101c7f
+Binary files /dev/null and b/public/assets/destinations/dali/03.png differ
+diff --git a/public/assets/destinations/dali/04.png b/public/assets/destinations/dali/04.png
+new file mode 100644
+index 0000000..b18cad1
+Binary files /dev/null and b/public/assets/destinations/dali/04.png differ
+diff --git a/public/assets/destinations/guilin/01.png b/public/assets/destinations/guilin/01.png
+new file mode 100644
+index 0000000..16aae80
+Binary files /dev/null and b/public/assets/destinations/guilin/01.png differ
+diff --git a/public/assets/destinations/guilin/02.png b/public/assets/destinations/guilin/02.png
+new file mode 100644
+index 0000000..af9cc28
+Binary files /dev/null and b/public/assets/destinations/guilin/02.png differ
+diff --git a/public/assets/destinations/guilin/03.png b/public/assets/destinations/guilin/03.png
+new file mode 100644
+index 0000000..7da1b42
+Binary files /dev/null and b/public/assets/destinations/guilin/03.png differ
+diff --git a/public/assets/destinations/guilin/04.png b/public/assets/destinations/guilin/04.png
+new file mode 100644
+index 0000000..4d2e088
+Binary files /dev/null and b/public/assets/destinations/guilin/04.png differ
+diff --git a/public/assets/destinations/guizhou/01.png b/public/assets/destinations/guizhou/01.png
+new file mode 100644
+index 0000000..b9f17eb
+Binary files /dev/null and b/public/assets/destinations/guizhou/01.png differ
+diff --git a/public/assets/destinations/guizhou/02.png b/public/assets/destinations/guizhou/02.png
+new file mode 100644
+index 0000000..3d7a4a0
+Binary files /dev/null and b/public/assets/destinations/guizhou/02.png differ
+diff --git a/public/assets/destinations/guizhou/03.png b/public/assets/destinations/guizhou/03.png
+new file mode 100644
+index 0000000..075a51d
+Binary files /dev/null and b/public/assets/destinations/guizhou/03.png differ
+diff --git a/public/assets/destinations/guizhou/04.png b/public/assets/destinations/guizhou/04.png
+new file mode 100644
+index 0000000..72b1cc8
+Binary files /dev/null and b/public/assets/destinations/guizhou/04.png differ
+diff --git a/public/assets/destinations/hangzhou/01.png b/public/assets/destinations/hangzhou/01.png
+new file mode 100644
+index 0000000..a797402
+Binary files /dev/null and b/public/assets/destinations/hangzhou/01.png differ
+diff --git a/public/assets/destinations/hangzhou/02.png b/public/assets/destinations/hangzhou/02.png
+new file mode 100644
+index 0000000..c7a9372
+Binary files /dev/null and b/public/assets/destinations/hangzhou/02.png differ
+diff --git a/public/assets/destinations/hangzhou/03.png b/public/assets/destinations/hangzhou/03.png
+new file mode 100644
+index 0000000..e08052b
+Binary files /dev/null and b/public/assets/destinations/hangzhou/03.png differ
+diff --git a/public/assets/destinations/hangzhou/04.png b/public/assets/destinations/hangzhou/04.png
+new file mode 100644
+index 0000000..451a566
+Binary files /dev/null and b/public/assets/destinations/hangzhou/04.png differ
+diff --git a/public/assets/destinations/nanjing/01.png b/public/assets/destinations/nanjing/01.png
+new file mode 100644
+index 0000000..dc1bfea
+Binary files /dev/null and b/public/assets/destinations/nanjing/01.png differ
+diff --git a/public/assets/destinations/nanjing/02.png b/public/assets/destinations/nanjing/02.png
+new file mode 100644
+index 0000000..5274f75
+Binary files /dev/null and b/public/assets/destinations/nanjing/02.png differ
+diff --git a/public/assets/destinations/nanjing/03.png b/public/assets/destinations/nanjing/03.png
+new file mode 100644
+index 0000000..c66a7bc
+Binary files /dev/null and b/public/assets/destinations/nanjing/03.png differ
+diff --git a/public/assets/destinations/nanjing/04.png b/public/assets/destinations/nanjing/04.png
+new file mode 100644
+index 0000000..0a94d51
+Binary files /dev/null and b/public/assets/destinations/nanjing/04.png differ
+diff --git a/public/assets/destinations/sanya/01.png b/public/assets/destinations/sanya/01.png
+new file mode 100644
+index 0000000..a695ede
+Binary files /dev/null and b/public/assets/destinations/sanya/01.png differ
+diff --git a/public/assets/destinations/sanya/02.png b/public/assets/destinations/sanya/02.png
+new file mode 100644
+index 0000000..1b6489d
+Binary files /dev/null and b/public/assets/destinations/sanya/02.png differ
+diff --git a/public/assets/destinations/sanya/03.png b/public/assets/destinations/sanya/03.png
+new file mode 100644
+index 0000000..5492d57
+Binary files /dev/null and b/public/assets/destinations/sanya/03.png differ
+diff --git a/public/assets/destinations/sanya/04.png b/public/assets/destinations/sanya/04.png
+new file mode 100644
+index 0000000..8ba640d
+Binary files /dev/null and b/public/assets/destinations/sanya/04.png differ
+diff --git a/public/assets/destinations/shanghai/01.png b/public/assets/destinations/shanghai/01.png
+new file mode 100644
+index 0000000..b59efeb
+Binary files /dev/null and b/public/assets/destinations/shanghai/01.png differ
+diff --git a/public/assets/destinations/shanghai/02.png b/public/assets/destinations/shanghai/02.png
+new file mode 100644
+index 0000000..0176285
+Binary files /dev/null and b/public/assets/destinations/shanghai/02.png differ
+diff --git a/public/assets/destinations/shanghai/03.png b/public/assets/destinations/shanghai/03.png
+new file mode 100644
+index 0000000..2ae2247
+Binary files /dev/null and b/public/assets/destinations/shanghai/03.png differ
+diff --git a/public/assets/destinations/shanghai/04.png b/public/assets/destinations/shanghai/04.png
+new file mode 100644
+index 0000000..169838a
+Binary files /dev/null and b/public/assets/destinations/shanghai/04.png differ
+diff --git a/public/assets/destinations/sichuan/01.png b/public/assets/destinations/sichuan/01.png
+new file mode 100644
+index 0000000..95ca4b3
+Binary files /dev/null and b/public/assets/destinations/sichuan/01.png differ
+diff --git a/public/assets/destinations/sichuan/02.png b/public/assets/destinations/sichuan/02.png
+new file mode 100644
+index 0000000..06a6eb8
+Binary files /dev/null and b/public/assets/destinations/sichuan/02.png differ
+diff --git a/public/assets/destinations/sichuan/03.png b/public/assets/destinations/sichuan/03.png
+new file mode 100644
+index 0000000..4088320
+Binary files /dev/null and b/public/assets/destinations/sichuan/03.png differ
+diff --git a/public/assets/destinations/sichuan/04.png b/public/assets/destinations/sichuan/04.png
+new file mode 100644
+index 0000000..cb0b331
+Binary files /dev/null and b/public/assets/destinations/sichuan/04.png differ
+diff --git a/src/data/assets.ts b/src/data/assets.ts
+index dcfa44b..2b21e54 100644
+--- a/src/data/assets.ts
++++ b/src/data/assets.ts
+@@ -1,10 +1,13 @@
++export { destinationAssets, destinationKeys } from '@/data/destination-assets';
++export type { DestinationAsset, DestinationAssetKey } from '@/data/destination-assets';
++
+ export const brandAssets = {
+   hero: {
+     src: '/assets/hero-dali-dawn.png',
+     width: 1536,
+     height: 1024,
+     alt: '晨光穿过大理群山与湖谷',
+   },
+   sichuan: {
+     src: '/assets/destination-sichuan.png',
+     width: 1586,
+diff --git a/src/data/destination-assets.ts b/src/data/destination-assets.ts
+new file mode 100644
+index 0000000..4b9ba73
+--- /dev/null
++++ b/src/data/destination-assets.ts
+@@ -0,0 +1,72 @@
++export const destinationKeys = [
++  'dali',
++  'guilin',
++  'sichuan',
++  'sanya',
++  'hangzhou',
++  'nanjing',
++  'shanghai',
++  'guizhou',
++] as const;
++
++export type DestinationAssetKey = (typeof destinationKeys)[number];
++
++export interface DestinationAsset {
++  src: string;
++  width: 1536;
++  height: 1024;
++  alt: string;
++  destination: string;
++  shot: string;
++}
++
++export const destinationAssets = {
++  dali: [
++    { src: '/assets/destinations/dali/01.png', width: 1536, height: 1024, alt: '晨光里的大理白族院落与石茶桌', destination: '大理', shot: '白族院落清晨' },
++    { src: '/assets/destinations/dali/02.png', width: 1536, height: 1024, alt: '苍山脚下沿洱海弯行的自行车道', destination: '大理', shot: '洱海湖畔自行车道' },
++    { src: '/assets/destinations/dali/03.png', width: 1536, height: 1024, alt: '喜洲村落前铺开的金绿稻田', destination: '大理', shot: '喜洲稻田' },
++    { src: '/assets/destinations/dali/04.png', width: 1536, height: 1024, alt: '双廊旧屋檐下望向洱海落日', destination: '大理', shot: '双廊落日' },
++  ],
++  guilin: [
++    { src: '/assets/destinations/guilin/01.png', width: 1536, height: 1024, alt: '漓江晨雾中层叠的喀斯特山峰', destination: '桂林', shot: '漓江晨雾' },
++    { src: '/assets/destinations/guilin/02.png', width: 1536, height: 1024, alt: '遇龙河清水边停靠的两只竹筏', destination: '桂林', shot: '遇龙河竹筏山水' },
++    { src: '/assets/destinations/guilin/03.png', width: 1536, height: 1024, alt: '阳朔田园与喀斯特峰林间的骑行路', destination: '桂林', shot: '阳朔喀斯特骑行路' },
++    { src: '/assets/destinations/guilin/04.png', width: 1536, height: 1024, alt: '蓝调时刻灯影映照桂林滨水山景', destination: '桂林', shot: '桂林滨水暮色' },
++  ],
++  sichuan: [
++    { src: '/assets/destinations/sichuan/01.png', width: 1536, height: 1024, alt: '新都桥秋色里穿过石屋和白杨的公路', destination: '川西', shot: '新都桥秋日公路' },
++    { src: '/assets/destinations/sichuan/02.png', width: 1536, height: 1024, alt: '塔公草原河谷与远处雅拉雪峰', destination: '川西', shot: '塔公草原与雪峰' },
++    { src: '/assets/destinations/sichuan/03.png', width: 1536, height: 1024, alt: '墨石公园褶皱岩层间的木栈道', destination: '川西', shot: '墨石地貌' },
++    { src: '/assets/destinations/sichuan/04.png', width: 1536, height: 1024, alt: '康定山谷中设有护栏的平缓公路', destination: '川西', shot: '康定山路' },
++  ],
++  sanya: [
++    { src: '/assets/destinations/sanya/01.png', width: 1536, height: 1024, alt: '亚龙湾黎明时分安静的弧形海岸', destination: '三亚', shot: '亚龙湾黎明' },
++    { src: '/assets/destinations/sanya/02.png', width: 1536, height: 1024, alt: '蜈支洲岛清澈浅湾与热带林岸', destination: '三亚', shot: '蜈支洲清水海岸' },
++    { src: '/assets/destinations/sanya/03.png', width: 1536, height: 1024, alt: '后海村通向海边的沙路与冲浪板', destination: '三亚', shot: '后海冲浪村外景' },
++    { src: '/assets/destinations/sanya/04.png', width: 1536, height: 1024, alt: '呀诺达雨林溪水旁的木步道', destination: '三亚', shot: '呀诺达雨林步道' },
++  ],
++  hangzhou: [
++    { src: '/assets/destinations/hangzhou/01.png', width: 1536, height: 1024, alt: '薄雾笼罩西湖柳岸与远亭', destination: '杭州', shot: '西湖晨雾' },
++    { src: '/assets/destinations/hangzhou/02.png', width: 1536, height: 1024, alt: '雨后龙井茶园弧形茶垄与石阶', destination: '杭州', shot: '龙井茶园梯坡' },
++    { src: '/assets/destinations/hangzhou/03.png', width: 1536, height: 1024, alt: '灵隐附近竹林与苔石围合的小径', destination: '杭州', shot: '灵隐竹石小径' },
++    { src: '/assets/destinations/hangzhou/04.png', width: 1536, height: 1024, alt: '京杭运河宽阔水面与三孔古桥夜影', destination: '杭州', shot: '京杭运河夜色倒影' },
++  ],
++  nanjing: [
++    { src: '/assets/destinations/nanjing/01.png', width: 1536, height: 1024, alt: '晨光掠过南京明城墙砖石步道', destination: '南京', shot: '明城墙黎明' },
++    { src: '/assets/destinations/nanjing/02.png', width: 1536, height: 1024, alt: '秋雨后南京梧桐大道与老宅围墙', destination: '南京', shot: '梧桐大道秋色' },
++    { src: '/assets/destinations/nanjing/03.png', width: 1536, height: 1024, alt: '秦淮河宽阔水面映照古桥与城市夜色', destination: '南京', shot: '秦淮河夜色' },
++    { src: '/assets/destinations/nanjing/04.png', width: 1536, height: 1024, alt: '林木环抱的中山陵长阶中轴', destination: '南京', shot: '中山陵中轴景观' },
++  ],
++  shanghai: [
++    { src: '/assets/destinations/shanghai/01.png', width: 1536, height: 1024, alt: '外滩蓝调时刻望向浦东天际线', destination: '上海', shot: '外滩蓝调时刻步道' },
++    { src: '/assets/destinations/shanghai/02.png', width: 1536, height: 1024, alt: '武康路梧桐树下的老洋房与自行车', destination: '上海', shot: '武康路建筑' },
++    { src: '/assets/destinations/shanghai/03.png', width: 1536, height: 1024, alt: '苏州河上层叠的钢桥与砖仓倒影', destination: '上海', shot: '苏州河桥影' },
++    { src: '/assets/destinations/shanghai/04.png', width: 1536, height: 1024, alt: '深蓝夜色中的陆家嘴建筑群', destination: '上海', shot: '陆家嘴夜景' },
++  ],
++  guizhou: [
++    { src: '/assets/destinations/guizhou/01.png', width: 1536, height: 1024, alt: '小七孔古桥下流过清澈碧水', destination: '贵州', shot: '小七孔碧水' },
++    { src: '/assets/destinations/guizhou/02.png', width: 1536, height: 1024, alt: '晨雾穿过西江苗寨木楼与山坡', destination: '贵州', shot: '西江苗寨山雾建筑' },
++    { src: '/assets/destinations/guizhou/03.png', width: 1536, height: 1024, alt: '云雾中的加榜梯田与木楼村落', destination: '贵州', shot: '加榜梯田' },
++    { src: '/assets/destinations/guizhou/04.png', width: 1536, height: 1024, alt: '湿润蓝夜里沿山起伏的贵阳城景', destination: '贵州', shot: '贵阳山城夜色' },
++  ],
++} as const satisfies Record<DestinationAssetKey, readonly DestinationAsset[]>;
+diff --git a/src/data/posts.ts b/src/data/posts.ts
+index 484bac0..68e2dc0 100644
+--- a/src/data/posts.ts
++++ b/src/data/posts.ts
+@@ -1,11 +1,11 @@
+-import { brandAssets } from '@/data/assets';
++import { destinationAssets } from '@/data/assets';
+ 
+ export type FeedMode = 'recommended' | 'chronological';
+ 
+ export interface PostMedia {
+   src: string;
+   width: number;
+   height: number;
+   alt: string;
+ }
+ 
+@@ -40,118 +40,264 @@ export interface TravelPost {
+   locations: readonly LocationCard[];
+   tags: readonly string[];
+   itinerary: readonly ItineraryItem[];
+   products: readonly ProductCard[];
+   author: { name: string; role: string; avatar: string };
+   publishedAt: string;
+   updatedAt?: string;
+   ai: { generated: boolean; rewritten: boolean };
+ }
+ 
+-const media = {
+-  dali: brandAssets.guide,
+-  dawn: brandAssets.hero,
+-  sichuan: brandAssets.sichuan,
+-  guilin: brandAssets.guilin,
+-  guardian: brandAssets.guardian,
+-} satisfies Record<string, PostMedia>;
+-
+ export const posts: readonly TravelPost[] = [
+   {
+     slug: 'dali-slow-5d',
+-    title: '把大理留给慢下来的人：5 天环洱海松弛路线',
+-    excerpt: '住进古城外的白族院落，在菜场、湖畔与山风之间，把每天只安排一件重要的事。',
++    title: '把大理留给慢下来的人：5 天洱海与白族村落路线',
++    excerpt: '从古城外的白族院落出发，把喜洲稻田、苍山脚和双廊落日拆成五个从容的日子。',
+     destination: '大理',
+     days: 5,
+     budget: 5200,
+-    media: [media.dali, media.dawn, media.dali, media.dawn, media.dali],
++    media: destinationAssets.dali,
++    locations: [
++      { name: '大理古城', area: '大理市', note: '清晨从南门进入，午后转向安静的城边院落。' },
++      { name: '喜洲古镇', area: '洱海西岸', note: '骑行稻田前先确认农忙路段，给村落留出安静空间。' },
++      { name: '双廊', area: '洱海东岸', note: '傍晚抵达湖边，步行完成当天最后一段。' },
++    ],
++    tags: ['慢旅行', '洱海', '古镇', '独自出发'],
++    itinerary: [
++      { day: 1, title: '抵达古城，住进白族院落', description: '从机场进城后只安排院落休息与人民路短走。', location: '大理古城' },
++      { day: 2, title: '菜场与苍山脚下', description: '上午逛北门菜场，午后在苍山脚找一段林间慢路。', location: '苍山' },
++      { day: 3, title: '骑进喜洲稻田', description: '沿洱海西岸骑行，避开正午，把时间留给稻田与村巷。', location: '喜洲古镇' },
++      { day: 4, title: '沿湖去双廊', description: '包车绕行海东，在安全停靠点看湖面光线变化。', location: '双廊' },
++      { day: 5, title: '湖畔早餐后返程', description: '用一顿早饭收尾，预留充足的机场交通时间。', location: '双廊' },
++    ],
++    products: [
++      { name: '洱海东岸一日包车', category: '当地交通', price: 480, note: '演示商品，仅供预算规划，不提供预订。' },
++      { name: '白族院落住宿 4 晚', category: '住宿', price: 1680, note: '演示价格，节假日需重新核对。' },
++    ],
++    author: { name: '林见山', role: '行屿 AI 协作旅行编辑', avatar: '林' },
++    publishedAt: '2026-08-18T08:30:00+08:00',
++    updatedAt: '2026-08-19T09:10:00+08:00',
++    ai: { generated: true, rewritten: true },
++  },
++  {
++    slug: 'guilin-river-morning',
++    title: '桂林 4 日：把晨雾、竹筏与骑行交给山水节奏',
++    excerpt: '早起看漓江层峰，午后在遇龙河和阳朔田野之间慢骑，最后回到城市水岸。',
++    destination: '桂林',
++    days: 4,
++    budget: 4200,
++    media: destinationAssets.guilin,
+     locations: [
+-      { name: '大理古城', area: '大理市', note: '清晨从南门进入，避开午后人流。' },
+-      { name: '喜洲古镇', area: '大理市', note: '留半天给稻田、扎染与破酥粑粑。' },
+-      { name: '双廊', area: '洱海东岸', note: '傍晚抵达，湖面光线最柔和。' },
++      { name: '漓江', area: '桂林—阳朔', note: '优先清晨航段，雾天也要按码头实时通知出发。' },
++      { name: '遇龙河', area: '阳朔县', note: '选择水流平缓航段，骑行与竹筏不要排得过满。' },
++      { name: '榕湖水岸', area: '桂林市区', note: '傍晚步行即可，避开灯光最密集的游船时段。' },
+     ],
+-    tags: ['慢旅行', '洱海', '咖啡', '独自出发'],
++    tags: ['山水', '骑行', '周末', '摄影'],
+     itinerary: [
+-      { day: 1, title: '抵达古城，住进院落', description: '从机场拼车入城，傍晚在人民路散步。', location: '大理古城' },
+-      { day: 2, title: '菜场与苍山脚下', description: '上午逛北门菜场，午后到寂照庵喝茶。', location: '大理古城' },
+-      { day: 3, title: '喜洲慢半拍', description: '骑车穿过稻田，看一场白族扎染体验。', location: '喜洲古镇' },
+-      { day: 4, title: '环湖去双廊', description: '包车环洱海，在海东找一段无人的湖岸。', location: '双廊' },
+-      { day: 5, title: '湖畔早餐后返程', description: '用一顿早餐收尾，预留充足时间去机场。', location: '双廊' },
++      { day: 1, title: '抵达桂林，水岸散步', description: '入住后沿榕湖慢走，用轻量行程适应湿润天气。', location: '桂林市区' },
++      { day: 2, title: '漓江晨雾到阳朔', description: '按水位与天气选择航段，下午在阳朔休息。', location: '漓江' },
++      { day: 3, title: '遇龙河与田野骑行', description: '上午看竹筏河段，午后只骑平缓乡道并及时补水。', location: '遇龙河' },
++      { day: 4, title: '旧城早餐后返程', description: '留半天给市区与伴手礼，错峰前往车站或机场。', location: '桂林市区' },
+     ],
+     products: [
+-      { name: '洱海东岸一日包车', category: '当地交通', price: 480, note: '演示商品，仅供规划参考。' },
+-      { name: '白族院落住宿 4 晚', category: '住宿', price: 1680, note: '演示商品，不含预订服务。' },
++      { name: '漓江清晨航段参考', category: '体验', price: 320, note: '演示价格，以现场水位与班次为准。' },
++      { name: '阳朔自行车 1 日', category: '当地交通', price: 80, note: '演示商品，骑行前检查车况与头盔。' },
+     ],
+-    author: { name: '林见山', role: '城市漫游者', avatar: '林' },
+-    publishedAt: '2026-08-15T08:30:00+08:00',
+-    updatedAt: '2026-08-16T10:00:00+08:00',
++    author: { name: '周舟', role: '行屿 AI 协作旅行编辑', avatar: '周' },
++    publishedAt: '2026-08-17T09:15:00+08:00',
++    updatedAt: '2026-08-19T09:20:00+08:00',
+     ai: { generated: true, rewritten: true },
+   },
+   {
+     slug: 'sichuan-autumn-road',
+-    title: '川西金秋自驾：把雪山留在后视镜里',
+-    excerpt: '从新都桥到塔公，沿着海拔缓慢上升的公路追赶秋色。',
++    title: '川西 7 日安全自驾：雪山、草原与秋日公路',
++    excerpt: '从康定缓慢升高到新都桥、塔公与墨石公园，用两个机动日给高原反应和天气留余地。',
+     destination: '川西',
++    days: 7,
++    budget: 8200,
++    media: destinationAssets.sichuan,
++    locations: [
++      { name: '新都桥', area: '甘孜州康定市', note: '第一晚不赶景点，先观察海拔适应情况。' },
++      { name: '塔公草原', area: '甘孜州康定市', note: '风大温差明显，下午云量变化快。' },
++      { name: '墨石公园', area: '甘孜州道孚县', note: '沿开放栈道行走，不离开游客安全区。' },
++      { name: '康定', area: '甘孜州', note: '作为进出高原的缓冲点，避免夜间翻山。' },
++    ],
++    tags: ['自驾', '雪山', '秋色', '安全'],
++    itinerary: [
++      { day: 1, title: '成都到康定', description: '白天完成转场，检查车辆与天气后在康定休息。', location: '康定' },
++      { day: 2, title: '缓慢进入新都桥', description: '不追日落，分段停车并留意高原反应。', location: '新都桥' },
++      { day: 3, title: '新都桥秋色短线', description: '只走路况明确的村落公路，下午提前回住处。', location: '新都桥' },
++      { day: 4, title: '塔公草原与雪峰', description: '在开放观景区停留，遇到大风或降雪立即缩短路线。', location: '塔公草原' },
++      { day: 5, title: '墨石地貌步行', description: '沿官方栈道完成半日线路，天黑前返回住宿点。', location: '墨石公园' },
++      { day: 6, title: '天气机动日', description: '按路况选择留在塔公或提前回康定，不跨夜赶路。', location: '康定' },
++      { day: 7, title: '白天返程成都', description: '预留堵车与休息时间，完成车辆检查后结束行程。', location: '成都' },
++    ],
++    products: [
++      { name: '川西 7 日车辆预算', category: '当地交通', price: 3200, note: '演示预算，不含真实租车或保险服务。' },
++      { name: '高原住宿 6 晚', category: '住宿', price: 2400, note: '演示价格，优先选择可取消方案。' },
++    ],
++    author: { name: '陈野', role: '行屿 AI 协作公路编辑', avatar: '陈' },
++    publishedAt: '2026-08-16T12:00:00+08:00',
++    updatedAt: '2026-08-19T09:30:00+08:00',
++    ai: { generated: true, rewritten: true },
++  },
++  {
++    slug: 'sanya-bay-rainforest-5d',
++    title: '三亚 5 日：海湾清晨、后海慢住与雨林降温',
++    excerpt: '把海边活动放在清晨和傍晚，中间用后海村巷与呀诺达雨林拉开节奏。',
++    destination: '三亚',
++    days: 5,
++    budget: 6100,
++    media: destinationAssets.sanya,
++    locations: [
++      { name: '亚龙湾', area: '吉阳区', note: '清晨沿岸散步，正午回到室内休息。' },
++      { name: '蜈支洲岛', area: '海棠区', note: '以官方航班和海况为准，预留停航替代日程。' },
++      { name: '后海村', area: '海棠区', note: '冲浪体验选择正规教练，不进入离岸流区域。' },
++      { name: '呀诺达雨林', area: '保亭县', note: '穿防滑鞋，雷雨时服从园区关闭安排。' },
++    ],
++    tags: ['海岛', '慢旅行', '雨林', '亲子'],
++    itinerary: [
++      { day: 1, title: '亚龙湾黎明', description: '抵达后早睡，第二天从清晨海岸开始。', location: '亚龙湾' },
++      { day: 2, title: '蜈支洲清水海岸', description: '按海况登岛，避开正午暴晒并及时补水。', location: '蜈支洲岛' },
++      { day: 3, title: '后海村慢住', description: '看村巷与海边日常，体验项目控制在半天内。', location: '后海村' },
++      { day: 4, title: '呀诺达雨林降温', description: '沿维护步道完成短线，雨后放慢脚步。', location: '呀诺达雨林' },
++      { day: 5, title: '海湾早餐与返程', description: '不再安排远距离景点，留足机场交通时间。', location: '三亚市区' },
++    ],
++    products: [
++      { name: '海湾住宿 4 晚', category: '住宿', price: 2200, note: '演示价格，不连接真实库存。' },
++      { name: '雨林往返交通', category: '当地交通', price: 260, note: '演示预算，雨天先确认道路与园区开放。' },
++    ],
++    author: { name: '许澜', role: '行屿 AI 协作海岛编辑', avatar: '许' },
++    publishedAt: '2026-08-15T11:10:00+08:00',
++    updatedAt: '2026-08-19T09:40:00+08:00',
++    ai: { generated: true, rewritten: true },
++  },
++  {
++    slug: 'hangzhou-lake-tea-4d',
++    title: '杭州 4 日：西湖晨雾、龙井茶坡与运河夜色',
++    excerpt: '用四个步行尺度的小区域串起湖、茶园、竹径和运河，把拥挤时段留给休息。',
++    destination: '杭州',
+     days: 4,
+-    budget: 6800,
+-    media: [media.sichuan, media.guardian],
+-    locations: [{ name: '塔公草原', area: '甘孜', note: '午后云层变化快，注意保暖。' }],
+-    tags: ['自驾', '雪山', '秋色'],
++    budget: 4600,
++    media: destinationAssets.hangzhou,
++    locations: [
++      { name: '西湖', area: '西湖区', note: '清晨从安静湖岸进入，避开正午主景区人流。' },
++      { name: '龙井村', area: '西湖区', note: '沿公共步道看茶园，不进入作业中的茶垄。' },
++      { name: '灵隐周边', area: '西湖区', note: '以竹石小径为主，寺院开放信息单独核对。' },
++      { name: '京杭运河', area: '拱墅区', note: '蓝调时刻到桥西，夜间沿亮灯步道返回。' },
++    ],
++    tags: ['城市漫游', '茶园', '摄影', '周末'],
+     itinerary: [
+-      { day: 1, title: '抵达新都桥', description: '适应海拔，早点休息。', location: '新都桥' },
+-      { day: 2, title: '沿 318 向塔公', description: '避开晨雾，慢慢开进草原与雪山之间。', location: '塔公草原' },
+-      { day: 3, title: '塔公到墨石公园', description: '午后回到新都桥，留时间整理照片。', location: '墨石公园' },
+-      { day: 4, title: '晨光返程', description: '在观景台看完日出后返回康定。', location: '新都桥' },
+-    ],
+-    products: [],
+-    author: { name: '陈野', role: '公路摄影师', avatar: '陈' },
+-    publishedAt: '2026-08-14T12:00:00+08:00',
+-    ai: { generated: false, rewritten: false },
++      { day: 1, title: '西湖晨雾与北山街', description: '早起沿湖慢走，午后回住处休息。', location: '西湖' },
++      { day: 2, title: '龙井茶坡', description: '乘公共交通到村口，用半天走完茶园公共路径。', location: '龙井村' },
++      { day: 3, title: '灵隐竹石小径', description: '把寺院与山路拆开，不在一天内叠加长距离徒步。', location: '灵隐周边' },
++      { day: 4, title: '运河桥影后返程', description: '白天留给休息与行李，傍晚看运河后结束。', location: '京杭运河' },
++    ],
++    products: [
++      { name: '西湖与茶园公交预算', category: '当地交通', price: 120, note: '演示预算，优先公交与步行。' },
++      { name: '杭州住宿 3 晚', category: '住宿', price: 1500, note: '演示价格，不含真实预订。' },
++    ],
++    author: { name: '叶舟', role: '行屿 AI 协作城市编辑', avatar: '叶' },
++    publishedAt: '2026-08-14T10:20:00+08:00',
++    updatedAt: '2026-08-19T09:50:00+08:00',
++    ai: { generated: true, rewritten: true },
+   },
+   {
+-    slug: 'guilin-river-morning',
+-    title: '桂林的清晨，先交给一段江面',
+-    excerpt: '不追打卡，只在漓江最安静的时候坐一次船。',
+-    destination: '桂林',
++    slug: 'nanjing-wall-qinhuai-4d',
++    title: '南京 4 日：从明城墙走到梧桐与秦淮夜色',
++    excerpt: '先在城墙读城市尺度，再沿梧桐大道和中山陵慢走，最后把夜晚交给秦淮河。',
++    destination: '南京',
++    days: 4,
++    budget: 3900,
++    media: destinationAssets.nanjing,
++    locations: [
++      { name: '明城墙', area: '玄武区—秦淮区', note: '选一段登城，不把多个城门塞进同一天。' },
++      { name: '陵园路', area: '玄武区', note: '秋季梧桐路面湿滑，骑行需放慢。' },
++      { name: '中山陵', area: '玄武区', note: '台阶较长，预留休息时间并核对预约。' },
++      { name: '秦淮河', area: '秦淮区', note: '从外围步行进入，避开最拥挤的核心时段。' },
++    ],
++    tags: ['人文历史', '城市漫游', '秋色', '摄影'],
++    itinerary: [
++      { day: 1, title: '明城墙看城市醒来', description: '清晨登城，午后在城墙脚下的小街休息。', location: '明城墙' },
++      { day: 2, title: '梧桐大道与旧宅', description: '沿公共步道慢走，雨后注意落叶与湿滑路面。', location: '陵园路' },
++      { day: 3, title: '中山陵中轴', description: '上午完成台阶路线，下午不再叠加高强度景点。', location: '中山陵' },
++      { day: 4, title: '秦淮夜色收尾', description: '白天留给博物馆，傍晚沿宽阔河段散步后返程。', location: '秦淮河' },
++    ],
++    products: [
++      { name: '南京公共交通 4 日', category: '当地交通', price: 160, note: '演示预算，覆盖地铁与常规公交。' },
++      { name: '城南住宿 3 晚', category: '住宿', price: 1320, note: '演示价格，不提供预订。' },
++    ],
++    author: { name: '顾城南', role: '行屿 AI 协作人文编辑', avatar: '顾' },
++    publishedAt: '2026-08-13T08:40:00+08:00',
++    updatedAt: '2026-08-19T10:00:00+08:00',
++    ai: { generated: true, rewritten: true },
++  },
++  {
++    slug: 'shanghai-urban-walk-3d',
++    title: '上海 3 日：外滩蓝调、武康路树影与苏州河桥',
++    excerpt: '把天际线、老建筑和河岸工业纹理分成三次步行，不用一口气横穿整座城市。',
++    destination: '上海',
+     days: 3,
+-    budget: 3600,
+-    media: [media.guilin, media.dali],
+-    locations: [{ name: '漓江', area: '桂林', note: '选清晨航段，雾气和山水层次更好。' }],
+-    tags: ['山水', '周末', '轻徒步'],
++    budget: 4800,
++    media: destinationAssets.shanghai,
++    locations: [
++      { name: '外滩', area: '黄浦区', note: '蓝调时刻前抵达，避开节假日核心人流。' },
++      { name: '武康路', area: '徐汇区', note: '住宅区保持安静，不停留在居民出入口。' },
++      { name: '苏州河', area: '静安区—虹口区', note: '选择连续开放的河岸步道，桥下路段注意照明。' },
++      { name: '陆家嘴', area: '浦东新区', note: '隔江观看天际线比连续换观景台更从容。' },
++    ],
++    tags: ['城市漫游', '建筑', '摄影', '周末'],
+     itinerary: [
+-      { day: 1, title: '江上清晨', description: '预留早起时间去码头。', location: '漓江' },
+-      { day: 2, title: '骑行遇龙河', description: '只骑最平缓的一段，把午后留给树荫。', location: '阳朔' },
+-      { day: 3, title: '山水收尾', description: '在象鼻山附近吃早餐后返程。', location: '桂林市区' },
+-    ],
+-    products: [],
+-    author: { name: '周舟', role: '旅行编辑', avatar: '周' },
+-    publishedAt: '2026-08-13T09:15:00+08:00',
+-    ai: { generated: false, rewritten: true },
++      { day: 1, title: '外滩到陆家嘴夜景', description: '下午从老城步行到江边，蓝调时刻固定一个机位。', location: '外滩' },
++      { day: 2, title: '武康路建筑散步', description: '上午看树影与街区尺度，午后转入室内展览。', location: '武康路' },
++      { day: 3, title: '苏州河桥与仓库', description: '沿开放河段步行，选一座桥结束城市观察。', location: '苏州河' },
++    ],
++    products: [
++      { name: '城市公共交通 3 日', category: '当地交通', price: 150, note: '演示预算，以地铁与步行为主。' },
++      { name: '中心城区住宿 2 晚', category: '住宿', price: 1900, note: '演示价格，不连接酒店库存。' },
++    ],
++    author: { name: '沈梧', role: '行屿 AI 协作建筑编辑', avatar: '沈' },
++    publishedAt: '2026-08-12T14:00:00+08:00',
++    updatedAt: '2026-08-19T10:10:00+08:00',
++    ai: { generated: true, rewritten: true },
+   },
+   {
+-    slug: 'rainy-mountain-notes',
+-    title: '下雨的山路，也值得慢慢开',
+-    excerpt: '把天气预警当成路书的一部分，雨天同样能抵达风景。',
+-    destination: '高原山地',
+-    days: 2,
+-    budget: 2400,
+-    media: [media.guardian],
+-    locations: [{ name: '折多山', area: '甘孜', note: '雨天降低车速并检查路况。' }],
+-    tags: ['雨天出行', '安全', '自驾'],
++    slug: 'guizhou-karst-miao-6d',
++    title: '贵州 6 日：小七孔碧水、苗寨山雾与加榜梯田',
++    excerpt: '在黔南、黔东南和贵阳之间留出完整转场日，让山路、天气与村寨节奏成为路线的一部分。',
++    destination: '贵州',
++    days: 6,
++    budget: 5800,
++    media: destinationAssets.guizhou,
++    locations: [
++      { name: '小七孔', area: '黔南州荔波县', note: '雨后关注水位和步道开放范围。' },
++      { name: '西江千户苗寨', area: '黔东南州雷山县', note: '尊重居民生活，清晨拍摄不使用无人机。' },
++      { name: '加榜梯田', area: '黔东南州从江县', note: '山路弯多，白天转场并准备晕车用品。' },
++      { name: '贵阳', area: '贵州省', note: '作为交通缓冲，用一晚观察山城层次。' },
++    ],
++    tags: ['山水', '村寨', '梯田', '人文历史'],
+     itinerary: [
+-      { day: 1, title: '观察天气再出发', description: '跟随官方路况信息调整时间。', location: '折多山' },
+-      { day: 2, title: '确认路况后返程', description: '雨势减弱后分段下山，避免夜间赶路。', location: '康定' },
++      { day: 1, title: '贵阳抵达与山城夜色', description: '不急着远行，用半天适应坡路与湿润天气。', location: '贵阳' },
++      { day: 2, title: '贵阳到荔波', description: '白天完成长距离转场，傍晚只在县城休息。', location: '荔波' },
++      { day: 3, title: '小七孔碧水', description: '按水位选择开放步道，不进入未开放河岸。', location: '小七孔' },
++      { day: 4, title: '转入西江苗寨', description: '下午抵达后沿公共观景步道看山雾与木楼。', location: '西江千户苗寨' },
++      { day: 5, title: '加榜梯田慢行', description: '只走村落公共路径，把拍摄与居民生活保持距离。', location: '加榜梯田' },
++      { day: 6, title: '白天返回贵阳', description: '预留山路与天气缓冲，不安排当日晚间紧接航班。', location: '贵阳' },
+     ],
+-    products: [],
+-    author: { name: '沈雨', role: '山地领队', avatar: '沈' },
+-    publishedAt: '2026-08-12T16:20:00+08:00',
+-    ai: { generated: false, rewritten: false },
++    products: [
++      { name: '贵州 6 日转场预算', category: '当地交通', price: 1900, note: '演示预算，山路用车需另核资质。' },
++      { name: '村寨与城市住宿 5 晚', category: '住宿', price: 1800, note: '演示价格，不提供实际预订。' },
++    ],
++    author: { name: '陶岚', role: '行屿 AI 协作山地编辑', avatar: '陶' },
++    publishedAt: '2026-08-11T09:00:00+08:00',
++    updatedAt: '2026-08-19T10:20:00+08:00',
++    ai: { generated: true, rewritten: true },
+   },
+ ];
+ 
+ export const postsBySlug: Readonly<Record<string, TravelPost>> = Object.fromEntries(
+   posts.map((post) => [post.slug, post]),
+ );
+ 
+ export function orderPosts(mode: FeedMode, interestTags: readonly string[] = []): TravelPost[] {
+   const latestFirst = [...posts].sort(
+     (left, right) => Date.parse(right.publishedAt) - Date.parse(left.publishedAt),
+diff --git a/tests/unit/assets.test.ts b/tests/unit/assets.test.ts
+index d2c4715..77f12d4 100644
+--- a/tests/unit/assets.test.ts
++++ b/tests/unit/assets.test.ts
+@@ -1,12 +1,34 @@
+-import { stat } from 'node:fs/promises';
++import { readFile, stat } from 'node:fs/promises';
+ import { expect, it } from 'vitest';
+-import { brandAssets } from '@/data/assets';
++import { brandAssets, destinationAssets } from '@/data/assets';
+ 
+ it('ships every visible branded image as a real local asset', async () => {
+   for (const asset of Object.values(brandAssets)) {
+     const info = await stat(`public${asset.src}`);
++    const bytes = await readFile(`public${asset.src}`);
+ 
+     expect(info.size).toBeGreaterThan(20_000);
+     expect(asset.alt.length).toBeGreaterThan(6);
++    expect(bytes.subarray(0, 8).toString('hex')).toBe('89504e470d0a1a0a');
++    expect(bytes.readUInt32BE(16)).toBe(asset.width);
++    expect(bytes.readUInt32BE(20)).toBe(asset.height);
++  }
++});
++
++it('registers every destination image with metadata matching the shipped PNG', async () => {
++  const registered = Object.values(destinationAssets).flat();
++
++  expect(Object.keys(destinationAssets)).toHaveLength(8);
++  expect(registered).toHaveLength(32);
++  expect(new Set(registered.map((asset) => asset.src)).size).toBe(32);
++
++  for (const asset of registered) {
++    const bytes = await readFile(`public${asset.src}`);
++
++    expect(asset.width).toBe(1536);
++    expect(asset.height).toBe(1024);
++    expect(asset.alt.length).toBeGreaterThan(6);
++    expect(bytes.readUInt32BE(16)).toBe(asset.width);
++    expect(bytes.readUInt32BE(20)).toBe(asset.height);
+   }
+ });
+diff --git a/tests/unit/content-invariants.test.ts b/tests/unit/content-invariants.test.ts
+new file mode 100644
+index 0000000..e601cf4
+--- /dev/null
++++ b/tests/unit/content-invariants.test.ts
+@@ -0,0 +1,46 @@
++import { readFile, stat } from 'node:fs/promises';
++import { expect, it } from 'vitest';
++import { posts } from '@/data/posts';
++
++const requiredDestinations = ['大理', '桂林', '川西', '三亚', '杭州', '南京', '上海', '贵州'] as const;
++const assetDirectories = ['dali', 'guilin', 'sichuan', 'sanya', 'hangzhou', 'nanjing', 'shanghai', 'guizhou'] as const;
++
++function readPngDimensions(bytes: Buffer) {
++  const pngSignature = '89504e470d0a1a0a';
++  expect(bytes.subarray(0, 8).toString('hex')).toBe(pngSignature);
++
++  return {
++    width: bytes.readUInt32BE(16),
++    height: bytes.readUInt32BE(20),
++  };
++}
++
++it('ships eight complete destination guides with four independent images each', () => {
++  const destinations = posts.map((post) => post.destination);
++
++  for (const destination of requiredDestinations) expect(destinations).toContain(destination);
++  for (const post of posts.filter((item) => requiredDestinations.includes(item.destination as (typeof requiredDestinations)[number]))) {
++    expect(post.media.length).toBeGreaterThanOrEqual(4);
++    expect(new Set(post.media.map((asset) => asset.src)).size).toBe(post.media.length);
++    expect(post.itinerary).toHaveLength(post.days);
++    expect(post.locations.length).toBeGreaterThanOrEqual(2);
++    expect(post.tags.length).toBeGreaterThanOrEqual(2);
++    expect(post.budget).toBeGreaterThan(0);
++    expect(post.ai.generated || post.ai.rewritten).toBe(true);
++  }
++});
++
++it('ships all 32 independent destination PNGs at the registered 3:2 source size', async () => {
++  const expectedPaths = assetDirectories.flatMap((destination) =>
++    ['01', '02', '03', '04'].map((shot) => `public/assets/destinations/${destination}/${shot}.png`),
++  );
++
++  expect(expectedPaths).toHaveLength(32);
++  for (const path of expectedPaths) {
++    const info = await stat(path);
++    const bytes = await readFile(path);
++
++    expect(info.size).toBeGreaterThan(20_000);
++    expect(readPngDimensions(bytes)).toEqual({ width: 1536, height: 1024 });
++  }
++});

@@ -1,0 +1,164 @@
+# Review package: f92df1a..c614b5f
+
+## Commits
+c614b5f fix: explain unavailable guide favorites
+
+## Files changed
+ src/features/library/favorite-button.tsx |  6 ++++--
+ src/features/library/library.module.css  | 12 ++++++++++++
+ tests/component/favorite-sync.test.tsx   | 10 +++++++---
+ 3 files changed, 23 insertions(+), 5 deletions(-)
+
+## Diff
+diff --git a/src/features/library/favorite-button.tsx b/src/features/library/favorite-button.tsx
+index f2560df..d55f377 100644
+--- a/src/features/library/favorite-button.tsx
++++ b/src/features/library/favorite-button.tsx
+@@ -1,62 +1,64 @@
+ 'use client';
+ 
+ import { Heart } from '@phosphor-icons/react';
+-import { useEffect, useState } from 'react';
++import { useEffect, useId, useState } from 'react';
+ import {
+   hydrateLibraryStore,
+   useLibraryStore,
+   useLibraryStoreHydration,
+ } from '@/stores/library-store';
+ import styles from './library.module.css';
+ 
+ interface FavoriteButtonProps {
+   slug: string;
+   label: string;
+ }
+ 
+ export function FavoriteButton({ slug, label }: FavoriteButtonProps) {
+   const liked = useLibraryStore((state) => state.likedPostSlugs.includes(slug));
+   const togglePostLike = useLibraryStore((state) => state.togglePostLike);
+   const hydrated = useLibraryStoreHydration((state) => state.hydrated);
+   const hydrationError = useLibraryStoreHydration((state) => state.hydrationError);
++  const hydrationErrorId = useId();
+   const [message, setMessage] = useState('');
+   const [justLiked, setJustLiked] = useState(false);
+   const unavailable = !hydrated || hydrationError;
+ 
+   useEffect(() => {
+     void hydrateLibraryStore();
+   }, []);
+ 
+   function toggleFavorite() {
+     if (unavailable) return;
+     togglePostLike(slug);
+     setMessage(liked ? `已取消喜欢 ${label}` : `已喜欢 ${label}`);
+     setJustLiked(!liked);
+   }
+ 
+   return (
+     <span className={styles.favoriteControl}>
+       <button
++        aria-describedby={hydrationError ? hydrationErrorId : undefined}
+         aria-label={`喜欢 ${label}`}
+         aria-pressed={liked}
+         className={styles.favoriteButton}
+         data-just-liked={justLiked || undefined}
+         disabled={unavailable}
+         onAnimationEnd={() => setJustLiked(false)}
+         onClick={toggleFavorite}
+         type="button"
+       >
+         <Heart aria-hidden size={20} weight={liked ? 'fill' : 'regular'} />
+       </button>
+       {!hydrated ? (
+         <span className={styles.visuallyHidden} role="status">正在读取本地喜欢状态…</span>
+       ) : null}
+       {hydrationError ? (
+-        <span className={styles.visuallyHidden} role="alert">本地喜欢状态无法安全读取，暂时无法更改。</span>
++        <span className={styles.errorMessage} id={hydrationErrorId} role="alert">本地喜欢暂不可用</span>
+       ) : null}
+       {message ? (
+         <span aria-live="polite" className={styles.visuallyHidden} role="status">{message}</span>
+       ) : null}
+     </span>
+   );
+ }
+diff --git a/src/features/library/library.module.css b/src/features/library/library.module.css
+index e3ef0b6..7393d7c 100644
+--- a/src/features/library/library.module.css
++++ b/src/features/library/library.module.css
+@@ -1,12 +1,13 @@
+ .favoriteControl {
+   display: inline-flex;
++  align-items: center;
+ }
+ 
+ .favoriteButton {
+   display: inline-grid;
+   width: 32px;
+   height: 32px;
+   padding: 0;
+   place-items: center;
+   color: var(--ink);
+   border: 0;
+@@ -30,20 +31,31 @@
+ .favoriteButton:disabled {
+   color: rgb(16 16 15 / 38%);
+   cursor: wait;
+ }
+ 
+ .favoriteButton:focus-visible {
+   outline: 2px solid var(--sand);
+   outline-offset: 3px;
+ }
+ 
++.errorMessage {
++  margin-left: 3px;
++  padding: 3px 6px;
++  color: #6d532a;
++  border-radius: 999px;
++  background: rgb(183 154 104 / 14%);
++  font-size: 10px;
++  line-height: 1.2;
++  white-space: nowrap;
++}
++
+ .visuallyHidden {
+   position: absolute;
+   width: 1px;
+   height: 1px;
+   overflow: hidden;
+   clip: rect(0 0 0 0);
+   white-space: nowrap;
+   clip-path: inset(50%);
+ }
+ 
+diff --git a/tests/component/favorite-sync.test.tsx b/tests/component/favorite-sync.test.tsx
+index 3f9e4cf..399bef9 100644
+--- a/tests/component/favorite-sync.test.tsx
++++ b/tests/component/favorite-sync.test.tsx
+@@ -50,19 +50,23 @@ describe('FavoriteButton', () => {
+ 
+     expect(screen.getByRole('button', { name: '喜欢 大理攻略' })).toBeDisabled();
+     expect(screen.getByRole('status')).toHaveTextContent('正在读取本地喜欢状态');
+ 
+     await act(async () => { releaseHydration?.(); });
+ 
+     expect(await screen.findByRole('button', { pressed: true })).toBeEnabled();
+     rehydrate.mockRestore();
+   });
+ 
+-  it('fails closed when library hydration cannot be completed', () => {
++  it('fails closed with a visible explanation associated with the disabled favorite control', () => {
+     useLibraryStoreHydration.setState({ hydrated: true, hydrationError: true });
+ 
+     render(<FavoriteButton label="大理攻略" slug="dali-slow-5d" />);
+ 
+-    expect(screen.getByRole('button', { name: '喜欢 大理攻略' })).toBeDisabled();
+-    expect(screen.getByRole('alert')).toHaveTextContent('本地喜欢状态无法安全读取');
++    const favorite = screen.getByRole('button', { name: '喜欢 大理攻略' });
++    const explanation = screen.getByRole('alert');
++    expect(favorite).toBeDisabled();
++    expect(explanation).toBeVisible();
++    expect(explanation).toHaveTextContent('本地喜欢暂不可用');
++    expect(favorite).toHaveAccessibleDescription('本地喜欢暂不可用');
+   });
+ });

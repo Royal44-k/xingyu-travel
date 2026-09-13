@@ -1,0 +1,36 @@
+
+Running 1 test using 1 worker
+
+  x  1 [chromium] › tests\e2e\core-journey.spec.ts:21:1 › guide to guarded alternative plan through the public UI (30.6s)
+
+
+  1) [chromium] › tests\e2e\core-journey.spec.ts:21:1 › guide to guarded alternative plan through the public UI 
+
+    Test timeout of 30000ms exceeded.
+
+    Error: locator.fill: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for getByRole('textbox', { name: '出发地' })
+
+
+      24 |   await page.goto('/');
+      25 |   await page.getByRole('tab', { name: '机票' }).click();
+    > 26 |   await page.getByRole('textbox', { name: '出发地' }).fill('杭州');
+         |                                                    ^
+      27 |   await page.getByRole('textbox', { name: '到达地' }).fill('大理');
+      28 |   const quoteStream = page.waitForResponse((response) => response.url().includes('/api/v1/comparison/searches/') && response.url().endsWith('/events'));
+      29 |   await page.getByRole('button', { name: '开始规划' }).click();
+        at D:\Codex-chat\xingyu-travel\.worktrees\xingyu-public-mvp\tests\e2e\core-journey.spec.ts:26:52
+
+    Error Context: test-results\core-journey-guide-to-guar-b8552--plan-through-the-public-UI-chromium\error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results\core-journey-guide-to-guar-b8552--plan-through-the-public-UI-chromium\trace.zip
+    Usage:
+
+        npx playwright show-trace test-results\core-journey-guide-to-guar-b8552--plan-through-the-public-UI-chromium\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    [chromium] › tests\e2e\core-journey.spec.ts:21:1 › guide to guarded alternative plan through the public UI 

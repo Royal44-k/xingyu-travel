@@ -1,0 +1,6 @@
+
+Running 1 test using 1 worker
+
+  ok 1 [chromium] › tests\e2e\accessibility.spec.ts:32:3 › has no critical or serious axe violations on /guardian/dali-slow-5d (1.7s)
+
+  1 passed (4.0s)

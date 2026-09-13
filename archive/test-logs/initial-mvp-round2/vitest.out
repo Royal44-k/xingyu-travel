@@ -1,0 +1,9 @@
+
+ RUN  v4.1.10 D:/Codex-chat/xingyu-travel/.worktrees/xingyu-public-mvp
+
+
+ Test Files  29 passed (29)
+      Tests  215 passed (215)
+   Start at  15:57:46
+   Duration  87.50s (transform 2.97s, setup 63.65s, import 787.29s, tests 23.06s, environment 289.25s)
+

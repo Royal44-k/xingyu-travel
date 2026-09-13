@@ -1,0 +1,715 @@
+# COMMITS
+e0a5bb4 fix: harden trip hydration and guardian consent
+
+# STAT
+ .../2026-08-16-xingyu-public-mvp/task-7-report.md  |  64 ++++++++++
+ src/features/trips/decision-room.tsx               |  16 ++-
+ src/features/trips/trip-workbench.tsx              |   6 +-
+ src/features/trips/trips.module.css                |  12 ++
+ src/stores/trip-store.ts                           | 141 ++++++++++++++++++---
+ tests/component/trip-workbench.test.tsx            |  70 +++++++++-
+ tests/unit/trip-store.test.ts                      |  75 +++++++++++
+ 7 files changed, 360 insertions(+), 24 deletions(-)
+
+# DIFF
+diff --git a/.superpowers/sdd/2026-08-16-xingyu-public-mvp/task-7-report.md b/.superpowers/sdd/2026-08-16-xingyu-public-mvp/task-7-report.md
+index a0ba6c9..9a298c3 100644
+--- a/.superpowers/sdd/2026-08-16-xingyu-public-mvp/task-7-report.md
++++ b/.superpowers/sdd/2026-08-16-xingyu-public-mvp/task-7-report.md
+@@ -101,10 +101,74 @@ Vitest and Next required approved writes for their temporary cache and build art
+ 
+ ## Commit
+ 
+ `feat: add itinerary workbench and decision room`
+ 
+ ## Concerns
+ 
+ - All partner-intent, voting, budget, and guardian behavior is intentionally browser-local demo state. There is no booking, publishing, monitoring, or location backend.
+ - Initial dates, costs, candidates, and the three member identities are fixed Dali demo fixtures. The store boundaries support later adapters without representing those fixtures as live data.
+ - Verification covers DOM interaction, accessibility-oriented semantics, static analysis, regression tests, and a production build. Browser screenshot and viewport-level visual QA were not run in this task.
++
++## Review round 1
++
++### RED
++
++Added the review regressions before changing production code, then ran:
++
++```text
++.\node_modules\.bin\vitest.CMD run tests\unit\trip-store.test.ts tests\component\trip-workbench.test.tsx --reporter=verbose
++Test Files 2 failed (2)
++Tests 8 failed | 17 passed (25)
++```
++
++The failures reproduced each boundary defect:
++
++- four valid-JSON but structurally invalid workbench payloads did not report hydration failure;
++- a version-0 payload remained version 0 because no migration existed;
++- the guardian dialog's X path retained checked consent on reopen;
++- a valid accepted workbench was replaced by fatal recovery when only the legacy draft store failed;
++- a malformed `trips: null` workbench payload did not reach safe recovery.
++
++### Fixes
++
++- Added strict Zod validation for persisted trips, settings, ISO dates and ordering, finite nonnegative budgets/costs, itinerary items, candidates, member/candidate votes, record key/ID agreement, partner-intent ownership, and guardian/status coherence. Strict objects also reject unexpected fields.
++- Versioned `xingyu-demo-v1` at version 1. Version-0 state is validated before migration, then rewritten only after successful hydration.
++- Replaced Zustand's default unchecked shallow merge with a validating merge. Valid persisted records merge behind current safe in-memory records; invalid state throws into the hydration-error callback before any state/storage replacement.
++- Made `createTripStore` accept an isolated hydration-error callback for direct persistence-boundary tests. The app store maps that same callback to its recovery state.
++- Changed route precedence so an already accepted workbench remains usable when Task 6 draft hydration fails. A non-blocking warning explains that the saved workbench remains active; fatal draft recovery is reserved for routes with no accepted trip.
++- Routed guardian X, Escape, Cancel, and successful confirmation through one close handler that clears consent. Dialog cleanup restores focus to the guardian switch.
++
++### GREEN
++
++Focused review verification:
++
++```text
++.\node_modules\.bin\vitest.CMD run tests\unit\trip-store.test.ts tests\component\trip-workbench.test.tsx
++Test Files 2 passed (2)
++Tests 25 passed (25)
++```
++
++Final verification:
++
++```text
++.\node_modules\.bin\tsc.CMD --noEmit --incremental false
++exit 0
++
++.\node_modules\.bin\eslint.CMD .
++exit 0
++
++.\node_modules\.bin\vitest.CMD run --maxWorkers=1 --reporter=dot
++Test Files 16 passed (16)
++Tests 119 passed (119)
++
++.\node_modules\.bin\next.CMD build
++Compiled successfully
++Route /trips/[slug]  Dynamic
++```
++
++Review fix commit: `fix: harden trip hydration and guardian consent`.
++
++### Remaining concerns
++
++- Persisted state is intentionally rejected as a whole if any trip is structurally invalid. The untouched browser bytes and explicit recovery state favor non-destructive safety over silently retaining a partially valid subset.
++- Browser screenshot and viewport-level visual QA remain outside this review round; interaction behavior is covered through DOM tests, static checks, and the production build.
+diff --git a/src/features/trips/decision-room.tsx b/src/features/trips/decision-room.tsx
+index d6e9050..92fe338 100644
+--- a/src/features/trips/decision-room.tsx
++++ b/src/features/trips/decision-room.tsx
+@@ -18,45 +18,48 @@ export function DecisionRoom({
+   trip,
+   partnerIntentPublished,
+   onEnableGuardian,
+   onPublishPartnerIntent,
+   onVote,
+ }: DecisionRoomProps) {
+   const [guardianDialogOpen, setGuardianDialogOpen] = useState(false);
+   const [consent, setConsent] = useState(false);
+   const triggerRef = useRef<HTMLButtonElement>(null);
+   const dialogRef = useRef<HTMLDivElement>(null);
++  const closeGuardianDialog = () => {
++    setGuardianDialogOpen(false);
++    setConsent(false);
++  };
+   useDialogFocus(
+     guardianDialogOpen,
+     dialogRef,
+     triggerRef,
+-    () => { setGuardianDialogOpen(false); setConsent(false); },
++    closeGuardianDialog,
+   );
+ 
+   const counts = Object.fromEntries(
+     trip.candidates.map((candidate) => [
+       candidate.id,
+       Object.values(trip.votes).filter((candidateId) => candidateId === candidate.id).length,
+     ]),
+   );
+   const consensus = trip.candidates.find((candidate) => counts[candidate.id] >= 2);
+ 
+   const toggleGuardian = () => {
+     if (trip.guardianEnabled) onEnableGuardian(false);
+     else setGuardianDialogOpen(true);
+   };
+ 
+   const confirmGuardian = () => {
+     if (!consent) return;
+     onEnableGuardian(true);
+-    setGuardianDialogOpen(false);
+-    setConsent(false);
++    closeGuardianDialog();
+   };
+ 
+   return (
+     <section aria-labelledby="decision-title" className={styles.decisionSection}>
+       <div className={styles.sectionHeading}>
+         <div><p>DECISION ROOM / 02</p><h2 id="decision-title">同行决策室</h2></div>
+         <span>三位演示成员 · 每人一票</span>
+       </div>
+       <div className={styles.decisionGrid}>
+         <div className={styles.candidateColumn}>
+@@ -123,23 +126,26 @@ export function DecisionRoom({
+         <div className={styles.dialogBackdrop}>
+           <div
+             aria-describedby="guardian-description"
+             aria-labelledby="guardian-title"
+             aria-modal="true"
+             className={styles.guardianDialog}
+             ref={dialogRef}
+             role="dialog"
+             tabIndex={-1}
+           >
+-            <button aria-label="关闭守护授权" className={styles.dialogClose} onClick={() => setGuardianDialogOpen(false)} type="button"><X aria-hidden size={20} /></button>
++            <button aria-label="关闭守护授权" className={styles.dialogClose} onClick={closeGuardianDialog} type="button"><X aria-hidden size={20} /></button>
+             <ShieldCheck aria-hidden className={styles.dialogIcon} size={32} />
+             <p>LOCAL GUARDIAN DEMO</p>
+             <h2 id="guardian-title">授权行程守护演示</h2>
+             <span id="guardian-description">开启后仅在这个浏览器记录“守护已开启”的演示状态。不会读取位置、联系紧急联系人或发出真实预警。</span>
+             <label className={styles.consentLabel}><input checked={consent} onChange={(event) => setConsent(event.target.checked)} type="checkbox" />我明确同意开启本地守护演示</label>
+-            <button className={styles.confirmGuardian} disabled={!consent} onClick={confirmGuardian} type="button">确认开启</button>
++            <div className={styles.guardianDialogActions}>
++              <button className={styles.cancelGuardian} onClick={closeGuardianDialog} type="button">取消</button>
++              <button className={styles.confirmGuardian} disabled={!consent} onClick={confirmGuardian} type="button">确认开启</button>
++            </div>
+           </div>
+         </div>
+       )}
+     </section>
+   );
+ }
+diff --git a/src/features/trips/trip-workbench.tsx b/src/features/trips/trip-workbench.tsx
+index cd13632..58156aa 100644
+--- a/src/features/trips/trip-workbench.tsx
++++ b/src/features/trips/trip-workbench.tsx
+@@ -52,39 +52,41 @@ export function TripWorkbench({ slug }: { slug: string }) {
+     if (!trip) return '/compare';
+     const query = new URLSearchParams({
+       destination: trip.destination,
+       from: trip.startDate,
+       to: trip.endDate,
+       travelers: String(trip.travelers),
+     });
+     return `/compare?${query.toString()}`;
+   }, [trip]);
+ 
+-  if (!draftHydrated || !workbenchHydrated) {
++  if (!workbenchHydrated || (!trip && !draftHydrated)) {
+     return <WorkbenchState title="正在读取本地行程…" message="正在合并攻略草稿与浏览器中的工作台状态。" />;
+   }
+ 
+-  if (draftHydrationError || workbenchHydrationError) {
++  if (!trip && (draftHydrationError || workbenchHydrationError)) {
+     return <WorkbenchState title="本地行程暂时无法读取" message="浏览器中的数据未被覆盖。请返回原攻略，稍后再试。" sourceHref={`/square/${slug}`} />;
+   }
+ 
+   if (!draft && !trip) {
+     return <WorkbenchState title="未找到本地行程草稿" message="草稿只保存在创建它的浏览器中。请返回攻略重新生成。" sourceHref={`/square/${slug}`} />;
+   }
+ 
+   if (!trip) {
+     return <WorkbenchState title="正在准备行程工作台…" message="本地草稿已读取，正在创建可编辑版本。" />;
+   }
+ 
+   const budgetSummary = getBudgetSummary(trip);
+   return (
+     <main className={styles.page}>
++      {draftHydrationError && <p className={styles.hydrationWarning} role="status">攻略草稿读取失败，继续使用已保存的本地工作台。</p>}
++      {workbenchHydrationError && <p className={styles.hydrationWarning} role="status">工作台存储校验失败，继续使用当前安全的内存状态；原存储未被覆盖。</p>}
+       <header className={styles.hero}>
+         <div className={styles.eyebrow}><span>LOCAL TRIP / DALI</span><span>本地演示工作台</span></div>
+         <div className={styles.heroTitle}>
+           <div><p>{trip.destination} · {trip.items.length} DAYS</p><h1>{trip.title}</h1></div>
+           <span className={styles.statusPill}>{trip.guardianEnabled ? '守护演示中' : '共同规划中'}</span>
+         </div>
+         <p className={styles.heroLead}>把来自攻略的灵感拆成可以讨论、调整与核算的五天。所有编辑仅保存在当前浏览器。</p>
+         <div className={styles.tripMeta}>
+           <span><MapPin aria-hidden size={18} />{trip.destination}</span>
+           <span><CalendarBlank aria-hidden size={18} />{trip.startDate} — {trip.endDate}</span>
+diff --git a/src/features/trips/trips.module.css b/src/features/trips/trips.module.css
+index a76f4b5..8893b23 100644
+--- a/src/features/trips/trips.module.css
++++ b/src/features/trips/trips.module.css
+@@ -1,16 +1,26 @@
+ .page {
+   width: min(100% - 40px, var(--content-max));
+   margin: 0 auto;
+   padding: 126px 0 80px;
+ }
+ 
++.hydrationWarning {
++  margin: 0 0 14px;
++  padding: 12px 16px;
++  color: #694d25;
++  background: #efe0b9;
++  border-left: 3px solid #9c7841;
++  font-size: 13px;
++  line-height: 1.6;
++}
++
+ .hero {
+   position: relative;
+   padding: 48px 52px 42px;
+   overflow: hidden;
+   color: #f8f4ec;
+   background: linear-gradient(125deg, #1b2520, #344038 70%, #60664c);
+   border-radius: 2px 2px 30px 2px;
+ }
+ 
+ .hero::after {
+@@ -295,20 +305,22 @@
+ .dialogBackdrop { position: fixed; z-index: 50; inset: 0; display: grid; place-items: center; padding: 20px; background: rgb(10 13 11 / 68%); }
+ .guardianDialog { position: relative; width: min(100%, 480px); padding: 38px; background: #f7f2e9; box-shadow: 0 30px 80px rgb(0 0 0 / 28%); }
+ .dialogClose { position: absolute; top: 14px; right: 14px; display: grid; width: 36px; height: 36px; place-items: center; background: transparent; border: 0; cursor: pointer; }
+ .dialogIcon { color: #526555; }
+ .guardianDialog h2 { margin: 8px 0 14px; font-family: var(--font-display); font-size: 28px; }
+ .guardianDialog > span { display: block; color: #6e685f; font-size: 14px; line-height: 1.75; }
+ .consentLabel { display: flex; align-items: flex-start; gap: 9px; margin: 24px 0 16px; font-size: 13px; line-height: 1.5; }
+ .consentLabel input { margin-top: 3px; }
+ .confirmGuardian { width: 100%; }
+ .confirmGuardian:disabled { cursor: not-allowed; opacity: .45; }
++.guardianDialogActions { display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; }
++.cancelGuardian { min-height: 43px; color: #39352f; background: transparent; border: 1px solid #bdb3a5; border-radius: 6px; cursor: pointer; }
+ 
+ .statePage { display: grid; min-height: 72vh; place-items: center; padding: 130px 20px 60px; }
+ .statePanel { width: min(100%, 680px); padding: 52px; text-align: center; background: #eae3d7; border: 1px solid #d0c6b7; }
+ .statePanel h1 { margin: 0 0 14px; font-family: var(--font-display); font-size: 36px; }
+ .statePanel span { display: block; color: #716b62; line-height: 1.7; }
+ .statePanel a { display: inline-block; margin-top: 24px; padding-bottom: 4px; border-bottom: 1px solid; text-decoration: none; }
+ 
+ .srOnly { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+ 
+ .page :is(button, a, input):focus-visible,
+diff --git a/src/stores/trip-store.ts b/src/stores/trip-store.ts
+index 0c88d8d..b24c919 100644
+--- a/src/stores/trip-store.ts
++++ b/src/stores/trip-store.ts
+@@ -1,15 +1,16 @@
+ 'use client';
+ 
+ import { create } from 'zustand';
+ import { createStore } from 'zustand/vanilla';
+ import { persist } from 'zustand/middleware';
++import { z } from 'zod';
+ import type { TripDraft } from '@/domain/trips/extract-draft';
+ 
+ export type WorkbenchTripStatus = 'review' | 'active' | 'guarded' | 'discarded' | 'archived';
+ export type ReorderDirection = 'up' | 'down';
+ 
+ export interface WorkbenchItineraryItem {
+   id: string;
+   day: number;
+   title: string;
+   description: string;
+@@ -54,36 +55,124 @@ export interface TripStoreState {
+   vote: (tripId: string, memberId: string, candidateId: string) => void;
+   enableGuardian: (tripId: string, consent: boolean) => void;
+   publishPartnerIntent: (tripId: string) => void;
+ }
+ 
+ interface TripStoreHydrationState {
+   hydrated: boolean;
+   hydrationError: boolean;
+ }
+ 
++interface CreateTripStoreOptions {
++  onHydrationError?: (error: unknown) => void;
++}
++
+ const allowedTransitions: Readonly<Record<WorkbenchTripStatus, readonly WorkbenchTripStatus[]>> = {
+   review: ['active', 'discarded'],
+   active: ['guarded', 'archived'],
+   guarded: ['active', 'archived'],
+   discarded: [],
+   archived: [],
+ };
+ 
+ const initialItemCosts = [520, 420, 680, 980, 370] as const;
+ 
+ export const demoMembers = [
+   { id: 'member-lin', name: '林见山' },
+   { id: 'member-muyu', name: '木雨' },
+   { id: 'member-zhou', name: '周舟' },
+ ] as const;
+ 
++const realIsoDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
++  const parsed = new Date(`${value}T00:00:00.000Z`);
++  return !Number.isNaN(parsed.valueOf()) && parsed.toISOString().slice(0, 10) === value;
++});
++
++const itineraryItemSchema = z.object({
++  id: z.string().min(1).max(120),
++  day: z.number().int().positive(),
++  title: z.string().min(1).max(120),
++  description: z.string().max(500),
++  location: z.string().min(1).max(120),
++  estimatedCost: z.number().finite().nonnegative(),
++  isAlternative: z.boolean(),
++}).strict();
++
++const decisionCandidateSchema = z.object({
++  id: z.string().min(1).max(120),
++  title: z.string().min(1).max(120),
++  description: z.string().max(500),
++}).strict();
++
++const workbenchTripSchema = z.object({
++  id: z.string().min(1).max(120),
++  sourcePostSlug: z.string().min(1).max(120),
++  title: z.string().min(1).max(120),
++  destination: z.string().min(1).max(120),
++  startDate: realIsoDateSchema,
++  endDate: realIsoDateSchema,
++  travelers: z.number().int().min(1).max(9),
++  budget: z.number().finite().nonnegative(),
++  status: z.enum(['review', 'active', 'guarded', 'discarded', 'archived']),
++  guardianEnabled: z.boolean(),
++  items: z.array(itineraryItemSchema).min(1).max(60),
++  candidates: z.array(decisionCandidateSchema).min(1).max(20),
++  votes: z.record(z.string(), z.string()),
++}).strict().superRefine((trip, context) => {
++  if (trip.endDate < trip.startDate) {
++    context.addIssue({ code: 'custom', path: ['endDate'], message: 'invalid date order' });
++  }
++  if (trip.guardianEnabled !== (trip.status === 'guarded')) {
++    context.addIssue({ code: 'custom', path: ['guardianEnabled'], message: 'guardian/status mismatch' });
++  }
++  const itemIds = new Set(trip.items.map((item) => item.id));
++  if (itemIds.size !== trip.items.length) {
++    context.addIssue({ code: 'custom', path: ['items'], message: 'duplicate item id' });
++  }
++  const candidateIds = new Set(trip.candidates.map((candidate) => candidate.id));
++  if (candidateIds.size !== trip.candidates.length) {
++    context.addIssue({ code: 'custom', path: ['candidates'], message: 'duplicate candidate id' });
++  }
++  const memberIds = new Set<string>(demoMembers.map((member) => member.id));
++  for (const [memberId, candidateId] of Object.entries(trip.votes)) {
++    if (!memberIds.has(memberId) || !candidateIds.has(candidateId)) {
++      context.addIssue({ code: 'custom', path: ['votes', memberId], message: 'invalid vote' });
++    }
++  }
++});
++
++const persistedTripStateSchema = z.object({
++  trips: z.record(z.string(), workbenchTripSchema),
++  partnerIntents: z.record(z.string(), z.boolean()),
++}).strict().superRefine((state, context) => {
++  for (const [tripId, trip] of Object.entries(state.trips)) {
++    if (trip.id !== tripId) {
++      context.addIssue({ code: 'custom', path: ['trips', tripId, 'id'], message: 'trip key/id mismatch' });
++    }
++  }
++  for (const tripId of Object.keys(state.partnerIntents)) {
++    if (!state.trips[tripId]) {
++      context.addIssue({ code: 'custom', path: ['partnerIntents', tripId], message: 'orphan intent' });
++    }
++  }
++});
++
++type PersistedTripState = z.infer<typeof persistedTripStateSchema>;
++
++function parsePersistedTripState(state: unknown): PersistedTripState {
++  const parsed = persistedTripStateSchema.safeParse(state);
++  if (parsed.success) return parsed.data;
++  const error = new Error('TRIP_INVALID_PERSISTED_STATE') as Error & { cause?: unknown };
++  error.cause = parsed.error;
++  throw error;
++}
++
+ export function transitionTrip(
+   status: WorkbenchTripStatus,
+   next: WorkbenchTripStatus,
+ ): WorkbenchTripStatus {
+   if (!allowedTransitions[status].includes(next)) {
+     throw new Error(`TRIP_INVALID_TRANSITION:${status}:${next}`);
+   }
+   return next;
+ }
+ 
+@@ -223,45 +312,65 @@ function stateCreator(set: (recipe: (state: TripStoreState) => Partial<TripStore
+         },
+       };
+     }),
+     publishPartnerIntent: (tripId: string) => set((state) => {
+       getTrip(state, tripId);
+       return { partnerIntents: { ...state.partnerIntents, [tripId]: true } };
+     }),
+   } satisfies TripStoreState;
+ }
+ 
+-const persistOptions = {
+-  name: 'xingyu-demo-v1',
+-  skipHydration: true,
+-  partialize: (state: TripStoreState) => ({
+-    trips: state.trips,
+-    partnerIntents: state.partnerIntents,
+-  }),
+-} as const;
++function persistenceOptions(options: CreateTripStoreOptions = {}) {
++  return {
++    name: 'xingyu-demo-v1',
++    version: 1,
++    skipHydration: true,
++    partialize: (state: TripStoreState): PersistedTripState => ({
++      trips: state.trips,
++      partnerIntents: state.partnerIntents,
++    }),
++    migrate: (persistedState: unknown, version: number): PersistedTripState => {
++      if (version !== 0) throw new Error(`TRIP_UNSUPPORTED_PERSISTED_VERSION:${version}`);
++      return parsePersistedTripState(persistedState);
++    },
++    merge: (persistedState: unknown, currentState: TripStoreState): TripStoreState => {
++      const safeState = parsePersistedTripState(persistedState);
++      return {
++        ...currentState,
++        trips: { ...safeState.trips, ...currentState.trips },
++        partnerIntents: { ...safeState.partnerIntents, ...currentState.partnerIntents },
++      };
++    },
++    onRehydrateStorage: () => (_state: TripStoreState | undefined, error: unknown) => {
++      if (error) options.onHydrationError?.(error);
++    },
++  };
++}
+ 
+-export function createTripStore() {
+-  return createStore<TripStoreState>()(persist(stateCreator, persistOptions));
++export function createTripStore(options: CreateTripStoreOptions = {}) {
++  return createStore<TripStoreState>()(
++    persist<TripStoreState, [], [], PersistedTripState>(stateCreator, persistenceOptions(options)),
++  );
+ }
+ 
+ export const useTripStoreHydration = create<TripStoreHydrationState>(() => ({
+   hydrated: false,
+   hydrationError: false,
+ }));
+ 
+ export const useTripStore = create<TripStoreState>()(
+-  persist(stateCreator, {
+-    ...persistOptions,
+-    onRehydrateStorage: () => (_state, error) => {
+-      if (error) useTripStoreHydration.setState({ hydrationError: true });
+-    },
+-  }),
++  persist<TripStoreState, [], [], PersistedTripState>(
++    stateCreator,
++    persistenceOptions({
++      onHydrationError: () => useTripStoreHydration.setState({ hydrationError: true }),
++    }),
++  ),
+ );
+ 
+ export async function hydrateWorkbenchTripStore() {
+   if (typeof window === 'undefined' || useTripStoreHydration.getState().hydrated) return;
+   try {
+     useTripStoreHydration.setState({ hydrated: false, hydrationError: false });
+     await useTripStore.persist.rehydrate();
+   } catch {
+     useTripStoreHydration.setState({ hydrationError: true });
+   } finally {
+diff --git a/tests/component/trip-workbench.test.tsx b/tests/component/trip-workbench.test.tsx
+index c981b96..095f76d 100644
+--- a/tests/component/trip-workbench.test.tsx
++++ b/tests/component/trip-workbench.test.tsx
+@@ -1,21 +1,21 @@
+ import { render, screen, waitFor, within } from '@testing-library/react';
+ import userEvent from '@testing-library/user-event';
+ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+ import { postsBySlug } from '@/data/posts';
+ import { extractTripDraft } from '@/domain/trips/extract-draft';
+ import {
+   useTripHydrationStore as useDraftHydrationStore,
+   useTripStore as useDraftTripStore,
+ } from '@/domain/trips/trip-store';
+ import { TripWorkbench } from '@/features/trips/trip-workbench';
+-import { useTripStore, useTripStoreHydration } from '@/stores/trip-store';
++import { createTripStore, useTripStore, useTripStoreHydration } from '@/stores/trip-store';
+ 
+ const draft = extractTripDraft(postsBySlug['dali-slow-5d']);
+ 
+ function readyStores() {
+   useDraftTripStore.setState({ drafts: { [draft.sourcePostSlug]: draft } });
+   useDraftHydrationStore.setState({ hydrated: true, hydrationError: false });
+   useTripStore.setState({ trips: {}, partnerIntents: {} });
+   useTripStoreHydration.setState({ hydrated: true, hydrationError: false });
+ }
+ 
+@@ -140,20 +140,88 @@ describe('TripWorkbench', () => {
+     expect(within(dialog).getByRole('button', { name: '确认开启' })).toBeDisabled();
+     await user.click(within(dialog).getByRole('checkbox', { name: /我明确同意/ }));
+     await user.click(within(dialog).getByRole('button', { name: '确认开启' }));
+     expect(guardian).toBeChecked();
+     expect(screen.getByText('仅为本地监测演示，不读取实时位置')).toBeInTheDocument();
+ 
+     await user.click(guardian);
+     expect(guardian).not.toBeChecked();
+   });
+ 
++  it('resets guardian consent through close, Escape and cancel before restoring trigger focus', async () => {
++    const user = userEvent.setup();
++    render(<TripWorkbench slug="dali-slow-5d" />);
++    await screen.findByRole('heading', { name: /大理慢行计划/ });
++    const guardian = screen.getByRole('switch', { name: '行程守护演示' });
++
++    const openAndConsent = async () => {
++      await user.click(guardian);
++      const dialog = screen.getByRole('dialog', { name: '授权行程守护演示' });
++      await user.click(within(dialog).getByRole('checkbox', { name: /我明确同意/ }));
++      return dialog;
++    };
++    const expectResetOnReopen = async () => {
++      expect(guardian).toHaveFocus();
++      await user.click(guardian);
++      const dialog = screen.getByRole('dialog', { name: '授权行程守护演示' });
++      expect(within(dialog).getByRole('checkbox', { name: /我明确同意/ })).not.toBeChecked();
++      expect(within(dialog).getByRole('button', { name: '确认开启' })).toBeDisabled();
++      return dialog;
++    };
++
++    let dialog = await openAndConsent();
++    await user.click(within(dialog).getByRole('button', { name: '关闭守护授权' }));
++    dialog = await expectResetOnReopen();
++    await user.click(within(dialog).getByRole('checkbox', { name: /我明确同意/ }));
++    await user.keyboard('{Escape}');
++    dialog = await expectResetOnReopen();
++    await user.click(within(dialog).getByRole('checkbox', { name: /我明确同意/ }));
++    await user.click(within(dialog).getByRole('button', { name: '取消' }));
++    await expectResetOnReopen();
++  });
++
++  it('renders and edits an accepted workbench when legacy draft hydration fails', async () => {
++    const user = userEvent.setup();
++    useTripStore.setState({ trips: {}, partnerIntents: {} });
++    const persistedStore = createTripStore();
++    persistedStore.getState().acceptDraft(draft);
++    persistedStore.getState().updateTrip(draft.id, { budget: 6100 });
++    useTripStoreHydration.setState({ hydrated: false, hydrationError: false });
++    useDraftTripStore.setState({ drafts: {} });
++    useDraftHydrationStore.setState({ hydrated: true, hydrationError: true });
++
++    render(<TripWorkbench slug="dali-slow-5d" />);
++
++    expect(await screen.findByRole('heading', { name: /大理慢行计划/ })).toBeInTheDocument();
++    expect(screen.getByLabelText('总预算')).toHaveValue(6100);
++    expect(screen.getByText(/攻略草稿读取失败/)).toBeInTheDocument();
++    await user.clear(screen.getByLabelText('总预算'));
++    await user.type(screen.getByLabelText('总预算'), '6200');
++    await user.click(screen.getByRole('button', { name: '保存行程设置' }));
++    expect(useTripStore.getState().trips[draft.id].budget).toBe(6200);
++  });
++
++  it('recovers without crashing or overwriting valid JSON with malformed workbench structure', async () => {
++    useTripStore.setState({ trips: {}, partnerIntents: {} });
++    useTripStoreHydration.setState({ hydrated: false, hydrationError: false });
++    const malformedBytes = JSON.stringify({
++      state: { trips: null, partnerIntents: {} },
++      version: 1,
++    });
++    window.localStorage.setItem('xingyu-demo-v1', malformedBytes);
++
++    render(<TripWorkbench slug="dali-slow-5d" />);
++
++    await waitFor(() => expect(screen.getByText('本地行程暂时无法读取')).toBeInTheDocument());
++    expect(window.localStorage.getItem('xingyu-demo-v1')).toBe(malformedBytes);
++  });
++
+   it('keeps loading and recovery states stable around draft hydration', async () => {
+     useDraftTripStore.setState({ drafts: {} });
+     useDraftHydrationStore.setState({ hydrated: false, hydrationError: false });
+     render(<TripWorkbench slug="dali-slow-5d" />);
+     expect(screen.getByText('正在读取本地行程…')).toBeInTheDocument();
+ 
+     useDraftHydrationStore.setState({ hydrated: true, hydrationError: true });
+     await waitFor(() => expect(screen.getByText('本地行程暂时无法读取')).toBeInTheDocument());
+     expect(screen.getByRole('link', { name: '返回原攻略' })).toHaveAttribute('href', '/square/dali-slow-5d');
+   });
+diff --git a/tests/unit/trip-store.test.ts b/tests/unit/trip-store.test.ts
+index b1eb631..64bec19 100644
+--- a/tests/unit/trip-store.test.ts
++++ b/tests/unit/trip-store.test.ts
+@@ -140,11 +140,86 @@ describe('draft merge and persistence', () => {
+ 
+     expect(window.localStorage.getItem('xingyu-demo-trip-drafts')).toBeNull();
+     const raw = window.localStorage.getItem('xingyu-demo-v1');
+     expect(raw).not.toBeNull();
+     expect(raw).not.toMatch(/latitude|longitude|phone|email|coordinates/i);
+     expect(JSON.parse(raw ?? '{}').state).toMatchObject({
+       trips: { [daliDraft.id]: { sourcePostSlug: 'dali-slow-5d' } },
+       partnerIntents: { [daliDraft.id]: true },
+     });
+   });
++
++  it.each([
++    ['null trips', { trips: null, partnerIntents: {} }],
++    [
++      'invalid status',
++      {
++        trips: {
++          [daliDraft.id]: {
++            ...acceptedTrip(),
++            status: 'teleporting',
++          },
++        },
++        partnerIntents: {},
++      },
++    ],
++    [
++      'NaN-like item cost',
++      {
++        trips: {
++          [daliDraft.id]: {
++            ...acceptedTrip(),
++            items: [{ ...acceptedTrip().items[0], estimatedCost: 'NaN' }],
++          },
++        },
++        partnerIntents: {},
++      },
++    ],
++    [
++      'incomplete item',
++      {
++        trips: {
++          [daliDraft.id]: {
++            ...acceptedTrip(),
++            items: [{ id: 'incomplete-item' }],
++          },
++        },
++        partnerIntents: {},
++      },
++    ],
++  ])('rejects structurally malformed persisted state: %s', async (_name, malformedState) => {
++    let hydrationError = false;
++    const store = createTripStore({ onHydrationError: () => { hydrationError = true; } });
++    store.getState().acceptDraft(daliDraft);
++    const safeTrip = structuredClone(store.getState().trips[daliDraft.id]);
++    const malformedBytes = JSON.stringify({ state: malformedState, version: 1 });
++    window.localStorage.setItem('xingyu-demo-v1', malformedBytes);
++
++    await store.persist.rehydrate();
++
++    expect(hydrationError).toBe(true);
++    expect(store.getState().trips).toEqual({ [daliDraft.id]: safeTrip });
++    expect(window.localStorage.getItem('xingyu-demo-v1')).toBe(malformedBytes);
++  });
++
++  it('validates and migrates a version-zero workbench without losing its safe trip', async () => {
++    const source = createTripStore();
++    source.getState().acceptDraft(daliDraft);
++    const legacyTrip = { ...structuredClone(source.getState().trips[daliDraft.id]), budget: 6000 };
++    window.localStorage.setItem('xingyu-demo-v1', JSON.stringify({
++      state: { trips: { [daliDraft.id]: legacyTrip }, partnerIntents: {} },
++      version: 0,
++    }));
++    const store = createTripStore();
++
++    await store.persist.rehydrate();
++
++    expect(store.getState().trips[daliDraft.id].budget).toBe(6000);
++    expect(JSON.parse(window.localStorage.getItem('xingyu-demo-v1') ?? '{}').version).toBe(1);
++  });
+ });
++
++function acceptedTrip() {
++  const store = createTripStore();
++  store.getState().acceptDraft(daliDraft);
++  return structuredClone(store.getState().trips[daliDraft.id]);
++}

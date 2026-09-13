@@ -1,0 +1,5 @@
+$ pnpm lint && pnpm typecheck && pnpm test && pnpm build
+$ eslint .
+$ tsc --noEmit
+$ vitest run
+$ next build

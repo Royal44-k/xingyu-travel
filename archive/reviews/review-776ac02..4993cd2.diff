@@ -1,0 +1,1896 @@
+# COMMITS
+4993cd2 fix: complete comparison workflows and validation
+
+# STAT
+ .../2026-08-16-xingyu-public-mvp/task-5-report.md  |  74 +++++++++++
+ src/adapters/mock/mock-inventory.ts                |  36 +++++-
+ .../v1/comparison/searches/[id]/events/route.ts    |  78 +++++++----
+ src/app/api/v1/comparison/searches/route.ts        |  16 +--
+ src/app/compare/page.tsx                           |  28 +---
+ src/data/offers.ts                                 |  62 +++++++++
+ src/domain/comparison/search-registry.ts           |  54 ++++----
+ src/domain/comparison/search-schema.ts             |  32 +++++
+ src/domain/comparison/types.ts                     |  18 +++
+ src/features/comparison/comparison-client.tsx      | 123 +++++++++++++-----
+ src/features/comparison/comparison.module.css      |  50 ++++++-
+ src/features/comparison/offer-row.tsx              |  15 ++-
+ src/features/comparison/search-params.ts           |  42 ++++++
+ src/features/comparison/use-dialog-focus.ts        |  69 ++++++++++
+ tests/component/comparison-client.test.tsx         | 143 +++++++++++++++++++++
+ tests/unit/comparison-search-params.test.ts        |  32 +++++
+ tests/unit/normalize-offer.test.ts                 |   2 +
+ tests/unit/quote-stream.test.ts                    | 129 ++++++++++++++++++-
+ 18 files changed, 873 insertions(+), 130 deletions(-)
+
+# DIFF
+diff --git a/.superpowers/sdd/2026-08-16-xingyu-public-mvp/task-5-report.md b/.superpowers/sdd/2026-08-16-xingyu-public-mvp/task-5-report.md
+index 1939f41..f31c44e 100644
+--- a/.superpowers/sdd/2026-08-16-xingyu-public-mvp/task-5-report.md
++++ b/.superpowers/sdd/2026-08-16-xingyu-public-mvp/task-5-report.md
+@@ -96,10 +96,84 @@ Vitest, TypeScript incremental metadata, and Next build output required approved
+ 
+ ## Commit
+ 
+ `feat: add transparent incremental comparison` (the implementation commit containing this report).
+ 
+ ## Concerns
+ 
+ - Sandbox offers remain intentionally fixed and sparse: the current inventory has two flight quotes and one quote each for hotel and ticket in Dali. Empty-result behavior is therefore expected for other sandbox destinations.
+ - The price calendar is explicitly labeled as a fixed demo sample. It does not imply a live historical-price feed.
+ - Browser screenshot and viewport-level visual QA remain outside Task 5; this task's UI verification is component, static-analysis, and production-build based.
++
++## Review Round 1
++
++### RED
++
++Added regression coverage before changing production code, then ran:
++
++```text
++node node_modules/vitest/vitest.mjs run tests/unit/quote-stream.test.ts tests/unit/comparison-search-params.test.ts tests/component/comparison-client.test.tsx --reporter=verbose
++Test Files 3 failed (3)
++Tests 14 failed | 14 passed (28)
++```
++
++The failures directly reproduced the review findings:
++
++- impossible and reversed dates plus a 61-character destination were accepted with 202;
++- crafted invalid, oversized, and reversed-date stateless IDs returned 404/200 instead of structured 400 responses;
++- the ticket stream emitted its fixed offer and `complete` but no recorded supplier degradation;
++- the supplier-exception event generator did not exist;
++- zero-offer completion remained stuck on `正在接收沙箱报价…`;
++- benefit and verification filters were absent/inert;
++- two providers sharing one local ID collided in favorite and compare state;
++- the compare CTA opened no view;
++- filter and outbound dialogs left focus on their background triggers.
++
++A corrected focused ticket test was rerun separately to remove an irrelevant origin mismatch. It failed specifically because the resulting stream contained `offer` and `complete` but no `degraded` frame.
++
++### Fixes
++
++- Moved POST validation into the shared `comparisonSearchSchema`: locations are trimmed and bounded, traveler count is 1–9, dates must be real ISO calendar dates, and an end date cannot precede its start date.
++- Reused that exact schema when decoding self-contained search IDs. Non-search IDs retain the not-found contract; malformed, oversized, or schema-invalid search tokens return structured `INVALID_COMPARISON_SEARCH_ID` responses with status 400.
++- Added fixed `sandboxSupplierRuns` success/failure records and a `MockSupplierRunProvider`. SSE degradation now follows recorded provider outcomes for any product kind. `quoteEventsForSearch` retains earlier offers and emits `complete` from `finally`, including after a runner exception.
++- Added explicit provider-verification and included-benefit data to sandbox offers. The filter drawer now applies refundability, included benefit (flight baggage or the non-flight benefit list), and verified-provider state to real rows.
++- Changed every client identity consumer—upsert, React key, favorite, selection, three-item limit, and selected-offer lookup—to the same `${provider}:${id}` compound key.
++- Handled `complete` explicitly, separating active loading from a stable zero-result message.
++- Implemented a named modal comparison table for 1–3 selected offers with provider, comparable total, baggage/benefits, refund/change conditions, verification, and a close control.
++- Added one scoped `useDialogFocus` helper for initial focus, Escape, Tab/Shift+Tab containment, and trigger-focus restoration. The filter drawer, outbound sandbox confirmation, and comparison modal use it.
++- Moved query parsing into `searchFromParams`, accepting `string | string[] | undefined` and deterministically taking the first repeated value without calling string methods on arrays.
++
++### GREEN
++
++Focused review regressions:
++
++```text
++node node_modules/vitest/vitest.mjs run tests/unit/quote-stream.test.ts tests/unit/comparison-search-params.test.ts tests/component/comparison-client.test.tsx
++Test Files 3 passed (3)
++Tests 30 passed (30)
++```
++
++Final verification:
++
++```text
++pnpm lint
++eslint .
++
++pnpm typecheck
++tsc --noEmit
++
++node node_modules/vitest/vitest.mjs run
++Test Files 10 passed (10)
++Tests 75 passed (75)
++
++pnpm build
++Compiled successfully
++Routes /compare, /api/v1/comparison/searches, and /api/v1/comparison/searches/[id]/events emitted as dynamic routes
++```
++
++Review fix commit: `fix: complete comparison workflows and validation`.
++
++### Remaining Concerns
++
++- Supplier successes and failures are deterministic fixtures, not live partner health checks. The provider-run abstraction exposes the boundary for later adapters without claiming live availability.
++- Search IDs are validated self-contained transport tokens, not encrypted credentials; they intentionally encode only bounded comparison inputs and no personal/payment data.
++- Visual browser screenshots and viewport interaction runs remain deferred; this round verifies behavior through DOM interaction tests, static checks, and the production build.
+diff --git a/src/adapters/mock/mock-inventory.ts b/src/adapters/mock/mock-inventory.ts
+index 0c156f3..8e16614 100644
+--- a/src/adapters/mock/mock-inventory.ts
++++ b/src/adapters/mock/mock-inventory.ts
+@@ -1,24 +1,56 @@
+ import type { InventoryProvider } from '../contracts';
+ import { normalizeOffer } from '@/domain/comparison/normalize-offer';
+-import type { NormalizedOffer } from '@/domain/comparison/types';
++import type {
++  NormalizedOffer,
++  SupplierRunProvider,
++  SupplierRunResult,
++} from '@/domain/comparison/types';
+ import type { ComparisonSearchInput } from '@/domain/shared/api';
+-import { sandboxOffers } from '@/data/offers';
++import { sandboxOffers, sandboxSupplierRuns } from '@/data/offers';
+ 
+ export class MockInventoryProvider implements InventoryProvider {
+   async *search(input: ComparisonSearchInput): AsyncIterable<NormalizedOffer> {
+     const destination = input.destination.trim().toLowerCase();
+     const offers = sandboxOffers
+       .filter((offer) => offer.destination?.toLowerCase() === destination)
+       .filter((offer) => input.kind === undefined || offer.kind === input.kind)
+       .filter((offer) => input.origin === undefined || offer.origin === input.origin)
+       .map(normalizeOffer)
+       .sort(
+         (left, right) =>
+           left.totalPrice - right.totalPrice || (left.id < right.id ? -1 : left.id > right.id ? 1 : 0),
+       );
+ 
+     for (const offer of offers) {
+       yield offer;
+     }
+   }
+ }
++
++export class MockSupplierRunProvider implements SupplierRunProvider {
++  async *run(input: ComparisonSearchInput): AsyncIterable<SupplierRunResult> {
++    const destination = input.destination.trim().toLowerCase();
++    const runs = sandboxSupplierRuns
++      .filter((run) => run.destination.toLowerCase() === destination)
++      .filter((run) => input.kind === undefined || run.kind === input.kind);
++
++    for (const run of runs) {
++      if (run.status === 'failure') {
++        yield run;
++        continue;
++      }
++
++      const offers = run.offerIds
++        .map((offerId) => sandboxOffers.find((offer) => offer.id === offerId))
++        .filter((offer) => offer !== undefined)
++        .filter(
++          (offer) =>
++            input.origin === undefined ||
++            offer.origin === undefined ||
++            offer.origin === input.origin,
++        )
++        .map(normalizeOffer);
++      yield { status: 'success', provider: run.provider, offers };
++    }
++  }
++}
+diff --git a/src/app/api/v1/comparison/searches/[id]/events/route.ts b/src/app/api/v1/comparison/searches/[id]/events/route.ts
+index 2f4c4a8..fea2a6c 100644
+--- a/src/app/api/v1/comparison/searches/[id]/events/route.ts
++++ b/src/app/api/v1/comparison/searches/[id]/events/route.ts
+@@ -1,68 +1,92 @@
+-import { MockInventoryProvider } from '@/adapters/mock/mock-inventory';
++import { MockSupplierRunProvider } from '@/adapters/mock/mock-inventory';
+ import { findComparisonSearch } from '@/domain/comparison/search-registry';
+-import type { QuoteEvent } from '@/domain/comparison/types';
++import type {
++  QuoteEvent,
++  SupplierRunProvider,
++} from '@/domain/comparison/types';
++import type { ComparisonSearchInput } from '@/domain/shared/api';
+ import { createRequestId } from '@/lib/request-id';
+ 
+ export const dynamic = 'force-dynamic';
+ 
+ export function encodeSse(event: QuoteEvent): Uint8Array {
+   return new TextEncoder().encode(
+     `event: ${event.type}\ndata: ${JSON.stringify(event.payload)}\n\n`,
+   );
+ }
+ 
++export async function* quoteEventsForSearch(
++  input: ComparisonSearchInput,
++  runner: SupplierRunProvider = new MockSupplierRunProvider(),
++): AsyncIterable<QuoteEvent> {
++  let offerCount = 0;
++
++  try {
++    for await (const result of runner.run(input)) {
++      if (result.status === 'success') {
++        for (const offer of result.offers) {
++          offerCount += 1;
++          yield { type: 'offer', payload: offer };
++        }
++      } else {
++        yield {
++          type: 'degraded',
++          payload: { unavailableProviders: 1, message: result.message },
++        };
++      }
++    }
++  } catch {
++    yield {
++      type: 'degraded',
++      payload: {
++        unavailableProviders: 1,
++        message: '供应商连接异常，已保留当前结果',
++      },
++    };
++  } finally {
++    yield { type: 'complete', payload: { offerCount } };
++  }
++}
++
+ export async function GET(
+   _request: Request,
+   context: { params: Promise<{ id: string }> },
+ ): Promise<Response> {
+   const { id } = await context.params;
+-  const input = findComparisonSearch(id);
++  const lookup = findComparisonSearch(id);
+ 
+-  if (!input) {
++  if (lookup.status !== 'found') {
++    const invalid = lookup.status === 'invalid';
+     return Response.json(
+       {
+         ok: false,
+         error: {
+-          code: 'COMPARISON_SEARCH_NOT_FOUND',
+-          message: '未找到该比价请求，请重新发起搜索。',
++          code: invalid
++            ? 'INVALID_COMPARISON_SEARCH_ID'
++            : 'COMPARISON_SEARCH_NOT_FOUND',
++          message: invalid
++            ? '比价请求标识无效，请重新发起搜索。'
++            : '未找到该比价请求，请重新发起搜索。',
+         },
+         request_id: createRequestId(),
+         demo_mode: true,
+       },
+-      { status: 404 },
++      { status: invalid ? 400 : 404 },
+     );
+   }
+ 
+-  const provider = new MockInventoryProvider();
+   const stream = new ReadableStream<Uint8Array>({
+     async start(controller) {
+-      let offerCount = 0;
+-
+-      for await (const offer of provider.search(input)) {
+-        offerCount += 1;
+-        controller.enqueue(encodeSse({ type: 'offer', payload: offer }));
++      for await (const event of quoteEventsForSearch(lookup.input)) {
++        controller.enqueue(encodeSse(event));
+       }
+-
+-      if (input.kind === 'flight') {
+-        controller.enqueue(
+-          encodeSse({
+-            type: 'degraded',
+-            payload: {
+-              unavailableProviders: 1,
+-              message: '1 家供应商暂未响应',
+-            },
+-          }),
+-        );
+-      }
+-
+-      controller.enqueue(encodeSse({ type: 'complete', payload: { offerCount } }));
+       controller.close();
+     },
+   });
+ 
+   return new Response(stream, {
+     headers: {
+       'Content-Type': 'text/event-stream; charset=utf-8',
+       'Cache-Control': 'no-cache, no-transform',
+       Connection: 'keep-alive',
+       'X-Accel-Buffering': 'no',
+diff --git a/src/app/api/v1/comparison/searches/route.ts b/src/app/api/v1/comparison/searches/route.ts
+index 45923ea..c4cbc80 100644
+--- a/src/app/api/v1/comparison/searches/route.ts
++++ b/src/app/api/v1/comparison/searches/route.ts
+@@ -1,28 +1,14 @@
+-import { z } from 'zod';
+-import { comparisonProductKinds } from '@/domain/comparison/types';
+ import { registerComparisonSearch } from '@/domain/comparison/search-registry';
++import { comparisonSearchSchema } from '@/domain/comparison/search-schema';
+ import { createRequestId } from '@/lib/request-id';
+ 
+-const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+-
+-const comparisonSearchSchema = z
+-  .object({
+-    destination: z.string().trim().min(1).max(80),
+-    kind: z.enum(comparisonProductKinds).optional(),
+-    origin: z.string().trim().min(1).max(80).optional(),
+-    from: dateSchema.optional(),
+-    to: dateSchema.optional(),
+-    travelers: z.number().int().min(1).max(9).optional(),
+-  })
+-  .strict();
+-
+ export async function POST(request: Request): Promise<Response> {
+   const requestId = createRequestId();
+ 
+   try {
+     const input = comparisonSearchSchema.parse(await request.json());
+     const searchId = registerComparisonSearch(input);
+ 
+     return Response.json(
+       { search_id: searchId, request_id: requestId, demo_mode: true },
+       { status: 202 },
+diff --git a/src/app/compare/page.tsx b/src/app/compare/page.tsx
+index 3ac09e5..9cd8ff5 100644
+--- a/src/app/compare/page.tsx
++++ b/src/app/compare/page.tsx
+@@ -1,45 +1,27 @@
+ import type { Metadata } from 'next';
+ import { SiteHeader } from '@/components/site-header';
+-import type { ComparisonProductKind } from '@/domain/comparison/types';
+-import type { ComparisonSearchInput } from '@/domain/shared/api';
+ import { ComparisonClient } from '@/features/comparison/comparison-client';
++import {
++  searchFromParams,
++  type ComparisonSearchParams,
++} from '@/features/comparison/search-params';
+ 
+ export const metadata: Metadata = {
+   title: '透明比价',
+   description: '统一比较机票、酒店与门票的含税总价、条件与数据更新时间。',
+ };
+ 
+-function searchFromParams(
+-  params: Record<string, string | undefined>,
+-): ComparisonSearchInput {
+-  const kind: ComparisonProductKind = ['flight', 'hotel', 'ticket'].includes(
+-    params.kind ?? '',
+-  )
+-    ? (params.kind as ComparisonProductKind)
+-    : 'flight';
+-  const travelers = Number(params.travelers);
+-
+-  return {
+-    kind,
+-    destination: params.destination?.trim() || '大理',
+-    ...(params.origin?.trim() ? { origin: params.origin.trim() } : {}),
+-    ...(params.from ? { from: params.from } : {}),
+-    ...(params.to ? { to: params.to } : {}),
+-    ...(Number.isInteger(travelers) && travelers > 0 ? { travelers } : {}),
+-  };
+-}
+-
+ export default async function ComparePage({
+   searchParams,
+ }: {
+-  searchParams: Promise<Record<string, string | undefined>>;
++  searchParams: Promise<ComparisonSearchParams>;
+ }) {
+   const params = await searchParams;
+ 
+   return (
+     <>
+       <SiteHeader activePath="/compare" />
+       <ComparisonClient initialSearch={searchFromParams(params)} />
+     </>
+   );
+ }
+diff --git a/src/data/offers.ts b/src/data/offers.ts
+index 84b7781..a018894 100644
+--- a/src/data/offers.ts
++++ b/src/data/offers.ts
+@@ -8,57 +8,119 @@ export const sandboxOffers: readonly RawOffer[] = [
+     provider: '星屿沙箱演示航班',
+     kind: 'flight',
+     title: '上海至大理演示航班 A',
+     origin: '上海',
+     destination: '大理',
+     basePrice: 860,
+     taxes: 120,
+     mandatoryFees: 40,
+     baggageIncluded: true,
+     refundable: false,
++    providerVerified: true,
++    includedBenefits: ['托运行李'],
+     updatedAt: SANDBOX_OBSERVED_AT,
+     demoMode: true,
+   },
+   {
+     id: 'DEMO-FLIGHT-DAL-02',
+     provider: '星屿沙箱演示航班',
+     kind: 'flight',
+     title: '上海至大理演示航班 B',
+     origin: '上海',
+     destination: '大理',
+     basePrice: 930,
+     taxes: 80,
+     mandatoryFees: 0,
+     baggageIncluded: false,
+     refundable: true,
++    providerVerified: true,
++    includedBenefits: [],
+     updatedAt: SANDBOX_OBSERVED_AT,
+     demoMode: true,
+   },
+   {
+     id: 'DEMO-HOTEL-DAL-01',
+     provider: '星屿沙箱演示住宿',
+     kind: 'hotel',
+     title: '大理湖畔演示住宿',
+     destination: '大理',
+     basePrice: 680,
+     taxes: 30,
+     mandatoryFees: 20,
+     baggageIncluded: false,
+     refundable: true,
++    providerVerified: true,
++    includedBenefits: ['双人早餐'],
+     updatedAt: SANDBOX_OBSERVED_AT,
+     demoMode: true,
+   },
+   {
+     id: 'DEMO-TICKET-DAL-01',
+     provider: '星屿沙箱演示门票',
+     kind: 'ticket',
+     title: '大理古城体验演示门票',
+     destination: '大理',
+     basePrice: 88,
+     taxes: 0,
+     mandatoryFees: 0,
+     baggageIncluded: false,
+     refundable: true,
++    providerVerified: true,
++    includedBenefits: ['古城导览'],
+     updatedAt: SANDBOX_OBSERVED_AT,
+     demoMode: true,
+   },
+ ] as const;
++
++export type SandboxSupplierRunFixture =
++  | {
++      status: 'success';
++      provider: string;
++      kind: 'flight' | 'hotel' | 'ticket';
++      destination: string;
++      offerIds: readonly string[];
++    }
++  | {
++      status: 'failure';
++      provider: string;
++      kind: 'flight' | 'hotel' | 'ticket';
++      destination: string;
++      message: string;
++    };
++
++export const sandboxSupplierRuns: readonly SandboxSupplierRunFixture[] = [
++  {
++    status: 'success',
++    provider: '星屿沙箱演示航班',
++    kind: 'flight',
++    destination: '大理',
++    offerIds: ['DEMO-FLIGHT-DAL-01', 'DEMO-FLIGHT-DAL-02'],
++  },
++  {
++    status: 'failure',
++    provider: '云际航旅沙箱',
++    kind: 'flight',
++    destination: '大理',
++    message: '云际航旅沙箱暂未响应',
++  },
++  {
++    status: 'success',
++    provider: '星屿沙箱演示住宿',
++    kind: 'hotel',
++    destination: '大理',
++    offerIds: ['DEMO-HOTEL-DAL-01'],
++  },
++  {
++    status: 'success',
++    provider: '星屿沙箱演示门票',
++    kind: 'ticket',
++    destination: '大理',
++    offerIds: ['DEMO-TICKET-DAL-01'],
++  },
++  {
++    status: 'failure',
++    provider: '大理景区直连',
++    kind: 'ticket',
++    destination: '大理',
++    message: '大理景区直连暂未响应',
++  },
++] as const;
+diff --git a/src/domain/comparison/search-registry.ts b/src/domain/comparison/search-registry.ts
+index 08939ee..9b5e619 100644
+--- a/src/domain/comparison/search-registry.ts
++++ b/src/domain/comparison/search-registry.ts
+@@ -1,11 +1,12 @@
+ import type { ComparisonSearchInput } from '@/domain/shared/api';
++import { comparisonSearchSchema } from './search-schema';
+ 
+ const searches = new Map<string, ComparisonSearchInput>();
+ 
+ function canonicalSearch(input: ComparisonSearchInput): string {
+   return JSON.stringify({
+     destination: input.destination.trim(),
+     kind: input.kind ?? null,
+     origin: input.origin?.trim() ?? null,
+     from: input.from ?? null,
+     to: input.to ?? null,
+@@ -18,46 +19,49 @@ export function stableSearchId(input: ComparisonSearchInput): string {
+   const token = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+   return `search_${token}`;
+ }
+ 
+ export function registerComparisonSearch(input: ComparisonSearchInput): string {
+   const id = stableSearchId(input);
+   searches.set(id, input);
+   return id;
+ }
+ 
+-export function findComparisonSearch(id: string): ComparisonSearchInput | undefined {
++export type ComparisonSearchLookup =
++  | { status: 'found'; input: ComparisonSearchInput }
++  | { status: 'invalid' }
++  | { status: 'missing' };
++
++export function findComparisonSearch(id: string): ComparisonSearchLookup {
+   const registered = searches.get(id);
+-  if (registered) return registered;
++  if (registered) return { status: 'found', input: registered };
+ 
+-  const token = id.startsWith('search_') ? id.slice('search_'.length) : '';
+-  if (!token || token.length % 2 !== 0 || !/^[a-f0-9]+$/.test(token)) return undefined;
++  if (!id.startsWith('search_')) return { status: 'missing' };
++  const token = id.slice('search_'.length);
++  if (
++    !token ||
++    token.length > 2048 ||
++    token.length % 2 !== 0 ||
++    !/^[a-f0-9]+$/.test(token)
++  ) {
++    return { status: 'invalid' };
++  }
+ 
+   try {
+     const bytes = Uint8Array.from(
+       token.match(/.{2}/g) ?? [],
+       (pair) => Number.parseInt(pair, 16),
+     );
+-    const decoded = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes)) as Record<
+-      string,
+-      unknown
+-    >;
+-    if (typeof decoded.destination !== 'string' || !decoded.destination) return undefined;
+-    if (
+-      decoded.kind !== null &&
+-      !['flight', 'hotel', 'ticket'].includes(String(decoded.kind))
+-    ) {
+-      return undefined;
+-    }
+-
+-    return {
+-      destination: decoded.destination,
+-      ...(decoded.kind ? { kind: decoded.kind as ComparisonSearchInput['kind'] } : {}),
+-      ...(typeof decoded.origin === 'string' ? { origin: decoded.origin } : {}),
+-      ...(typeof decoded.from === 'string' ? { from: decoded.from } : {}),
+-      ...(typeof decoded.to === 'string' ? { to: decoded.to } : {}),
+-      ...(typeof decoded.travelers === 'number' ? { travelers: decoded.travelers } : {}),
+-    };
++    const decoded = JSON.parse(
++      new TextDecoder('utf-8', { fatal: true }).decode(bytes),
++    ) as Record<string, unknown>;
++    const withoutNulls = Object.fromEntries(
++      Object.entries(decoded).filter(([, value]) => value !== null),
++    );
++    const parsed = comparisonSearchSchema.safeParse(withoutNulls);
++    return parsed.success
++      ? { status: 'found', input: parsed.data }
++      : { status: 'invalid' };
+   } catch {
+-    return undefined;
++    return { status: 'invalid' };
+   }
+ }
+diff --git a/src/domain/comparison/search-schema.ts b/src/domain/comparison/search-schema.ts
+new file mode 100644
+index 0000000..4df1eab
+--- /dev/null
++++ b/src/domain/comparison/search-schema.ts
+@@ -0,0 +1,32 @@
++import { z } from 'zod';
++import { comparisonProductKinds } from './types';
++
++function isRealIsoDate(value: string): boolean {
++  const parsed = new Date(`${value}T00:00:00.000Z`);
++  return !Number.isNaN(parsed.valueOf()) && parsed.toISOString().slice(0, 10) === value;
++}
++
++const dateSchema = z
++  .string()
++  .regex(/^\d{4}-\d{2}-\d{2}$/)
++  .refine(isRealIsoDate, '日期必须是真实的 ISO 日历日期');
++
++export const comparisonSearchSchema = z
++  .object({
++    destination: z.string().trim().min(2).max(60),
++    kind: z.enum(comparisonProductKinds).optional(),
++    origin: z.string().trim().min(1).max(60).optional(),
++    from: dateSchema.optional(),
++    to: dateSchema.optional(),
++    travelers: z.number().int().min(1).max(9).optional(),
++  })
++  .strict()
++  .superRefine((input, context) => {
++    if (input.from && input.to && input.from > input.to) {
++      context.addIssue({
++        code: 'custom',
++        path: ['to'],
++        message: '结束日期不得早于开始日期',
++      });
++    }
++  });
+diff --git a/src/domain/comparison/types.ts b/src/domain/comparison/types.ts
+index aa9d845..671653e 100644
+--- a/src/domain/comparison/types.ts
++++ b/src/domain/comparison/types.ts
+@@ -11,30 +11,48 @@ export interface RawOffer {
+   provider: string;
+   kind: OfferKind;
+   title?: string;
+   origin?: string;
+   destination?: string;
+   basePrice: number;
+   taxes?: number;
+   mandatoryFees?: number;
+   baggageIncluded: boolean;
+   refundable: boolean;
++  providerVerified?: boolean;
++  includedBenefits?: readonly string[];
+   updatedAt: string;
+   demoMode?: boolean;
+ }
+ 
+ export interface NormalizedOffer extends Omit<RawOffer, 'taxes' | 'mandatoryFees' | 'demoMode'> {
+   taxes: number;
+   mandatoryFees: number;
+   demoMode: boolean;
+   currency: 'CNY';
+   totalPrice: number;
+   priceExplanation: string;
+ }
+ 
+ export type QuoteEvent =
+   | { type: 'offer'; payload: NormalizedOffer }
+   | {
+       type: 'degraded';
+       payload: { unavailableProviders: number; message: string };
+     }
+   | { type: 'complete'; payload: { offerCount: number } };
++
++export type SupplierRunResult =
++  | {
++      status: 'success';
++      provider: string;
++      offers: readonly NormalizedOffer[];
++    }
++  | {
++      status: 'failure';
++      provider: string;
++      message: string;
++    };
++
++export interface SupplierRunProvider {
++  run(input: import('../shared/api').ComparisonSearchInput): AsyncIterable<SupplierRunResult>;
++}
+diff --git a/src/features/comparison/comparison-client.tsx b/src/features/comparison/comparison-client.tsx
+index 61d9aaa..2643d5c 100644
+--- a/src/features/comparison/comparison-client.tsx
++++ b/src/features/comparison/comparison-client.tsx
+@@ -19,38 +19,44 @@ import {
+   useState,
+   type KeyboardEvent,
+ } from 'react';
+ import type {
+   ComparisonProductKind,
+   NormalizedOffer,
+   QuoteEvent,
+ } from '@/domain/comparison/types';
+ import type { ComparisonSearchInput } from '@/domain/shared/api';
+ import { OfferRow } from './offer-row';
++import { useDialogFocus } from './use-dialog-focus';
+ import styles from './comparison.module.css';
+ 
+ type ComparisonClientProps = {
+   initialSearch: ComparisonSearchInput;
+   stream?: AsyncIterable<QuoteEvent>;
+   now?: string;
+ };
+ 
+ type SortOrder = 'price-asc' | 'price-desc' | 'updated';
+ 
+ const productTabs = [
+   { id: 'flight', label: '机票', icon: AirplaneTilt },
+   { id: 'hotel', label: '酒店', icon: Buildings },
+   { id: 'ticket', label: '门票', icon: Ticket },
+ ] as const;
+ 
+ function offerKey(offer: NormalizedOffer): string {
+-  return `${offer.provider}\u0000${offer.id}`;
++  return `${offer.provider}:${offer.id}`;
++}
++
++function hasIncludedBenefit(offer: NormalizedOffer): boolean {
++  if (offer.kind === 'flight') return offer.baggageIncluded;
++  return (offer.includedBenefits?.length ?? 0) > 0;
+ }
+ 
+ function upsertOffer(
+   current: NormalizedOffer[],
+   incoming: NormalizedOffer,
+ ): NormalizedOffer[] {
+   const key = offerKey(incoming);
+   const index = current.findIndex((offer) => offerKey(offer) === key);
+   if (index === -1) return [...current, incoming];
+   return current.map((offer, offerIndex) => (offerIndex === index ? incoming : offer));
+@@ -98,111 +104,137 @@ export function ComparisonClient({
+   initialSearch,
+   stream,
+   now = new Date().toISOString(),
+ }: ComparisonClientProps) {
+   const initialKind = initialSearch.kind ?? 'flight';
+   const [search, setSearch] = useState<ComparisonSearchInput>({
+     ...initialSearch,
+     kind: initialKind,
+   });
+   const [offers, setOffers] = useState<NormalizedOffer[]>([]);
++  const [streamComplete, setStreamComplete] = useState(false);
+   const [degradedMessage, setDegradedMessage] = useState<string>();
+   const [sortOrder, setSortOrder] = useState<SortOrder>('price-asc');
+   const [filtersOpen, setFiltersOpen] = useState(false);
+   const [calendarOpen, setCalendarOpen] = useState(false);
+   const [refundableOnly, setRefundableOnly] = useState(false);
+-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+-  const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
++  const [benefitOnly, setBenefitOnly] = useState(false);
++  const [verifiedOnly, setVerifiedOnly] = useState(false);
++  const [selectedOfferKeys, setSelectedOfferKeys] = useState<string[]>([]);
++  const [favoriteOfferKeys, setFavoriteOfferKeys] = useState<string[]>([]);
+   const [alertsEnabled, setAlertsEnabled] = useState(false);
+   const [outboundOffer, setOutboundOffer] = useState<NormalizedOffer>();
++  const [comparisonOpen, setComparisonOpen] = useState(false);
+   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
++  const filterTriggerRef = useRef<HTMLButtonElement>(null);
++  const filterDialogRef = useRef<HTMLElement>(null);
++  const outboundTriggerRef = useRef<HTMLElement>(null);
++  const outboundDialogRef = useRef<HTMLElement>(null);
++  const compareTriggerRef = useRef<HTMLButtonElement>(null);
++  const compareDialogRef = useRef<HTMLElement>(null);
++
++  useDialogFocus(filtersOpen, filterDialogRef, filterTriggerRef, () => setFiltersOpen(false));
++  useDialogFocus(Boolean(outboundOffer), outboundDialogRef, outboundTriggerRef, () => setOutboundOffer(undefined));
++  useDialogFocus(comparisonOpen, compareDialogRef, compareTriggerRef, () => setComparisonOpen(false));
+ 
+   useEffect(() => {
+     let active = true;
+ 
+     const acceptEvent = (event: QuoteEvent) => {
+       if (!active) return;
+       if (event.type === 'offer') {
+         setOffers((current) => upsertOffer(current, event.payload));
+       } else if (event.type === 'degraded') {
+         setDegradedMessage(event.payload.message);
++      } else if (event.type === 'complete') {
++        setStreamComplete(true);
+       }
+     };
+ 
+     if (stream) {
+       void (async () => {
+         for await (const event of stream) acceptEvent(event);
+       })();
+       return () => {
+         active = false;
+       };
+     }
+ 
+     const disconnect = connectToQuoteStream(search, acceptEvent, () => {
+-      if (active) setDegradedMessage('报价流暂时中断，已保留当前结果');
++      if (active) {
++        setDegradedMessage('报价流暂时中断，已保留当前结果');
++        setStreamComplete(true);
++      }
+     });
+ 
+     return () => {
+       active = false;
+       disconnect();
+     };
+   }, [search, stream]);
+ 
+   const visibleOffers = useMemo(() => {
+-    const filtered = refundableOnly
+-      ? offers.filter((offer) => offer.refundable)
+-      : offers;
++    const filtered = offers
++      .filter((offer) => !refundableOnly || offer.refundable)
++      .filter((offer) => !benefitOnly || hasIncludedBenefit(offer))
++      .filter((offer) => !verifiedOnly || offer.providerVerified !== false);
+ 
+     return [...filtered].sort((left, right) => {
+       if (sortOrder === 'price-desc') return right.totalPrice - left.totalPrice;
+       if (sortOrder === 'updated') {
+         return Date.parse(right.updatedAt) - Date.parse(left.updatedAt);
+       }
+       return left.totalPrice - right.totalPrice;
+     });
+-  }, [offers, refundableOnly, sortOrder]);
++  }, [benefitOnly, offers, refundableOnly, sortOrder, verifiedOnly]);
++
++  const selectedOffers = useMemo(
++    () => offers.filter((offer) => selectedOfferKeys.includes(offerKey(offer))),
++    [offers, selectedOfferKeys],
++  );
+ 
+   function selectKind(kind: ComparisonProductKind) {
+     setOffers([]);
++    setStreamComplete(false);
+     setDegradedMessage(undefined);
+     setSearch((current) => ({ ...current, kind }));
+-    setSelectedIds([]);
++    setSelectedOfferKeys([]);
+   }
+ 
+   function selectAdjacentTab(
+     event: KeyboardEvent<HTMLButtonElement>,
+     index: number,
+   ) {
+     if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+     event.preventDefault();
+     let nextIndex = index;
+     if (event.key === 'ArrowRight') nextIndex = (index + 1) % productTabs.length;
+     if (event.key === 'ArrowLeft') {
+       nextIndex = (index - 1 + productTabs.length) % productTabs.length;
+     }
+     if (event.key === 'Home') nextIndex = 0;
+     if (event.key === 'End') nextIndex = productTabs.length - 1;
+     selectKind(productTabs[nextIndex].id);
+     tabRefs.current[nextIndex]?.focus();
+   }
+ 
+-  function toggleInList(id: string, setter: typeof setFavoriteIds) {
++  function toggleInList(key: string, setter: typeof setFavoriteOfferKeys) {
+     setter((current) =>
+-      current.includes(id) ? current.filter((entry) => entry !== id) : [...current, id],
++      current.includes(key) ? current.filter((entry) => entry !== key) : [...current, key],
+     );
+   }
+ 
+-  function toggleComparison(id: string) {
+-    setSelectedIds((current) => {
+-      if (current.includes(id)) return current.filter((entry) => entry !== id);
++  function toggleComparison(key: string) {
++    setSelectedOfferKeys((current) => {
++      if (current.includes(key)) return current.filter((entry) => entry !== key);
+       if (current.length >= 3) return current;
+-      return [...current, id];
++      return [...current, key];
+     });
+   }
+ 
+   return (
+     <main className={styles.page}>
+       <section className={styles.masthead} aria-labelledby="comparison-title">
+         <p>XINGYU · TRANSPARENT COMPARISON</p>
+         <h1 id="comparison-title">看清总价，再从容出发</h1>
+         <span>
+           {search.origin ? `${search.origin} → ` : ''}
+@@ -263,20 +295,21 @@ export function ComparisonClient({
+             onClick={() => setCalendarOpen((value) => !value)}
+             type="button"
+           >
+             <CalendarDots aria-hidden size={18} />
+             价格日历
+           </button>
+           <button
+             aria-expanded={filtersOpen}
+             className={styles.secondaryButton}
+             onClick={() => setFiltersOpen(true)}
++            ref={filterTriggerRef}
+             type="button"
+           >
+             <Funnel aria-hidden size={18} />
+             筛选条件
+           </button>
+           <label className={styles.sortControl}>
+             <SlidersHorizontal aria-hidden size={18} />
+             <span className={styles.visuallyHidden}>报价排序</span>
+             <select
+               aria-label="报价排序"
+@@ -308,72 +341,104 @@ export function ComparisonClient({
+ 
+         <div
+           aria-labelledby={`compare-tab-${search.kind}`}
+           className={styles.results}
+           id="comparison-results"
+           role="tabpanel"
+         >
+           {visibleOffers.map((offer) => (
+             <OfferRow
+               comparisonDisabled={
+-                selectedIds.length >= 3 && !selectedIds.includes(offer.id)
++                selectedOfferKeys.length >= 3 &&
++                !selectedOfferKeys.includes(offerKey(offer))
+               }
+-              favorite={favoriteIds.includes(offer.id)}
++              favorite={favoriteOfferKeys.includes(offerKey(offer))}
+               key={offerKey(offer)}
+               now={now}
+               offer={offer}
+-              onFavorite={() => toggleInList(offer.id, setFavoriteIds)}
+-              onOutbound={() => setOutboundOffer(offer)}
+-              onSelect={() => toggleComparison(offer.id)}
+-              selected={selectedIds.includes(offer.id)}
++              onFavorite={() => toggleInList(offerKey(offer), setFavoriteOfferKeys)}
++              onOutbound={(trigger) => {
++                outboundTriggerRef.current = trigger;
++                setOutboundOffer(offer);
++              }}
++              onSelect={() => toggleComparison(offerKey(offer))}
++              selected={selectedOfferKeys.includes(offerKey(offer))}
+             />
+           ))}
+-          {offers.length === 0 ? (
++          {offers.length === 0 && !streamComplete ? (
+             <div className={styles.loading} aria-live="polite">
+               正在接收沙箱报价…
+             </div>
+           ) : null}
++          {offers.length === 0 && streamComplete ? (
++            <div className={styles.loading}>暂无可用的沙箱报价</div>
++          ) : null}
++          {offers.length > 0 && visibleOffers.length === 0 ? (
++            <div className={styles.loading}>没有符合筛选条件的报价</div>
++          ) : null}
+         </div>
+       </section>
+ 
+-      {selectedIds.length > 0 ? (
++      {selectedOfferKeys.length > 0 ? (
+         <aside className={styles.compareBar} aria-label="同屏对比选择">
+-          <span><Check aria-hidden size={17} /> 已选择 {selectedIds.length}/3 项</span>
+-          <button className={styles.primaryButton} type="button">查看同屏差异</button>
++          <span><Check aria-hidden size={17} /> 已选择 {selectedOfferKeys.length}/3 项</span>
++          <button className={styles.primaryButton} onClick={() => setComparisonOpen(true)} ref={compareTriggerRef} type="button">查看同屏差异</button>
+         </aside>
+       ) : null}
+ 
+       {filtersOpen ? (
+         <div className={styles.drawerBackdrop}>
+-          <aside aria-label="筛选条件" aria-modal="true" className={styles.drawer} role="dialog">
++          <aside aria-label="筛选条件" aria-modal="true" className={styles.drawer} ref={filterDialogRef} role="dialog" tabIndex={-1}>
+             <div className={styles.drawerHeader}>
+               <div><p>FILTERS</p><h2>筛选条件</h2></div>
+               <button aria-label="关闭筛选" className={styles.iconButton} onClick={() => setFiltersOpen(false)} type="button"><X aria-hidden size={21} /></button>
+             </div>
+             <fieldset>
+               <legend>退改与服务</legend>
+               <label><input checked={refundableOnly} onChange={(event) => setRefundableOnly(event.target.checked)} type="checkbox" />仅看可退改</label>
+-              <label><input type="checkbox" />包含行李或早餐</label>
++              <label><input checked={benefitOnly} onChange={(event) => setBenefitOnly(event.target.checked)} type="checkbox" />仅看含权益</label>
+             </fieldset>
+             <fieldset>
+               <legend>供应商可信度</legend>
+-              <label><input type="checkbox" />仅看已验证供应商</label>
++              <label><input checked={verifiedOnly} onChange={(event) => setVerifiedOnly(event.target.checked)} type="checkbox" />仅看已验证供应商</label>
+             </fieldset>
+             <button className={styles.primaryButton} onClick={() => setFiltersOpen(false)} type="button">应用筛选</button>
+           </aside>
+         </div>
+       ) : null}
+ 
+       {outboundOffer ? (
+         <div className={styles.dialogBackdrop}>
+-          <section aria-label="沙箱演示确认" aria-modal="true" className={styles.confirmDialog} role="dialog">
++          <section aria-label="沙箱演示确认" aria-modal="true" className={styles.confirmDialog} ref={outboundDialogRef} role="dialog" tabIndex={-1}>
+             <span className={styles.demoPill}>沙箱 / Demo</span>
+             <h2>这是演示报价，不会跳转真实供应商</h2>
+             <p>当前操作仅解释外部确认流程，不会预订、出票或付款，也不会采集支付信息。</p>
+             <p className={styles.dialogOffer}>{outboundOffer.provider} · ¥{new Intl.NumberFormat('zh-CN').format(outboundOffer.totalPrice)} 含税总价</p>
+             <button className={styles.primaryButton} onClick={() => setOutboundOffer(undefined)} type="button">我知道了</button>
+           </section>
+         </div>
+       ) : null}
++
++      {comparisonOpen ? (
++        <div className={styles.dialogBackdrop}>
++          <section aria-label="报价同屏对比" aria-modal="true" className={styles.comparisonDialog} ref={compareDialogRef} role="dialog" tabIndex={-1}>
++            <div className={styles.drawerHeader}>
++              <div><p>COMPARE</p><h2>报价同屏对比</h2></div>
++              <button aria-label="关闭同屏对比" className={styles.iconButton} onClick={() => setComparisonOpen(false)} type="button"><X aria-hidden size={21} /></button>
++            </div>
++            <div className={styles.comparisonTableWrap}>
++              <table aria-label="已选报价差异" className={styles.comparisonTable}>
++                <thead><tr><th scope="col">对比项</th>{selectedOffers.map((offer) => <th key={offerKey(offer)} scope="col">{offer.provider}</th>)}</tr></thead>
++                <tbody>
++                  <tr><th scope="row">含税总价</th>{selectedOffers.map((offer) => <td key={offerKey(offer)}>¥{new Intl.NumberFormat('zh-CN').format(offer.totalPrice)}</td>)}</tr>
++                  <tr><th scope="row">行李与权益</th>{selectedOffers.map((offer) => <td key={offerKey(offer)}>{offer.baggageIncluded ? '含托运行李' : offer.includedBenefits?.join('、') || '未含额外权益'}</td>)}</tr>
++                  <tr><th scope="row">退改条件</th>{selectedOffers.map((offer) => <td key={offerKey(offer)}>{offer.refundable ? '支持退改' : '限制退改'}</td>)}</tr>
++                  <tr><th scope="row">供应商</th>{selectedOffers.map((offer) => <td key={offerKey(offer)}>{offer.providerVerified === false ? '待核验' : '已验证'}</td>)}</tr>
++                </tbody>
++              </table>
++            </div>
++          </section>
++        </div>
++      ) : null}
+     </main>
+   );
+ }
+diff --git a/src/features/comparison/comparison.module.css b/src/features/comparison/comparison.module.css
+index 0be2f3a..79d7574 100644
+--- a/src/features/comparison/comparison.module.css
++++ b/src/features/comparison/comparison.module.css
+@@ -468,21 +468,22 @@
+ }
+ 
+ .drawerHeader p {
+   margin: 0 0 7px;
+   color: var(--sand);
+   font-size: 10px;
+   letter-spacing: 0.2em;
+ }
+ 
+ .drawerHeader h2,
+-.confirmDialog h2 {
++.confirmDialog h2,
++.comparisonDialog h2 {
+   margin: 0;
+   font-family: var(--font-display);
+   font-weight: 500;
+ }
+ 
+ .drawer fieldset {
+   display: grid;
+   gap: 15px;
+   margin: 27px 0;
+   padding: 0 0 27px;
+@@ -512,20 +513,63 @@
+ }
+ 
+ .confirmDialog {
+   width: min(500px, 100%);
+   padding: 40px;
+   border-radius: 8px;
+   background: var(--ivory);
+   box-shadow: 0 28px 90px rgb(0 0 0 / 30%);
+ }
+ 
++.comparisonDialog {
++  width: min(920px, 100%);
++  max-height: min(760px, calc(100vh - 48px));
++  overflow: auto;
++  padding: 34px;
++  border-radius: 8px;
++  background: var(--ivory);
++  box-shadow: 0 28px 90px rgb(0 0 0 / 30%);
++}
++
++.comparisonTableWrap {
++  overflow-x: auto;
++  margin-top: 26px;
++}
++
++.comparisonTable {
++  width: 100%;
++  min-width: 620px;
++  border-spacing: 0;
++  border-collapse: collapse;
++  text-align: left;
++}
++
++.comparisonTable th,
++.comparisonTable td {
++  padding: 15px 17px;
++  border: 1px solid rgb(16 16 15 / 12%);
++  font-size: 13px;
++  line-height: 1.55;
++}
++
++.comparisonTable thead th {
++  color: var(--ivory);
++  background: var(--pine);
++  font-weight: 500;
++}
++
++.comparisonTable tbody th {
++  width: 130px;
++  background: #e4ded2;
++  font-weight: 600;
++}
++
+ .demoPill {
+   display: inline-block;
+   margin-bottom: 17px;
+   padding: 5px 9px;
+   color: #5e4b29;
+   border: 1px solid #cbb583;
+   border-radius: 999px;
+   background: #eee2c6;
+   font-size: 11px;
+   letter-spacing: 0.08em;
+@@ -667,11 +711,15 @@
+   }
+ 
+   .secondaryButton,
+   .sortControl {
+     flex-basis: 100%;
+   }
+ 
+   .confirmDialog {
+     padding: 28px 24px;
+   }
++
++  .comparisonDialog {
++    padding: 25px 18px;
++  }
+ }
+diff --git a/src/features/comparison/offer-row.tsx b/src/features/comparison/offer-row.tsx
+index 302d23d..de8caaa 100644
+--- a/src/features/comparison/offer-row.tsx
++++ b/src/features/comparison/offer-row.tsx
+@@ -14,21 +14,21 @@ import type { NormalizedOffer } from '@/domain/comparison/types';
+ import styles from './comparison.module.css';
+ 
+ type OfferRowProps = {
+   offer: NormalizedOffer;
+   now: string;
+   favorite: boolean;
+   selected: boolean;
+   comparisonDisabled: boolean;
+   onFavorite: () => void;
+   onSelect: () => void;
+-  onOutbound: () => void;
++  onOutbound: (trigger: HTMLButtonElement) => void;
+ };
+ 
+ const STALE_AFTER_MS = 2 * 60 * 60 * 1000;
+ 
+ function formatUpdatedAt(value: string): string {
+   const match = value.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+   if (!match) return `${value} 更新`;
+   return `${match[1]}-${match[2]}-${match[3]} ${match[4]}:${match[5]} 更新`;
+ }
+ 
+@@ -46,45 +46,50 @@ export function OfferRow({
+   onSelect,
+   onOutbound,
+ }: OfferRowProps) {
+   const [expanded, setExpanded] = useState(false);
+   const updatedAt = Date.parse(offer.updatedAt);
+   const referenceTime = Date.parse(now);
+   const stale =
+     Number.isFinite(updatedAt) &&
+     Number.isFinite(referenceTime) &&
+     referenceTime - updatedAt > STALE_AFTER_MS;
++  const benefit = offer.baggageIncluded
++    ? '含托运行李'
++    : offer.includedBenefits?.[0] ?? '未含额外权益';
+ 
+   return (
+     <article className={styles.offerRow} data-testid="offer-row">
+       <div className={styles.offerIdentity}>
+         <div className={styles.providerLine}>
+           <span>{offer.provider}</span>
+           <span className={styles.verified}>
+             <ShieldCheck aria-hidden size={15} weight="fill" />
+-            供应商可信度 4.8/5 · 已验证
++            {offer.providerVerified === false
++              ? '供应商可信度待核验'
++              : '供应商可信度 4.8/5 · 已验证'}
+           </span>
+         </div>
+         <h2>{offer.title ?? `${offer.destination ?? ''}演示报价`}</h2>
+         <p className={styles.updated}>{formatUpdatedAt(offer.updatedAt)}</p>
+         {stale ? (
+           <p className={styles.stale}>
+             <WarningCircle aria-hidden size={16} />
+             报价较早，请在确认前复核
+           </p>
+         ) : null}
+       </div>
+ 
+       <div className={styles.offerConditions}>
+         <p>
+           <SuitcaseRolling aria-hidden size={18} />
+-          {offer.baggageIncluded ? '含托运行李' : '不含托运行李'}
++          {benefit}
+         </p>
+         <p>
+           <CheckCircle aria-hidden size={18} />
+           {offer.refundable ? '支持退改' : '限制退改'}
+         </p>
+         <button
+           aria-expanded={expanded}
+           className={styles.textButton}
+           onClick={() => setExpanded((value) => !value)}
+           type="button"
+@@ -94,21 +99,21 @@ export function OfferRow({
+           <CaretDown aria-hidden size={15} />
+         </button>
+       </div>
+ 
+       <div className={styles.offerPrice}>
+         <strong>¥{formatPrice(offer.totalPrice)} 含税总价</strong>
+         <span>{offer.priceExplanation}</span>
+         <button
+           aria-label={`查看 ${offer.provider} 演示报价`}
+           className={styles.primaryButton}
+-          onClick={onOutbound}
++          onClick={(event) => onOutbound(event.currentTarget)}
+           type="button"
+         >
+           查看演示报价
+           <ArrowSquareOut aria-hidden size={17} />
+         </button>
+       </div>
+ 
+       <div className={styles.offerActions}>
+         <label className={styles.compareCheck}>
+           <input
+@@ -126,18 +131,18 @@ export function OfferRow({
+           className={styles.iconButton}
+           onClick={onFavorite}
+           type="button"
+         >
+           <Heart aria-hidden size={20} weight={favorite ? 'fill' : 'regular'} />
+         </button>
+       </div>
+ 
+       {expanded ? (
+         <div className={styles.expandedConditions}>
+-          <p>{offer.baggageIncluded ? '含 1 件托运行李' : '未包含托运行李额度'}</p>
++          <p>{offer.baggageIncluded ? '含 1 件托运行李' : benefit}</p>
+           <p>{offer.refundable ? '起飞前支持按供应商规则退改' : '不可免费退改'}</p>
+           <p>价格已统一计入税费与必须支付的服务费用，附加选购服务不计入。</p>
+         </div>
+       ) : null}
+     </article>
+   );
+ }
+diff --git a/src/features/comparison/search-params.ts b/src/features/comparison/search-params.ts
+new file mode 100644
+index 0000000..fdb733c
+--- /dev/null
++++ b/src/features/comparison/search-params.ts
+@@ -0,0 +1,42 @@
++import type { ComparisonProductKind } from '@/domain/comparison/types';
++import type { ComparisonSearchInput } from '@/domain/shared/api';
++
++export type ComparisonSearchParams = Record<
++  string,
++  string | string[] | undefined
++>;
++
++function firstValue(value: string | string[] | undefined): string | undefined {
++  return Array.isArray(value) ? value[0] : value;
++}
++
++export function searchFromParams(
++  params: ComparisonSearchParams,
++): ComparisonSearchInput {
++  const rawKind = firstValue(params.kind);
++  const kind: ComparisonProductKind = ['flight', 'hotel', 'ticket'].includes(
++    rawKind ?? '',
++  )
++    ? (rawKind as ComparisonProductKind)
++    : 'flight';
++  const rawDestination = firstValue(params.destination)?.trim();
++  const destination =
++    rawDestination && rawDestination.length >= 2 && rawDestination.length <= 60
++      ? rawDestination
++      : '大理';
++  const origin = firstValue(params.origin)?.trim();
++  const from = firstValue(params.from);
++  const to = firstValue(params.to);
++  const travelers = Number(firstValue(params.travelers));
++
++  return {
++    kind,
++    destination,
++    ...(origin && origin.length <= 60 ? { origin } : {}),
++    ...(from ? { from } : {}),
++    ...(to ? { to } : {}),
++    ...(Number.isInteger(travelers) && travelers >= 1 && travelers <= 9
++      ? { travelers }
++      : {}),
++  };
++}
+diff --git a/src/features/comparison/use-dialog-focus.ts b/src/features/comparison/use-dialog-focus.ts
+new file mode 100644
+index 0000000..c921a67
+--- /dev/null
++++ b/src/features/comparison/use-dialog-focus.ts
+@@ -0,0 +1,69 @@
++'use client';
++
++import { useEffect, useRef, type RefObject } from 'react';
++
++const focusableSelector = [
++  'button:not([disabled])',
++  '[href]',
++  'input:not([disabled])',
++  'select:not([disabled])',
++  'textarea:not([disabled])',
++  '[tabindex]:not([tabindex="-1"])',
++].join(',');
++
++export function useDialogFocus(
++  open: boolean,
++  dialogRef: RefObject<HTMLElement | null>,
++  returnFocusRef: RefObject<HTMLElement | null>,
++  onClose: () => void,
++) {
++  const closeRef = useRef(onClose);
++
++  useEffect(() => {
++    closeRef.current = onClose;
++  }, [onClose]);
++
++  useEffect(() => {
++    if (!open) return;
++    const dialog = dialogRef.current;
++    const returnTarget = returnFocusRef.current;
++    if (!dialog) return;
++
++    const focusable = () =>
++      Array.from(dialog.querySelectorAll<HTMLElement>(focusableSelector)).filter(
++        (element) => !element.hasAttribute('disabled'),
++      );
++    focusable()[0]?.focus();
++
++    function handleKeyDown(event: globalThis.KeyboardEvent) {
++      if (event.key === 'Escape') {
++        event.preventDefault();
++        closeRef.current();
++        return;
++      }
++      if (event.key !== 'Tab') return;
++
++      const elements = focusable();
++      if (elements.length === 0) {
++        event.preventDefault();
++        dialog?.focus();
++        return;
++      }
++      const first = elements[0];
++      const last = elements[elements.length - 1];
++      if (event.shiftKey && document.activeElement === first) {
++        event.preventDefault();
++        last.focus();
++      } else if (!event.shiftKey && document.activeElement === last) {
++        event.preventDefault();
++        first.focus();
++      }
++    }
++
++    dialog.addEventListener('keydown', handleKeyDown);
++    return () => {
++      dialog.removeEventListener('keydown', handleKeyDown);
++      returnTarget?.focus();
++    };
++  }, [dialogRef, open, returnFocusRef]);
++}
+diff --git a/tests/component/comparison-client.test.tsx b/tests/component/comparison-client.test.tsx
+index 6758b12..0302472 100644
+--- a/tests/component/comparison-client.test.tsx
++++ b/tests/component/comparison-client.test.tsx
+@@ -24,74 +24,82 @@ const offers: NormalizedOffer[] = [
+     basePrice: 860,
+     taxes: 120,
+     mandatoryFees: 40,
+     totalPrice: 1020,
+     currency: 'CNY',
+     priceExplanation: '基础价 ¥860 · 税费 ¥120 · 必付费用 ¥40',
+     baggageIncluded: true,
+     refundable: false,
+     updatedAt: '2026-08-16T09:00:00+08:00',
+     demoMode: true,
++    providerVerified: true,
++    includedBenefits: ['托运行李'],
+   },
+   {
+     id: 'offer-2',
+     provider: '山海出行',
+     kind: 'flight',
+     title: '上海至大理 HO演示航班',
+     origin: '上海',
+     destination: '大理',
+     basePrice: 900,
+     taxes: 80,
+     mandatoryFees: 0,
+     totalPrice: 980,
+     currency: 'CNY',
+     priceExplanation: '基础价 ¥900 · 税费 ¥80 · 必付费用 ¥0',
+     baggageIncluded: false,
+     refundable: true,
+     updatedAt: '2026-08-16T11:30:00+08:00',
+     demoMode: true,
++    providerVerified: false,
++    includedBenefits: [],
+   },
+   {
+     id: 'offer-3',
+     provider: '远岫旅行',
+     kind: 'flight',
+     title: '上海至大理 3U演示航班',
+     origin: '上海',
+     destination: '大理',
+     basePrice: 980,
+     taxes: 70,
+     mandatoryFees: 0,
+     totalPrice: 1050,
+     currency: 'CNY',
+     priceExplanation: '基础价 ¥980 · 税费 ¥70 · 必付费用 ¥0',
+     baggageIncluded: true,
+     refundable: true,
+     updatedAt: '2026-08-16T11:45:00+08:00',
+     demoMode: true,
++    providerVerified: true,
++    includedBenefits: ['托运行李'],
+   },
+   {
+     id: 'offer-4',
+     provider: '栖云假期',
+     kind: 'flight',
+     title: '上海至大理 CA演示航班',
+     origin: '上海',
+     destination: '大理',
+     basePrice: 1010,
+     taxes: 90,
+     mandatoryFees: 0,
+     totalPrice: 1100,
+     currency: 'CNY',
+     priceExplanation: '基础价 ¥1010 · 税费 ¥90 · 必付费用 ¥0',
+     baggageIncluded: true,
+     refundable: false,
+     updatedAt: '2026-08-16T11:50:00+08:00',
+     demoMode: true,
++    providerVerified: true,
++    includedBenefits: ['托运行李'],
+   },
+ ];
+ 
+ function streamEvents(events: QuoteEvent[]): AsyncIterable<QuoteEvent> {
+   return {
+     async *[Symbol.asyncIterator]() {
+       for (const event of events) yield event;
+     },
+   };
+ }
+@@ -194,11 +202,146 @@ describe('ComparisonClient incremental results', () => {
+     await screen.findByText('¥1,020 含税总价');
+ 
+     await user.click(screen.getByRole('button', { name: '查看 云程旅行 演示报价' }));
+     const dialog = screen.getByRole('dialog', { name: '沙箱演示确认' });
+     expect(dialog).toHaveTextContent('沙箱 / Demo');
+     expect(dialog).toHaveTextContent('不会预订、出票或付款');
+     expect(within(dialog).queryByRole('link')).not.toBeInTheDocument();
+     await user.click(within(dialog).getByRole('button', { name: '我知道了' }));
+     expect(screen.queryByRole('dialog', { name: '沙箱演示确认' })).not.toBeInTheDocument();
+   });
++
++  it('shows a stable empty result after a zero-offer stream completes', async () => {
++    render(
++      <ComparisonClient
++        initialSearch={initialSearch}
++        now="2026-08-16T12:30:00+08:00"
++        stream={streamEvents([{ type: 'complete', payload: { offerCount: 0 } }])}
++      />,
++    );
++
++    expect(await screen.findByText('暂无可用的沙箱报价')).toBeInTheDocument();
++    expect(screen.queryByText('正在接收沙箱报价…')).not.toBeInTheDocument();
++  });
++
++  it('filters real rows by refundability, included benefit, and verified supplier', async () => {
++    const user = userEvent.setup();
++    render(
++      <ComparisonClient
++        initialSearch={initialSearch}
++        now="2026-08-16T12:30:00+08:00"
++        stream={streamEvents([
++          ...offers.slice(0, 3).map((payload) => ({ type: 'offer' as const, payload })),
++          { type: 'complete', payload: { offerCount: 3 } },
++        ])}
++      />,
++    );
++    await screen.findByText('上海至大理 MU演示航班');
++
++    await user.click(screen.getByRole('button', { name: '筛选条件' }));
++    await user.click(screen.getByRole('checkbox', { name: '仅看可退改' }));
++    await user.click(screen.getByRole('checkbox', { name: '仅看含权益' }));
++    await user.click(screen.getByRole('checkbox', { name: '仅看已验证供应商' }));
++    await user.click(screen.getByRole('button', { name: '应用筛选' }));
++
++    expect(screen.getAllByTestId('offer-row')).toHaveLength(1);
++    expect(screen.getByText('远岫旅行')).toBeInTheDocument();
++    expect(screen.queryByText('山海出行')).not.toBeInTheDocument();
++  });
++
++  it('keeps favorites and compare selection independent for providers sharing a local id', async () => {
++    const user = userEvent.setup();
++    const sharedIdOffers = [
++      { ...offers[0], id: 'shared-local-id' },
++      { ...offers[1], id: 'shared-local-id' },
++    ];
++    render(
++      <ComparisonClient
++        initialSearch={initialSearch}
++        now="2026-08-16T12:30:00+08:00"
++        stream={streamEvents(sharedIdOffers.map((payload) => ({ type: 'offer', payload })))}
++      />,
++    );
++    await screen.findByText('云程旅行');
++
++    const firstFavorite = screen.getByRole('button', { name: '收藏 云程旅行 报价' });
++    const secondFavorite = screen.getByRole('button', { name: '收藏 山海出行 报价' });
++    await user.click(firstFavorite);
++    expect(firstFavorite).toHaveAttribute('aria-pressed', 'true');
++    expect(secondFavorite).toHaveAttribute('aria-pressed', 'false');
++
++    await user.click(screen.getByRole('checkbox', { name: '加入同屏对比：云程旅行' }));
++    await user.click(screen.getByRole('checkbox', { name: '加入同屏对比：山海出行' }));
++    expect(screen.getByText('已选择 2/3 项')).toBeInTheDocument();
++  });
++
++  it('opens a real accessible comparison table for selected offers and closes it', async () => {
++    const user = userEvent.setup();
++    render(
++      <ComparisonClient
++        initialSearch={initialSearch}
++        now="2026-08-16T12:30:00+08:00"
++        stream={streamEvents(offers.slice(0, 2).map((payload) => ({ type: 'offer', payload })))}
++      />,
++    );
++    await screen.findByText('云程旅行');
++    await user.click(screen.getByRole('checkbox', { name: '加入同屏对比：云程旅行' }));
++    await user.click(screen.getByRole('checkbox', { name: '加入同屏对比：山海出行' }));
++    await user.click(screen.getByRole('button', { name: '查看同屏差异' }));
++
++    const dialog = screen.getByRole('dialog', { name: '报价同屏对比' });
++    const table = within(dialog).getByRole('table', { name: '已选报价差异' });
++    expect(table).toHaveTextContent('云程旅行');
++    expect(table).toHaveTextContent('山海出行');
++    expect(table).toHaveTextContent('含税总价');
++    expect(table).toHaveTextContent('行李与权益');
++    expect(table).toHaveTextContent('退改条件');
++    await user.click(within(dialog).getByRole('button', { name: '关闭同屏对比' }));
++    expect(screen.queryByRole('dialog', { name: '报价同屏对比' })).not.toBeInTheDocument();
++  });
++
++  it('traps filter focus, closes on Escape, and restores focus to its trigger', async () => {
++    const user = userEvent.setup();
++    render(
++      <ComparisonClient
++        initialSearch={initialSearch}
++        now="2026-08-16T12:30:00+08:00"
++        stream={streamEvents([{ type: 'complete', payload: { offerCount: 0 } }])}
++      />,
++    );
++    const trigger = screen.getByRole('button', { name: '筛选条件' });
++    await user.click(trigger);
++    const dialog = screen.getByRole('dialog', { name: '筛选条件' });
++    const close = within(dialog).getByRole('button', { name: '关闭筛选' });
++    const apply = within(dialog).getByRole('button', { name: '应用筛选' });
++
++    expect(close).toHaveFocus();
++    await user.keyboard('{Shift>}{Tab}{/Shift}');
++    expect(apply).toHaveFocus();
++    await user.keyboard('{Escape}');
++    expect(screen.queryByRole('dialog', { name: '筛选条件' })).not.toBeInTheDocument();
++    expect(trigger).toHaveFocus();
++  });
++
++  it('traps outbound focus, closes on Escape, and restores focus to the quote trigger', async () => {
++    const user = userEvent.setup();
++    render(
++      <ComparisonClient
++        initialSearch={initialSearch}
++        now="2026-08-16T12:30:00+08:00"
++        stream={streamEvents([{ type: 'offer', payload: offers[0] }])}
++      />,
++    );
++    await screen.findByText('云程旅行');
++    const trigger = screen.getByRole('button', { name: '查看 云程旅行 演示报价' });
++    await user.click(trigger);
++    const dialog = screen.getByRole('dialog', { name: '沙箱演示确认' });
++    const close = within(dialog).getByRole('button', { name: '我知道了' });
++
++    expect(close).toHaveFocus();
++    await user.keyboard('{Tab}');
++    expect(close).toHaveFocus();
++    await user.keyboard('{Escape}');
++    expect(screen.queryByRole('dialog', { name: '沙箱演示确认' })).not.toBeInTheDocument();
++    expect(trigger).toHaveFocus();
++  });
+ });
+diff --git a/tests/unit/comparison-search-params.test.ts b/tests/unit/comparison-search-params.test.ts
+new file mode 100644
+index 0000000..2d3299b
+--- /dev/null
++++ b/tests/unit/comparison-search-params.test.ts
+@@ -0,0 +1,32 @@
++import { expect, it } from 'vitest';
++import { searchFromParams } from '@/features/comparison/search-params';
++
++it('normalizes repeated comparison params deterministically using the first value', () => {
++  expect(
++    searchFromParams({
++      kind: ['hotel', 'flight'],
++      destination: [' 大理古城 ', '丽江'],
++      origin: ['上海', '北京'],
++      from: ['2026-09-01', '2026-10-01'],
++      to: ['2026-09-03', '2026-10-03'],
++      travelers: ['3', '5'],
++    }),
++  ).toEqual({
++    kind: 'hotel',
++    destination: '大理古城',
++    origin: '上海',
++    from: '2026-09-01',
++    to: '2026-09-03',
++    travelers: 3,
++  });
++});
++
++it('falls back safely when repeated values begin with an invalid value', () => {
++  expect(
++    searchFromParams({
++      kind: ['car', 'hotel'],
++      destination: [],
++      travelers: ['not-a-number', '2'],
++    }),
++  ).toEqual({ kind: 'flight', destination: '大理' });
++});
+diff --git a/tests/unit/normalize-offer.test.ts b/tests/unit/normalize-offer.test.ts
+index 116d1c6..1aae6f2 100644
+--- a/tests/unit/normalize-offer.test.ts
++++ b/tests/unit/normalize-offer.test.ts
+@@ -113,20 +113,22 @@ describe('MockInventoryProvider', () => {
+       id: 'DEMO-TICKET-DAL-01',
+       provider: '星屿沙箱演示门票',
+       kind: 'ticket',
+       title: '大理古城体验演示门票',
+       destination: '大理',
+       basePrice: 88,
+       taxes: 0,
+       mandatoryFees: 0,
+       baggageIncluded: false,
+       refundable: true,
++      providerVerified: true,
++      includedBenefits: ['古城导览'],
+       updatedAt: '2026-08-16T09:00:00+08:00',
+       demoMode: true,
+     });
+   });
+ 
+   it('searches fixed sandbox attraction tickets by destination and kind', async () => {
+     const provider = new MockInventoryProvider();
+     const offers = [];
+ 
+     for await (const offer of provider.search({ destination: '大理', kind: 'ticket' })) {
+diff --git a/tests/unit/quote-stream.test.ts b/tests/unit/quote-stream.test.ts
+index 418ae83..dcabbec 100644
+--- a/tests/unit/quote-stream.test.ts
++++ b/tests/unit/quote-stream.test.ts
+@@ -1,13 +1,17 @@
+ import { describe, expect, it } from 'vitest';
+ import { POST } from '@/app/api/v1/comparison/searches/route';
+-import { GET, encodeSse } from '@/app/api/v1/comparison/searches/[id]/events/route';
++import {
++  GET,
++  encodeSse,
++  quoteEventsForSearch,
++} from '@/app/api/v1/comparison/searches/[id]/events/route';
+ import type { QuoteEvent } from '@/domain/comparison/types';
+ 
+ const validSearch = {
+   destination: '大理',
+   kind: 'flight',
+   origin: '上海',
+   from: '2026-08-22',
+   to: '2026-08-27',
+   travelers: 2,
+ } as const;
+@@ -37,35 +41,56 @@ describe('comparison search route', () => {
+     });
+     expect(secondBody.search_id).toBe(firstBody.search_id);
+     expect(secondBody.request_id).not.toBe(firstBody.request_id);
+   });
+ 
+   it.each([
+     ['malformed JSON', '{'],
+     ['an unsupported product kind', { ...validSearch, kind: 'car' }],
+     ['an empty destination', { ...validSearch, destination: '   ' }],
+     ['an invalid traveler count', { ...validSearch, travelers: 0 }],
++    ['a non-existent calendar date', { ...validSearch, from: '2026-02-30' }],
++    ['a reversed date range', { ...validSearch, from: '2026-08-28', to: '2026-08-27' }],
++    ['too many travelers', { ...validSearch, travelers: 10 }],
++    ['an oversized destination', { ...validSearch, destination: '大'.repeat(61) }],
+   ])('returns the unified JSON error contract for %s', async (_name, body) => {
+     const response = await createSearch(body);
+ 
+     expect(response.status).toBe(400);
+     expect(response.headers.get('content-type')).toContain('application/json');
+     await expect(response.json()).resolves.toMatchObject({
+       ok: false,
+       error: {
+         code: 'INVALID_COMPARISON_SEARCH',
+         message: expect.any(String),
+       },
+       request_id: expect.stringMatching(/^req_/),
+       demo_mode: true,
+     });
+   });
++
++  it('trims bounded location inputs before creating the stable token', async () => {
++    const response = await createSearch({
++      ...validSearch,
++      destination: '  大理  ',
++      origin: '  上海  ',
++    });
++    const { search_id: searchId } = await response.json();
++    const streamResponse = await GET(
++      new Request(`http://test/api/v1/comparison/searches/${searchId}/events`),
++      { params: Promise.resolve({ id: searchId }) },
++    );
++
++    expect(response.status).toBe(202);
++    expect(streamResponse.status).toBe(200);
++    expect(await streamResponse.text()).toContain('"id":"DEMO-FLIGHT-DAL-01"');
++  });
+ });
+ 
+ describe('comparison quote stream', () => {
+   it('frames an event as valid UTF-8 server-sent event data', () => {
+     const event: QuoteEvent = {
+       type: 'degraded',
+       payload: { unavailableProviders: 1, message: '1 家供应商暂未响应' },
+     };
+ 
+     expect(new TextDecoder().decode(encodeSse(event))).toBe(
+@@ -90,22 +115,120 @@ describe('comparison quote stream', () => {
+     expect(text).toContain('"id":"DEMO-FLIGHT-DAL-01"');
+     expect(text).toContain('"totalPrice":1020');
+     expect(text).toContain('event: degraded\n');
+     expect(text).toContain('event: complete\n');
+     expect(text.indexOf('event: offer')).toBeLessThan(text.indexOf('event: degraded'));
+     expect(text.indexOf('event: degraded')).toBeLessThan(text.indexOf('event: complete'));
+   });
+ 
+   it('returns a unified not-found response for an unknown search id', async () => {
+     const response = await GET(
+-      new Request('http://test/api/v1/comparison/searches/search_missing/events'),
+-      { params: Promise.resolve({ id: 'search_missing' }) },
++      new Request('http://test/api/v1/comparison/searches/missing/events'),
++      { params: Promise.resolve({ id: 'missing' }) },
+     );
+ 
+     expect(response.status).toBe(404);
+     await expect(response.json()).resolves.toMatchObject({
+       ok: false,
+       error: { code: 'COMPARISON_SEARCH_NOT_FOUND' },
+       demo_mode: true,
+     });
+   });
++
++  it.each([
++    ['invalid encoded JSON', 'search_7b'],
++    [
++      'a stateless reversed date range',
++      `search_${Array.from(
++        new TextEncoder().encode(
++          JSON.stringify({
++            destination: '大理',
++            kind: 'flight',
++            origin: null,
++            from: '2026-08-28',
++            to: '2026-08-27',
++            travelers: 2,
++          }),
++        ),
++        (byte) => byte.toString(16).padStart(2, '0'),
++      ).join('')}`,
++    ],
++    ['an oversized stateless token', `search_${'61'.repeat(2049)}`],
++  ])('returns a structured 400 for %s', async (_name, id) => {
++    const response = await GET(
++      new Request(`http://test/api/v1/comparison/searches/${id}/events`),
++      { params: Promise.resolve({ id }) },
++    );
++
++    expect(response.status).toBe(400);
++    await expect(response.json()).resolves.toMatchObject({
++      ok: false,
++      error: { code: 'INVALID_COMPARISON_SEARCH_ID' },
++      request_id: expect.stringMatching(/^req_/),
++      demo_mode: true,
++    });
++  });
++
++  it('emits degradation from a recorded ticket supplier failure rather than product kind', async () => {
++    const creation = await createSearch({
++      destination: '大理',
++      kind: 'ticket',
++      from: '2026-08-22',
++      travelers: 2,
++    });
++    const { search_id: searchId } = await creation.json();
++    const response = await GET(
++      new Request(`http://test/api/v1/comparison/searches/${searchId}/events`),
++      { params: Promise.resolve({ id: searchId }) },
++    );
++    const text = await response.text();
++
++    expect(text).toContain('"id":"DEMO-TICKET-DAL-01"');
++    expect(text).toContain('event: degraded\n');
++    expect(text).toContain('大理景区直连暂未响应');
++    expect(text).toContain('event: complete\n');
++  });
++
++  it('preserves partial offers and always completes after a supplier runner throws', async () => {
++    const partialOffer = {
++      id: 'partial-1',
++      provider: '部分成功供应商',
++      kind: 'flight',
++      title: '部分成功报价',
++      destination: '大理',
++      basePrice: 800,
++      taxes: 100,
++      mandatoryFees: 0,
++      totalPrice: 900,
++      currency: 'CNY',
++      priceExplanation: '基础价 ¥800 · 税费 ¥100 · 必付费用 ¥0',
++      baggageIncluded: true,
++      refundable: true,
++      providerVerified: true,
++      includedBenefits: ['托运行李'],
++      updatedAt: '2026-08-16T09:00:00+08:00',
++      demoMode: true,
++    } as const;
++    const throwingRuns = {
++      async *run() {
++        yield { status: 'success' as const, provider: '部分成功供应商', offers: [partialOffer] };
++        throw new Error('supplier transport failed');
++      },
++    };
++    const events = [];
++
++    for await (const event of quoteEventsForSearch(validSearch, throwingRuns)) {
++      events.push(event);
++    }
++
++    expect(events.map((event) => event.type)).toEqual([
++      'offer',
++      'degraded',
++      'complete',
++    ]);
++    expect(events[1]).toMatchObject({
++      type: 'degraded',
++      payload: { unavailableProviders: 1 },
++    });
++    expect(events[2]).toEqual({ type: 'complete', payload: { offerCount: 1 } });
++  });
+ });

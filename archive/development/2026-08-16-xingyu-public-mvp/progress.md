@@ -1,0 +1,22 @@
+# SDD ledger — plan: docs/superpowers/plans/2026-08-16-xingyu-public-mvp.md
+
+- Workspace: D:\Codex-chat\xingyu-travel\.worktrees\xingyu-public-mvp
+- Branch: feature/xingyu-public-mvp
+- Merge base: 104eedc954ebf0fb112c67d5996b0d785babdab0
+- Preflight ruling: fixed weighted match score governs; expected score corrected from 91 to 92 with user approval.
+- Task 1: complete (commits c65bbb7..2067992, review clean after one evidence-only fix round).
+- Task 2: complete (commits 2067992..eb044c3, review clean after two code fix rounds).
+- Task 3: complete (commits eb044c3..4598c27, visual/spec/code review clean).
+- Task 4: complete (commits 4598c27..fd4401e, review clean after one code fix round).
+- Task 5: complete (commits fd4401e..f6881f9, review clean after two code fix rounds).
+- Task 6: complete (commits f6881f9..5033cf6, review clean after three fix rounds plus final surgical guard; global full/build rerun pending).
+- Task 7: complete (commits 5033cf6..e0a5bb4, review clean after one code fix round; full 119/build green).
+- Task 8: complete (commits e0a5bb4..343263e, review clean after two code fix rounds; full 171/build green).
+- Task 9: fix round 1/5 (4 addressed, 2 open — Qwen visible-field/fact safety gate; slug-aware trip mutators break key/id invariant; commits f3ef8bd..3b9d157).
+- Task 9: fix round 2/5 (2 addressed, 0 open — trusted intent-only Qwen output; canonical trip mutation keys; commits 3b9d157..ef38505).
+- Task 9: complete (commits 343263e..ef38505, review clean after two code fix rounds; full 200/build green).
+- Task 10: fix round 1/5 (3 addressed, 0 open — profile fail-closed hydration, hydration-first Square/Profile, report success focus; commits faa2ef8..994a05a).
+- Task 10: complete (commits ef38505..994a05a, review clean after one code fix round; scoped/type/lint/build green, full Vitest terminal summary pending Task 11/final verification).
+- Task 11: fix round 1/5 (3 addressed, 1 open — hydrated mobile TripWorkbench overflow not covered; commits b7023ff..59a6f62).
+- Task 11: fix round 2/5 (1 addressed, 0 open — real UI-created hydrated mobile TripWorkbench overflow; commits 59a6f62..ccde7f4).
+- Task 11: complete (commits 994a05a..ccde7f4, review clean after two code/test fix rounds; E2E 18/full Vitest 215/verify green).

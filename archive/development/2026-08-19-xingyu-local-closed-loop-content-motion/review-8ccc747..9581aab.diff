@@ -1,0 +1,566 @@
+# Review package: 8ccc747..9581aab
+
+## Commits
+9581aab fix: harden square gallery interactions
+
+## Files changed
+ src/app/square/[slug]/page.tsx              |  2 +-
+ src/data/destination-assets.ts              |  9 +++-
+ src/data/posts.ts                           |  4 +-
+ src/features/square/destination-filters.tsx |  2 +-
+ src/features/square/guide-gallery.tsx       | 41 +++++++++------
+ src/features/square/square.module.css       |  7 +--
+ tests/component/guide-gallery.test.tsx      | 82 +++++++++++++++++++++++++++--
+ tests/component/square-feed.test.tsx        | 18 ++++---
+ tests/unit/square-style-contract.test.ts    | 21 ++++++++
+ 9 files changed, 153 insertions(+), 33 deletions(-)
+
+## Diff
+diff --git a/src/app/square/[slug]/page.tsx b/src/app/square/[slug]/page.tsx
+index 024a8da..a2c89be 100644
+--- a/src/app/square/[slug]/page.tsx
++++ b/src/app/square/[slug]/page.tsx
+@@ -14,17 +14,17 @@ export default async function SquarePostPage({ params }: { params: Promise<{ slu
+   if (canonicalSlug !== slug) redirect(`/square/${canonicalSlug}`);
+   const post = postsBySlug[slug];
+   if (!post) notFound();
+ 
+   return (
+     <>
+         <SiteHeader activePath="/square" variant="solid" />
+       <main className={styles.detailPage}>
+         <Link className={styles.backLink} href="/square">← 返回灵感广场</Link>
+         <header className={styles.detailHeader}><p><MapPin aria-hidden size={16} weight="fill" /> {post.destination} · {post.days} 天 · 预算 ¥{post.budget.toLocaleString('zh-CN')}</p><h1>{post.title}</h1><div className={styles.detailAuthor}><b aria-hidden>{post.author.avatar}</b><span>{post.author.name} · {post.author.role}</span><time dateTime={post.publishedAt}>{new Intl.DateTimeFormat('zh-CN', { dateStyle: 'long' }).format(new Date(post.publishedAt))}</time></div><div className={styles.detailActions}>{(post.ai.generated || post.ai.rewritten) && <span className={styles.aiLabel}><Sparkle aria-hidden size={15} weight="fill" /> {post.ai.generated ? 'AI 生成' : 'AI 改写'}{post.ai.generated && post.ai.rewritten ? ' · 已人工改写' : ''}</span>}<FavoriteButton label={post.title} slug={post.slug} /></div></header>
+-        <div className={styles.detailLayout}><article className={styles.article}><p className={styles.lede}>{post.excerpt}</p><GuideGallery images={post.media.slice(0, 9)} title={post.destination} /><h2>这次怎么走</h2><ol className={styles.itinerary}>{post.itinerary.map((item) => <li key={item.day}><span>DAY {item.day}</span><div><h3>{item.title}</h3><p>{item.description}</p><small><MapPin aria-hidden size={14} weight="fill" /> {item.location}</small></div></li>)}</ol></article>
++        <div className={styles.detailLayout}><article className={styles.article}><p className={styles.lede}>{post.excerpt}</p><GuideGallery images={post.media} title={post.destination} /><h2>这次怎么走</h2><ol className={styles.itinerary}>{post.itinerary.map((item) => <li key={item.day}><span>DAY {item.day}</span><div><h3>{item.title}</h3><p>{item.description}</p><small><MapPin aria-hidden size={14} weight="fill" /> {item.location}</small></div></li>)}</ol></article>
+           <aside className={styles.detailAside}><section><h2>地点卡片</h2>{post.locations.map((location) => <div className={styles.locationCard} key={location.name}><MapPin aria-hidden size={18} weight="fill" /><div><strong>{location.name}</strong><span>{location.area}</span><p>{location.note}</p></div></div>)}</section>{post.products.length > 0 && <section><h2>路书里的演示商品</h2>{post.products.map((product) => <div className={styles.productCard} key={product.name}><span>{product.category}</span><strong>{product.name}</strong><b>¥{product.price}</b><p>{product.note}</p></div>)}</section>}<ConvertToTrip post={post} /></aside>
+         </div>
+       </main>
+     </>
+   );
+ }
+diff --git a/src/data/destination-assets.ts b/src/data/destination-assets.ts
+index 4b9ba73..ea76415 100644
+--- a/src/data/destination-assets.ts
++++ b/src/data/destination-assets.ts
+@@ -13,20 +13,27 @@ export type DestinationAssetKey = (typeof destinationKeys)[number];
+ 
+ export interface DestinationAsset {
+   src: string;
+   width: 1536;
+   height: 1024;
+   alt: string;
+   destination: string;
+   shot: string;
+ }
+ 
++type DestinationAssetGallery = readonly [
++  DestinationAsset,
++  DestinationAsset,
++  DestinationAsset,
++  DestinationAsset,
++];
++
+ export const destinationAssets = {
+   dali: [
+     { src: '/assets/destinations/dali/01.png', width: 1536, height: 1024, alt: '晨光里的大理白族院落与石茶桌', destination: '大理', shot: '白族院落清晨' },
+     { src: '/assets/destinations/dali/02.png', width: 1536, height: 1024, alt: '苍山脚下沿洱海弯行的自行车道', destination: '大理', shot: '洱海湖畔自行车道' },
+     { src: '/assets/destinations/dali/03.png', width: 1536, height: 1024, alt: '喜洲村落前铺开的金绿稻田', destination: '大理', shot: '喜洲稻田' },
+     { src: '/assets/destinations/dali/04.png', width: 1536, height: 1024, alt: '双廊旧屋檐下望向洱海落日', destination: '大理', shot: '双廊落日' },
+   ],
+   guilin: [
+     { src: '/assets/destinations/guilin/01.png', width: 1536, height: 1024, alt: '漓江晨雾中层叠的喀斯特山峰', destination: '桂林', shot: '漓江晨雾' },
+     { src: '/assets/destinations/guilin/02.png', width: 1536, height: 1024, alt: '遇龙河清水边停靠的两只竹筏', destination: '桂林', shot: '遇龙河竹筏山水' },
+@@ -62,11 +69,11 @@ export const destinationAssets = {
+     { src: '/assets/destinations/shanghai/02.png', width: 1536, height: 1024, alt: '武康路梧桐树下的老洋房与自行车', destination: '上海', shot: '武康路建筑' },
+     { src: '/assets/destinations/shanghai/03.png', width: 1536, height: 1024, alt: '苏州河上层叠的钢桥与砖仓倒影', destination: '上海', shot: '苏州河桥影' },
+     { src: '/assets/destinations/shanghai/04.png', width: 1536, height: 1024, alt: '深蓝夜色中的陆家嘴建筑群', destination: '上海', shot: '陆家嘴夜景' },
+   ],
+   guizhou: [
+     { src: '/assets/destinations/guizhou/01.png', width: 1536, height: 1024, alt: '小七孔古桥下流过清澈碧水', destination: '贵州', shot: '小七孔碧水' },
+     { src: '/assets/destinations/guizhou/02.png', width: 1536, height: 1024, alt: '晨雾穿过西江苗寨木楼与山坡', destination: '贵州', shot: '西江苗寨山雾建筑' },
+     { src: '/assets/destinations/guizhou/03.png', width: 1536, height: 1024, alt: '云雾中的加榜梯田与木楼村落', destination: '贵州', shot: '加榜梯田' },
+     { src: '/assets/destinations/guizhou/04.png', width: 1536, height: 1024, alt: '湿润蓝夜里沿山起伏的贵阳城景', destination: '贵州', shot: '贵阳山城夜色' },
+   ],
+-} as const satisfies Record<DestinationAssetKey, readonly DestinationAsset[]>;
++} as const satisfies Record<DestinationAssetKey, DestinationAssetGallery>;
+diff --git a/src/data/posts.ts b/src/data/posts.ts
+index 1557873..b1062bb 100644
+--- a/src/data/posts.ts
++++ b/src/data/posts.ts
+@@ -2,20 +2,22 @@ import { destinationAssets } from '@/data/assets';
+ 
+ export type FeedMode = 'recommended' | 'chronological';
+ 
+ export interface PostMedia {
+   src: string;
+   width: number;
+   height: number;
+   alt: string;
+ }
+ 
++export type GuideMedia = readonly [PostMedia, PostMedia, PostMedia, PostMedia];
++
+ export interface LocationCard {
+   name: string;
+   area: string;
+   note: string;
+ }
+ 
+ export interface ItineraryItem {
+   day: number;
+   title: string;
+   description: string;
+@@ -29,21 +31,21 @@ export interface ProductCard {
+   note: string;
+ }
+ 
+ export interface TravelPost {
+   slug: string;
+   title: string;
+   excerpt: string;
+   destination: string;
+   days: number;
+   budget: number;
+-  media: readonly PostMedia[];
++  media: GuideMedia;
+   locations: readonly LocationCard[];
+   tags: readonly string[];
+   itinerary: readonly ItineraryItem[];
+   products: readonly ProductCard[];
+   author: { name: string; role: string; avatar: string };
+   publishedAt: string;
+   updatedAt?: string;
+   ai: { generated: boolean; rewritten: boolean };
+ }
+ 
+diff --git a/src/features/square/destination-filters.tsx b/src/features/square/destination-filters.tsx
+index 0f9f701..78ec23e 100644
+--- a/src/features/square/destination-filters.tsx
++++ b/src/features/square/destination-filters.tsx
+@@ -60,21 +60,21 @@ export function DestinationFilters({
+       <label className={styles.filterField}>
+         <span>最多天数</span>
+         <select
+           onChange={(event) => onChange({
+             ...values,
+             maxDays: event.target.value ? Number(event.target.value) : null,
+           })}
+           value={values.maxDays ?? ''}
+         >
+           <option value="">不限天数</option>
+-          {[3, 4, 5, 6, 7].map((days) => (
++          {[3, 4, 5, 6].map((days) => (
+             <option key={days} value={days}>{days} 天以内</option>
+           ))}
+         </select>
+       </label>
+ 
+       <div className={styles.themeFilters}>
+         <span>主题</span>
+         <div>
+           {themes.map((theme) => (
+             <button
+diff --git a/src/features/square/guide-gallery.tsx b/src/features/square/guide-gallery.tsx
+index ec1d9d7..cbc4dbf 100644
+--- a/src/features/square/guide-gallery.tsx
++++ b/src/features/square/guide-gallery.tsx
+@@ -1,39 +1,46 @@
+ 'use client';
+ 
+ import { ArrowClockwise, CaretLeft, CaretRight } from '@phosphor-icons/react';
+ import Image from 'next/image';
+ import { useRef, useState } from 'react';
+-import type { PostMedia } from '@/data/posts';
++import type { GuideMedia } from '@/data/posts';
+ import styles from './square.module.css';
+ 
+ interface GuideGalleryProps {
+-  images: readonly PostMedia[];
++  images: GuideMedia;
+   title: string;
+ }
+ 
+ export function GuideGallery({ images, title }: GuideGalleryProps) {
+   const [activeIndex, setActiveIndex] = useState(0);
+   const [failedImages, setFailedImages] = useState<ReadonlySet<number>>(() => new Set());
+   const [retryVersions, setRetryVersions] = useState<Readonly<Record<number, number>>>({});
+   const touchStart = useRef<{ x: number; y: number } | null>(null);
+   const touchLatest = useRef<{ x: number; y: number } | null>(null);
++
++  if (images.length !== 4) {
++    throw new RangeError('GuideGallery requires exactly four images.');
++  }
++
+   const activeImage = images[activeIndex];
+ 
+   if (!activeImage) return null;
+ 
+   function showImage(index: number) {
+     const wrappedIndex = (index + images.length) % images.length;
+     setActiveIndex(wrappedIndex);
+   }
+ 
+   function handleKeyDown(event: React.KeyboardEvent<HTMLElement>) {
++    if (event.target !== event.currentTarget) return;
++
+     if (event.key === 'Home') {
+       event.preventDefault();
+       setActiveIndex(0);
+     } else if (event.key === 'End') {
+       event.preventDefault();
+       setActiveIndex(images.length - 1);
+     } else if (event.key === 'ArrowLeft') {
+       event.preventDefault();
+       showImage(activeIndex - 1);
+     } else if (event.key === 'ArrowRight') {
+@@ -72,36 +79,40 @@ export function GuideGallery({ images, title }: GuideGalleryProps) {
+     }));
+   }
+ 
+   const imageFailed = failedImages.has(activeIndex);
+ 
+   return (
+     <section
+       aria-label={`${title}攻略图片画廊`}
+       className={styles.guideGallery}
+       onKeyDown={handleKeyDown}
+-      onTouchEnd={handleTouchEnd}
+-      onTouchMove={(event) => {
+-        const touch = event.touches[0];
+-        if (touch) touchLatest.current = { x: touch.clientX, y: touch.clientY };
+-      }}
+-      onTouchStart={(event) => {
+-        const touch = event.touches[0];
+-        if (!touch) return;
+-        const point = { x: touch.clientX, y: touch.clientY };
+-        touchStart.current = point;
+-        touchLatest.current = point;
+-      }}
+       role="region"
+       tabIndex={0}
+     >
+-      <div className={styles.galleryFrame}>
++      <div
++        aria-label="攻略主图"
++        className={styles.galleryFrame}
++        onTouchEnd={handleTouchEnd}
++        onTouchMove={(event) => {
++          const touch = event.touches[0];
++          if (touch) touchLatest.current = { x: touch.clientX, y: touch.clientY };
++        }}
++        onTouchStart={(event) => {
++          const touch = event.touches[0];
++          if (!touch) return;
++          const point = { x: touch.clientX, y: touch.clientY };
++          touchStart.current = point;
++          touchLatest.current = point;
++        }}
++        role="group"
++      >
+         <Image
+           alt={activeImage.alt}
+           className={styles.galleryImage}
+           fill
+           key={`${activeImage.src}-${retryVersions[activeIndex] ?? 0}`}
+           onError={() => setFailedImages((current) => new Set(current).add(activeIndex))}
+           onLoad={() => setFailedImages((current) => {
+             if (!current.has(activeIndex)) return current;
+             const next = new Set(current);
+             next.delete(activeIndex);
+diff --git a/src/features/square/square.module.css b/src/features/square/square.module.css
+index f3a8cfd..baa64af 100644
+--- a/src/features/square/square.module.css
++++ b/src/features/square/square.module.css
+@@ -29,20 +29,21 @@
+ .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+ .tagList span,
+ .tags span { padding: 4px 7px; border-radius: 999px; background: rgb(183 154 104 / 16%); color: #6d532a; font-size: 12px; }
+ .clearButton { display: inline-flex; align-items: center; gap: 4px; margin-top: 12px; color: #8e3328; font-size: 12px; }
+ 
+ .destinationFilters { display: grid; grid-template-columns: minmax(240px, 1.5fr) minmax(150px, .6fr) minmax(140px, .55fr) auto; gap: 16px; align-items: end; margin: 0 0 30px; padding: 20px; border: 1px solid rgb(16 16 15 / 13%); border-radius: var(--radius-panel); background: rgb(255 255 255 / 24%); }
+ .searchField,
+ .filterField,
+ .themeFilters { display: grid; gap: 8px; color: rgb(16 16 15 / 62%); font-size: 12px; }
+ .searchInputWrap { display: flex; min-width: 0; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid rgb(16 16 15 / 20%); border-radius: var(--radius-control); background: var(--ivory); color: #72572f; }
++.searchInputWrap:focus-within { outline: 2px solid var(--pine); outline-offset: 2px; }
+ .searchInputWrap input { min-width: 0; width: 100%; height: 42px; padding: 0; border: 0; outline: 0; background: transparent; color: var(--ink); }
+ .filterField select { height: 42px; padding: 0 11px; border: 1px solid rgb(16 16 15 / 20%); border-radius: var(--radius-control); background: var(--ivory); color: var(--ink); }
+ .themeFilters { grid-column: 1 / -2; }
+ .themeFilters > div { display: flex; flex-wrap: wrap; gap: 8px; }
+ .themeFilters button { padding: 7px 11px; border: 1px solid rgb(16 16 15 / 17%); border-radius: 999px; background: transparent; color: var(--ink); cursor: pointer; transition: border-color var(--motion-fast) ease, background var(--motion-fast) ease; }
+ .themeFilters button[aria-pressed='true'] { border-color: var(--sand); background: rgb(183 154 104 / 18%); box-shadow: 0 0 0 2px rgb(183 154 104 / 9%); }
+ .clearFiltersButton { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 40px; padding: 8px 12px; border: 1px solid rgb(16 16 15 / 20%); border-radius: var(--radius-control); background: transparent; color: var(--ink); cursor: pointer; }
+ .clearFiltersButton:disabled { cursor: default; opacity: .42; }
+ .emptyGuides { padding: clamp(38px, 7vw, 76px) 24px; border: 1px solid rgb(16 16 15 / 14%); border-radius: var(--radius-panel); text-align: center; }
+ .emptyGuides h3 { margin: 0; font-family: var(--font-display); font-size: 28px; font-weight: 500; }
+@@ -80,33 +81,33 @@
+ .detailHeader > p { display: flex; align-items: center; gap: 5px; margin: 0 0 15px; color: #6d532a; font-size: 14px; }
+ .detailAuthor { gap: 9px; margin-top: 22px; color: rgb(16 16 15 / 67%); }
+ .detailAuthor b { width: 32px; height: 32px; }
+ .detailAuthor time { margin-left: 8px; }
+ .aiLabel { display: inline-flex; align-items: center; gap: 5px; margin-top: 17px; padding: 6px 9px; border-radius: 999px; background: rgb(183 154 104 / 15%); color: #6d532a; font-size: 12px; }
+ .detailActions { display: flex; gap: 10px; align-items: center; margin-top: 17px; }
+ .detailActions .aiLabel { margin-top: 0; }
+ .detailLayout { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: clamp(35px, 7vw, 110px); align-items: start; }
+ .article { min-width: 0; }
+ .lede { margin: 0 0 31px; font-family: var(--font-display); font-size: 23px; line-height: 1.7; }
+-.guideGallery { min-width: 0; outline: none; touch-action: pan-y; }
++.guideGallery { min-width: 0; outline: none; }
+ .guideGallery:focus-visible .galleryFrame { outline: 2px solid var(--sand); outline-offset: 4px; }
+-.galleryFrame { position: relative; aspect-ratio: 3 / 2; overflow: hidden; border-radius: var(--radius-panel); background: linear-gradient(135deg, var(--pine), var(--ink)); }
++.galleryFrame { position: relative; aspect-ratio: 3 / 2; overflow: hidden; border-radius: var(--radius-panel); background: linear-gradient(135deg, var(--pine), var(--ink)); touch-action: pan-y pinch-zoom; }
+ .galleryImage { object-fit: cover; }
+ .galleryArrow { position: absolute; z-index: 2; top: 50%; display: grid; width: 42px; height: 42px; padding: 0; place-items: center; transform: translateY(-50%); border: 1px solid rgb(244 240 232 / 42%); border-radius: 50%; background: rgb(16 16 15 / 56%); color: var(--ivory); cursor: pointer; backdrop-filter: blur(8px); }
+ .galleryArrowPrevious { left: 14px; }
+ .galleryArrowNext { right: 14px; }
+ .galleryPosition { position: absolute; z-index: 2; right: 16px; bottom: 14px; padding: 6px 9px; border-radius: 999px; background: rgb(16 16 15 / 62%); color: var(--ivory); font-size: 12px; font-variant-numeric: tabular-nums; }
+ .galleryError { position: absolute; z-index: 1; inset: 0; display: grid; padding: 70px clamp(45px, 9vw, 110px); place-content: center; justify-items: center; background: linear-gradient(135deg, rgb(38 49 43 / 94%), rgb(16 16 15 / 94%)); color: var(--ivory); text-align: center; }
+ .galleryError strong { font-family: var(--font-display); font-size: clamp(19px, 2vw, 27px); font-weight: 500; }
+ .galleryError span { margin-top: 8px; color: rgb(244 240 232 / 70%); font-size: 13px; line-height: 1.6; }
+ .galleryError button { display: inline-flex; align-items: center; gap: 6px; margin-top: 18px; padding: 9px 12px; border: 1px solid rgb(244 240 232 / 36%); border-radius: var(--radius-control); background: transparent; color: var(--ivory); cursor: pointer; }
+-.galleryThumbnails { display: grid; grid-auto-columns: minmax(94px, 1fr); grid-auto-flow: column; gap: 10px; margin-top: 12px; overflow-x: auto; padding: 3px 3px 8px; }
++.galleryThumbnails { display: grid; grid-auto-columns: minmax(94px, 1fr); grid-auto-flow: column; gap: 10px; margin-top: 12px; overflow-x: auto; padding: 3px 3px 8px; touch-action: pan-x pan-y pinch-zoom; }
+ .galleryThumbnails button { position: relative; aspect-ratio: 3 / 2; min-width: 0; overflow: hidden; border: 1px solid transparent; border-radius: 9px; background: var(--mist); cursor: pointer; opacity: .62; transition: opacity var(--motion-fast) ease, border-color var(--motion-fast) ease, transform var(--motion-fast) ease; }
+ .galleryThumbnails button img { object-fit: cover; }
+ .galleryThumbnails button:hover,
+ .galleryThumbnails button:focus-visible,
+ .galleryThumbnails button[aria-pressed='true'] { border-color: var(--sand); opacity: 1; box-shadow: 0 0 0 2px rgb(183 154 104 / 14%); }
+ .article > h2,
+ .detailAside h2 { margin: 40px 0 16px; font-family: var(--font-display); font-size: 27px; font-weight: 500; }
+ .itinerary { display: grid; gap: 20px; margin: 0; padding: 0; list-style: none; }
+ .itinerary li { display: grid; grid-template-columns: 76px 1fr; gap: 17px; padding-top: 18px; border-top: 1px solid rgb(16 16 15 / 14%); }
+ .itinerary li > span { color: #72572f; font-size: 12px; font-weight: 700; letter-spacing: .08em; }
+diff --git a/tests/component/guide-gallery.test.tsx b/tests/component/guide-gallery.test.tsx
+index 0d0c010..68368d9 100644
+--- a/tests/component/guide-gallery.test.tsx
++++ b/tests/component/guide-gallery.test.tsx
+@@ -1,55 +1,127 @@
+-import { fireEvent, render, screen } from '@testing-library/react';
++import { act, fireEvent, render, screen } from '@testing-library/react';
+ import userEvent from '@testing-library/user-event';
+ import { describe, expect, it, vi } from 'vitest';
+ import SquarePostPage from '@/app/square/[slug]/page';
++import { posts, postsBySlug, type PostMedia } from '@/data/posts';
++import { GuideGallery } from '@/features/square/guide-gallery';
+ 
+ vi.mock('next/navigation', () => ({
+   redirect: vi.fn(),
+   useRouter: () => ({ push: vi.fn() }),
+ }));
+ 
+ async function renderSanyaDetail() {
+   render(await SquarePostPage({ params: Promise.resolve({ slug: 'sanya-bay-rainforest-5d' }) }));
+ }
+ 
++const sanyaImages = postsBySlug['sanya-bay-rainforest-5d'].media;
++
++function renderInvalidGallery(images: readonly PostMedia[]) {
++  render(<GuideGallery images={images as never} title="测试目的地" />);
++}
++
+ describe('GuideGallery', () => {
+   it('supports arrow buttons, thumbnails, and Home/End/Arrow keys across four images', async () => {
+     const user = userEvent.setup();
+     await renderSanyaDetail();
+ 
+     const gallery = screen.getByRole('region', { name: '三亚攻略图片画廊' });
+     expect(screen.getByRole('status', { name: '图片位置' })).toHaveTextContent('1 / 4');
+     expect(screen.getByRole('button', { name: /查看图片 1/ })).toHaveAttribute('aria-pressed', 'true');
+ 
+     await user.click(screen.getByRole('button', { name: '下一张图片' }));
+     expect(screen.getByRole('status', { name: '图片位置' })).toHaveTextContent('2 / 4');
+ 
+     await user.click(screen.getByRole('button', { name: /查看图片 4/ }));
+     expect(screen.getByRole('status', { name: '图片位置' })).toHaveTextContent('4 / 4');
+ 
+     gallery.focus();
+     await user.keyboard('{Home}{ArrowRight}{End}{ArrowLeft}');
+     expect(screen.getByRole('status', { name: '图片位置' })).toHaveTextContent('3 / 4');
+   });
+ 
+-  it('changes image on a horizontal touch swipe without autoplay', async () => {
++  it('handles gallery keys only when the root region itself has focus', async () => {
++    const user = userEvent.setup();
+     await renderSanyaDetail();
+     const gallery = screen.getByRole('region', { name: '三亚攻略图片画廊' });
+ 
+-    fireEvent.touchStart(gallery, { touches: [{ clientX: 280, clientY: 120 }] });
+-    fireEvent.touchMove(gallery, { touches: [{ clientX: 120, clientY: 124 }] });
+-    fireEvent.touchEnd(gallery, { changedTouches: [{ clientX: 120, clientY: 124 }] });
++    gallery.focus();
++    await user.keyboard('{ArrowRight}{ArrowRight}');
++    expect(screen.getByRole('status', { name: '图片位置' })).toHaveTextContent('3 / 4');
++
++    screen.getByRole('button', { name: '下一张图片' }).focus();
++    await user.keyboard('{End}');
++    expect(screen.getByRole('status', { name: '图片位置' })).toHaveTextContent('3 / 4');
++
++    screen.getByRole('button', { name: /查看图片 1/ }).focus();
++    await user.keyboard('{ArrowLeft}');
++    expect(screen.getByRole('status', { name: '图片位置' })).toHaveTextContent('3 / 4');
++
++    fireEvent.error(screen.getByRole('img', { name: /后海村/ }));
++    screen.getByRole('button', { name: '重试当前图片' }).focus();
++    await user.keyboard('{Home}');
++    expect(screen.getByRole('status', { name: '图片位置' })).toHaveTextContent('3 / 4');
++  });
++
++  it('changes image only after a sufficiently horizontal swipe on the main viewport', async () => {
++    await renderSanyaDetail();
++    const gallery = screen.getByRole('region', { name: '三亚攻略图片画廊' });
++    const viewport = gallery.firstElementChild as HTMLElement;
++
++    fireEvent.touchStart(viewport, { touches: [{ clientX: 280, clientY: 120 }] });
++    fireEvent.touchMove(viewport, { touches: [{ clientX: 240, clientY: 122 }] });
++    fireEvent.touchEnd(viewport, { changedTouches: [{ clientX: 240, clientY: 122 }] });
++    expect(screen.getByRole('status', { name: '图片位置' })).toHaveTextContent('1 / 4');
++
++    fireEvent.touchStart(viewport, { touches: [{ clientX: 280, clientY: 120 }] });
++    fireEvent.touchMove(viewport, { touches: [{ clientX: 200, clientY: 240 }] });
++    fireEvent.touchEnd(viewport, { changedTouches: [{ clientX: 200, clientY: 240 }] });
++    expect(screen.getByRole('status', { name: '图片位置' })).toHaveTextContent('1 / 4');
++
++    fireEvent.touchStart(viewport, { touches: [{ clientX: 280, clientY: 120 }] });
++    fireEvent.touchMove(viewport, { touches: [{ clientX: 120, clientY: 124 }] });
++    fireEvent.touchEnd(viewport, { changedTouches: [{ clientX: 120, clientY: 124 }] });
+ 
+     expect(screen.getByRole('status', { name: '图片位置' })).toHaveTextContent('2 / 4');
+   });
+ 
++  it('leaves the active image unchanged while the thumbnail strip is swiped', async () => {
++    await renderSanyaDetail();
++    const thumbnails = screen.getByRole('group', { name: '选择攻略图片' });
++
++    fireEvent.touchStart(thumbnails, { touches: [{ clientX: 280, clientY: 40 }] });
++    fireEvent.touchMove(thumbnails, { touches: [{ clientX: 120, clientY: 42 }] });
++    fireEvent.touchEnd(thumbnails, { changedTouches: [{ clientX: 120, clientY: 42 }] });
++
++    expect(screen.getByRole('status', { name: '图片位置' })).toHaveTextContent('1 / 4');
++  });
++
++  it('never advances automatically while the guide is left open', () => {
++    vi.useFakeTimers();
++    try {
++      render(<GuideGallery images={sanyaImages} title="三亚" />);
++
++      act(() => vi.advanceTimersByTime(120_000));
++
++      expect(screen.getByRole('status', { name: '图片位置' })).toHaveTextContent('1 / 4');
++    } finally {
++      vi.useRealTimers();
++    }
++  });
++
++  it('fails fast unless both post data and the gallery boundary contain exactly four images', () => {
++    expect(posts.map((post) => post.media.length)).toEqual([4, 4, 4, 4, 4, 4, 4, 4]);
++    expect(() => renderInvalidGallery(sanyaImages.slice(0, 3))).toThrow(/exactly four/i);
++    expect(() => renderInvalidGallery([...sanyaImages, sanyaImages[0]])).toThrow(/exactly four/i);
++  });
++
+   it('keeps the failed source in a stable frame and retries that same image', async () => {
+     const user = userEvent.setup();
+     await renderSanyaDetail();
+     const image = screen.getByRole('img', { name: /亚龙湾黎明/ });
+     const failedSource = image.getAttribute('src');
+ 
+     fireEvent.error(image);
+ 
+     expect(screen.getByRole('alert')).toHaveTextContent('亚龙湾黎明');
+     expect(screen.getByRole('img', { name: /亚龙湾黎明/ })).toHaveAttribute('src', failedSource);
+diff --git a/tests/component/square-feed.test.tsx b/tests/component/square-feed.test.tsx
+index 901e88a..a1db285 100644
+--- a/tests/component/square-feed.test.tsx
++++ b/tests/component/square-feed.test.tsx
+@@ -26,30 +26,36 @@ describe('FeedControls', () => {
+       ['三亚', /三亚 5 日/],
+       ['海岛', /三亚 5 日/],
+       ['蜈支洲岛', /三亚 5 日/],
+     ] as const) {
+       await user.clear(search);
+       await user.type(search, query);
+       expect(screen.getByRole('heading', { name: expectedTitle })).toBeInTheDocument();
+     }
+   });
+ 
+-  it('combines destination, theme, and maximum-day filters', async () => {
++  it('combines theme and maximum-day filters with each constraint independently active', async () => {
+     const user = userEvent.setup();
+     render(<SquarePage />);
+ 
+-    await user.selectOptions(screen.getByRole('combobox', { name: '目的地' }), '三亚');
+-    await user.click(screen.getByRole('button', { name: '海岛' }));
++    await user.click(screen.getByRole('button', { name: '山水' }));
+     await user.selectOptions(screen.getByRole('combobox', { name: '最多天数' }), '5');
+ 
+-    expect(screen.getByRole('heading', { name: /三亚 5 日/ })).toBeInTheDocument();
+-    expect(screen.queryByRole('heading', { name: /川西 6 日/ })).not.toBeInTheDocument();
++    expect(screen.getByRole('heading', { name: /桂林 4 日/ })).toBeInTheDocument();
++    expect(screen.queryByRole('heading', { name: /上海 3 日/ })).not.toBeInTheDocument();
++    expect(screen.queryByRole('heading', { name: /贵州 6 日/ })).not.toBeInTheDocument();
++  });
++
++  it('omits a seven-day maximum that cannot narrow the six-day guide catalog', () => {
++    render(<SquarePage />);
++
++    expect(screen.queryByRole('option', { name: '7 天以内' })).not.toBeInTheDocument();
+   });
+ 
+   it('clears only session filters while preserving chronological mode and interests', async () => {
+     useProfileStore.setState({ personalizedFeed: false, interestTags: ['海岛', '慢旅行'] });
+     const user = userEvent.setup();
+     render(<SquarePage />);
+ 
+     await user.type(screen.getByRole('searchbox', { name: '搜索攻略' }), '三亚');
+     await user.click(screen.getByRole('button', { name: '海岛' }));
+     await user.click(screen.getByRole('button', { name: '清除筛选' }));
+@@ -60,21 +66,21 @@ describe('FeedControls', () => {
+     expect(screen.getByRole('searchbox', { name: '搜索攻略' })).toHaveValue('');
+   });
+ 
+   it('offers a clear recovery action when no guide matches', async () => {
+     const user = userEvent.setup();
+     render(<SquarePage />);
+ 
+     await user.type(screen.getByRole('searchbox', { name: '搜索攻略' }), '不存在的目的地');
+ 
+     expect(screen.getByRole('status')).toHaveTextContent('没有找到符合条件的攻略');
+-    await user.click(screen.getByRole('button', { name: '清除筛选' }));
++    await user.click(screen.getByRole('button', { name: '重新浏览全部攻略' }));
+     expect(screen.getByRole('heading', { name: /三亚 5 日/ })).toBeInTheDocument();
+   });
+ 
+   it('lets users switch off recommendations', async () => {
+     const user = userEvent.setup();
+     const change = vi.fn();
+     render(<FeedControls mode="recommended" onModeChange={change} />);
+ 
+     await user.click(screen.getByRole('button', { name: '按时间排序' }));
+ 
+diff --git a/tests/unit/square-style-contract.test.ts b/tests/unit/square-style-contract.test.ts
+new file mode 100644
+index 0000000..1e61b92
+--- /dev/null
++++ b/tests/unit/square-style-contract.test.ts
+@@ -0,0 +1,21 @@
++import { readFileSync } from 'node:fs';
++import { resolve } from 'node:path';
++import { expect, it } from 'vitest';
++
++const squareCss = readFileSync(resolve('src/features/square/square.module.css'), 'utf8');
++
++it('keeps the search focus ring visible without shifting the filter layout', () => {
++  expect(squareCss).toMatch(
++    /\.searchInputWrap:focus-within\s*\{[^}]*outline:\s*2px solid var\(--pine\);[^}]*outline-offset:\s*2px;/,
++  );
++});
++
++it('reserves horizontal touch handling for the main frame and native scrolling for thumbnails', () => {
++  expect(squareCss).toMatch(/\.galleryFrame\s*\{[^}]*touch-action:\s*pan-y pinch-zoom;/);
++  expect(squareCss).toMatch(
++    /\.galleryThumbnails\s*\{[^}]*overflow-x:\s*auto;[^}]*touch-action:\s*pan-x pan-y pinch-zoom;/,
++  );
++  expect(squareCss).toMatch(
++    /@media \(max-width:\s*640px\)[^{]*\{[\s\S]*?\.galleryThumbnails\s*\{[^}]*grid-auto-columns:\s*92px;/,
++  );
++});

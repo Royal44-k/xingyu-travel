@@ -1,0 +1,601 @@
+# Review package: 87bffa2..5d8ec98
+
+## Commits
+5d8ec98 fix: harden destination content contracts
+
+## Files changed
+ docs/design/asset-provenance.md           |   5 +++--
+ docs/design/destination-asset-prompts.md  |  15 ++++++++-------
+ public/assets/destinations/guizhou/03.png | Bin 2864187 -> 3201997 bytes
+ src/app/square/[slug]/page.tsx            |   6 ++++--
+ src/data/posts.ts                         |  28 ++++++++++++++++++++--------
+ src/features/trips/trip-draft-handoff.tsx |   6 +++---
+ src/features/trips/trip-workbench.tsx     |  13 ++++++++++---
+ src/features/trips/trips.module.css       |  12 ++++++++++++
+ tests/component/trip-workbench.test.tsx   |  22 ++++++++++++++++++++--
+ tests/unit/assets.test.ts                 |  19 ++++++++++++++++++-
+ tests/unit/content-invariants.test.ts     |   9 +++++++++
+ tests/unit/extract-trip-draft.test.ts     |  15 ++++++++++++---
+ 12 files changed, 119 insertions(+), 31 deletions(-)
+
+## Diff
+diff --git a/docs/design/asset-provenance.md b/docs/design/asset-provenance.md
+index 30f4811..e8f5a5a 100644
+--- a/docs/design/asset-provenance.md
++++ b/docs/design/asset-provenance.md
+@@ -29,25 +29,26 @@ Task 6 的 32 张目的地图片均由 Codex 内置 ImageGen 逐张独立生成
+ | nanjing/01 | `public/assets/destinations/nanjing/01.png` | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-d99057cb-db80-45fe-ac46-e4f994d22c22.png` | 1536×1024 | 接受：明城墙与城市晨景可信；无禁用元素。 |
+ | nanjing/02 | `public/assets/destinations/nanjing/02.png` | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-d2dd5d53-1ca3-4141-92fa-f7e68897e05b.png` | 1536×1024 | 接受：梧桐大道秋色可信；无人脸、车辆或品牌。 |
+ | nanjing/03 | `public/assets/destinations/nanjing/03.png` | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-465c68da-432a-41f9-9876-7d6d78720f42.png` | 1536×1024 | 接受：修正为宽阔城市秦淮河与多孔桥；灯笼、门面无文字。 |
+ | nanjing/04 | `public/assets/destinations/nanjing/04.png` | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-57e955a9-ecdf-4cc0-bfa8-cc232d75fb5a.png` | 1536×1024 | 接受：中山陵林荫中轴与台阶可信；无人脸和文字。 |
+ | shanghai/01 | `public/assets/destinations/shanghai/01.png` | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-1eecba26-5202-4f3c-b570-73bfe600b1f1.png` | 1536×1024 | 接受：二次检查后重生；外滩蓝调城市尺度可信，立面仅普通窗光，无可读文字、徽标或水印。 |
+ | shanghai/02 | `public/assets/destinations/shanghai/02.png` | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-7e4c4ff3-a7b0-4aa9-9e64-76180c8b1b59.png` | 1536×1024 | 接受：武康路树影与街廓可信；无人脸、车牌或招牌。 |
+ | shanghai/03 | `public/assets/destinations/shanghai/03.png` | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-155727eb-8c08-4685-90a1-71abe62ba94b.png` | 1536×1024 | 接受：苏州河桥与仓库层次可信；无文字或品牌。 |
+ | shanghai/04 | `public/assets/destinations/shanghai/04.png` | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-1d4c65c7-dd33-43b1-9fdf-931b58dd47bc.png` | 1536×1024 | 接受：修正为纯窗光的陆家嘴长焦夜景；无屏幕、伪文字或徽标。 |
+ | guizhou/01 | `public/assets/destinations/guizhou/01.png` | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-edc973f3-e630-4f17-90cc-4fae2801cc4d.png` | 1536×1024 | 接受：小七孔石桥与水色可信；无人脸、文字或灾害画面。 |
+ | guizhou/02 | `public/assets/destinations/guizhou/02.png` | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-1cf5a87c-b58c-4cd7-995d-442a21d5d3bd.png` | 1536×1024 | 接受：西江苗寨晨雾与木楼层次可信；无伪文字。 |
+-| guizhou/03 | `public/assets/destinations/guizhou/03.png` | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-67c8fa32-b99a-4299-b986-28f86753a7f4.png` | 1536×1024 | 接受：加榜梯田地理与层叠关系可信；画面较偏蓄水/早季、非最浓金秋，仍符合最终提示词的绿金梯田范围。 |
++| guizhou/03 | `public/assets/destinations/guizhou/03.png` | `C:\Users\lenovo\.codex\generated_images\01a01cc1-88f7-7ce1-924f-56f4376614d5\exec-8253820a-491e-4bc5-a419-33ec4f2759f2.png` | 1536×1024 | 接受：加榜梯田由成熟绿金稻穗主导，仅有极少灌溉水光；木楼、山雾与地形可信，无文字、徽标、水印或可辨识人物。 |
+ | guizhou/04 | `public/assets/destinations/guizhou/04.png` | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-9e7ed1ac-f60c-4db1-bec0-a1820edc08eb.png` | 1536×1024 | 接受：贵阳山城密度和山谷层次可信；无可读楼名或徽标。 |
+ 
+ ## 被拒绝的生成结果与修正
+ 
+-总计 38 次独立 ImageGen 调用，32 张接受、6 张拒绝。拒绝结果未保留在最终产品注册路径。
++总计 39 次独立 ImageGen 调用，32 张接受、7 张拒绝。拒绝结果未保留在最终产品注册路径。
+ 
+ | 目标 | 被拒绝的原始输出 | 原因 | 修正结果 |
+ | --- | --- | --- | --- |
+ | dali/03（第一次） | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-896dc30f-50b0-4d57-b343-a5d14cf74b4d.png` | 农宅呈徽派马头墙气质，地点错误。 | 加强大理喜洲、低矮白族农宅与禁徽派约束后重生。 |
+ | dali/03（第二次） | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-f6ebaa12-4fb7-4c80-95d3-749bdc8cadce.png` | 建筑更接近白族，但墙面出现伪书写/装饰带。 | 要求所有墙面完全素白、无符号装饰后再次重生并接受。 |
+ | hangzhou/04 | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-373ddd1f-22f2-470e-b5c6-70ba1c85457d.png` | 画面像乌镇窄水巷，不符合杭州大运河宽阔城市尺度。 | 指定拱宸桥历史区、宽阔可通航水面和大型三孔桥后重生并接受。 |
+ | nanjing/03 | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-e193136c-1028-4215-b27c-3465d79d7f91.png` | 像通用江南窄河巷，且局部疑似伪文字，秦淮城市尺度不足。 | 指定宽阔中心秦淮河、城市石岸和多孔桥后重生并接受。 |
+ | shanghai/01 | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-e626f601-3669-4e4d-a872-9a0092fdb345.png` | 复制后的二次视觉检查发现一处小型徽标/字母状立面标记。 | 强化所有立面只能有普通窗光、不得形成字符或品牌图案后重生并接受。 |
+ | shanghai/04 | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-3e2dc898-541d-4489-9552-dec9b6113731.png` | 楼体屏幕出现伪字符和徽标状色块。 | 改为纯办公室窗光、无屏幕/冠灯/立面照明的长焦夜景后重生并接受。 |
++| guizhou/03 | `C:\Users\lenovo\.codex\generated_images\01a019db-3763-70f0-a11c-92c3726472d8\exec-67c8fa32-b99a-4299-b986-28f86753a7f4.png` | 复审确认画面以大面积蓄水和稀疏幼苗为主，更像春季插秧期，不符合早秋成熟绿金稻田。 | 明确成熟稻穗主导、几乎无可见积水后重生并接受。 |
+diff --git a/docs/design/destination-asset-prompts.md b/docs/design/destination-asset-prompts.md
+index 7f1d4a5..cb5bad8 100644
+--- a/docs/design/destination-asset-prompts.md
++++ b/docs/design/destination-asset-prompts.md
+@@ -436,27 +436,28 @@ Composition/framing: 85 mm lens from a legitimate hillside overlook, compressed
+ Lighting/mood: cool soft morning with a faint warm glow behind cloud, inhabited but serene.
+ Constraints: credible Xijiang Miao architectural density and valley topography; no invented ceremonial symbols; no legible signs.
+ Avoid: text, letters, numbers, signs, logos, watermarks, recognizable faces, crowds, over-HDR sky, excessive smoke, fantasy village, fire, landslide, collapse, disaster or emergency imagery.
+ ```
+ 
+ ### guizhou/03.png — 加榜梯田
+ 
+ ```text
+ Use case: photorealistic-natural
+ Asset type: Xingyu destination-guide gallery photograph, 1536×1024 landscape, 3:2.
+-Scene/backdrop: Jiabang rice terraces in Guizhou during early autumn, irregular contour-following paddies wrapping steep green hills, small dark-timber village clusters and low cloud lifting from the valley.
+-Subject: hand-shaped terrace patterns, village scale, and valley atmosphere; no people.
+-Style/medium: photorealistic natural editorial travel photography, restrained low-saturation cinematic color, authentic rice, water, mud banks, timber roofs, and mist.
+-Composition/framing: 60 mm lens from a hillside footpath, terraces sweep diagonally rather than forming a centered amphitheater, village offset and small, layered ridges recede naturally.
+-Lighting/mood: gentle early-morning side light emerging through cloud, quiet agricultural depth without golden fantasy glow.
+-Constraints: credible Jiabang mountain-terrace scale and Guizhou vernacular; stable ordinary conditions.
+-Avoid: text, letters, numbers, signs, logos, watermarks, recognizable faces, workers, over-HDR sky, oversaturated rice, perfect CGI terraces, landslide, flood, disaster or emergency imagery.
++Primary request: regenerate the Jiabang rice terraces scene as a geographically credible early-autumn view with mature green-and-gold rice, not flooded spring paddies.
++Scene/backdrop: Jiabang rice terraces in Congjiang County, Guizhou, early autumn; layered cultivated terraces wrap steep misty mountains, with a very small cluster of authentic dark-timber Dong/Miao hillside houses in the middle distance.
++Subject: dense mature rice heads and green-gold terrace contours, with only minimal narrow irrigation glints and almost no visible standing water; no people.
++Style/medium: photorealistic natural editorial travel photography, restrained low-saturation cinematic grade, authentic rice, earth banks, timber, roof tile, forest, and humid mountain mist.
++Composition/framing: elevated 50 mm lens, diagonal terrace contours lead toward the small village, layered ridges recede through natural mist, no drone-like extreme height and no centered postcard symmetry.
++Lighting/mood: soft early-morning side light through broken mist, quiet agricultural atmosphere, natural dynamic range.
++Constraints: geographically credible Jiabang early-autumn harvest season; mature green and golden rice must visually dominate; terraces are planted and full, not reflective flooded paddies; standing water limited to tiny irrigation traces; houses remain small and structurally plausible; 1536×1024 landscape output.
++Avoid: flooded spring paddies, large mirror-like water surfaces, bare newly planted seedlings, text, letters, numbers, signs, logos, watermarks, recognizable faces, workers, tourists, over-HDR sky, oversaturated gold, fantasy terraces, disaster or emergency imagery.
+ ```
+ 
+ ### guizhou/04.png — 贵阳山城夜色
+ 
+ ```text
+ Use case: photorealistic-natural
+ Asset type: Xingyu destination-guide gallery photograph, 1536×1024 landscape, 3:2.
+ Scene/backdrop: Guiyang at early night from a wooded hillside viewpoint, dense mid-rise mountain-city neighborhoods stepping across dark green slopes, layered roads and warm window lights, distant towers softened by humid haze.
+ Subject: the city climbing around hills and valleys; no people in the foreground and no landmark used as a billboard.
+ Style/medium: photorealistic natural editorial travel photography, restrained low-saturation cinematic night grade, realistic concrete, glass, foliage, humidity, and restrained light reflections.
+diff --git a/public/assets/destinations/guizhou/03.png b/public/assets/destinations/guizhou/03.png
+index 075a51d..4cbf7eb 100644
+Binary files a/public/assets/destinations/guizhou/03.png and b/public/assets/destinations/guizhou/03.png differ
+diff --git a/src/app/square/[slug]/page.tsx b/src/app/square/[slug]/page.tsx
+index 9b0bff3..095388c 100644
+--- a/src/app/square/[slug]/page.tsx
++++ b/src/app/square/[slug]/page.tsx
+@@ -1,21 +1,23 @@
+-import { notFound } from 'next/navigation';
++import { notFound, redirect } from 'next/navigation';
+ import { MapPin, Sparkle } from '@phosphor-icons/react/dist/ssr';
+ import Image from 'next/image';
+ import Link from 'next/link';
+ import { SiteHeader } from '@/components/site-header';
+-import { postsBySlug } from '@/data/posts';
++import { canonicalPostSlug, postsBySlug } from '@/data/posts';
+ import { ConvertToTrip } from '@/features/square/convert-to-trip';
+ import styles from '@/features/square/square.module.css';
+ 
+ export default async function SquarePostPage({ params }: { params: Promise<{ slug: string }> }) {
+   const { slug } = await params;
++  const canonicalSlug = canonicalPostSlug(slug);
++  if (canonicalSlug !== slug) redirect(`/square/${canonicalSlug}`);
+   const post = postsBySlug[slug];
+   if (!post) notFound();
+ 
+   return (
+     <>
+         <SiteHeader activePath="/square" variant="solid" />
+       <main className={styles.detailPage}>
+         <Link className={styles.backLink} href="/square">← 返回灵感广场</Link>
+         <header className={styles.detailHeader}><p><MapPin aria-hidden size={16} weight="fill" /> {post.destination} · {post.days} 天 · 预算 ¥{post.budget.toLocaleString('zh-CN')}</p><h1>{post.title}</h1><div className={styles.detailAuthor}><b aria-hidden>{post.author.avatar}</b><span>{post.author.name} · {post.author.role}</span><time dateTime={post.publishedAt}>{new Intl.DateTimeFormat('zh-CN', { dateStyle: 'long' }).format(new Date(post.publishedAt))}</time></div>{(post.ai.generated || post.ai.rewritten) && <span className={styles.aiLabel}><Sparkle aria-hidden size={15} weight="fill" /> {post.ai.generated ? 'AI 生成' : 'AI 改写'}{post.ai.generated && post.ai.rewritten ? ' · 已人工改写' : ''}</span>}</header>
+         <div className={styles.detailLayout}><article className={styles.article}><p className={styles.lede}>{post.excerpt}</p><div className={styles.mediaGrid}>{post.media.slice(0, 9).map((image, index) => <Image alt={image.alt} className={styles.detailImage} height={image.height} key={`${image.src}-${index}`} sizes="(max-width: 760px) 100vw, 48vw" src={image.src} width={image.width} />)}</div><h2>这次怎么走</h2><ol className={styles.itinerary}>{post.itinerary.map((item) => <li key={item.day}><span>DAY {item.day}</span><div><h3>{item.title}</h3><p>{item.description}</p><small><MapPin aria-hidden size={14} weight="fill" /> {item.location}</small></div></li>)}</ol></article>
+diff --git a/src/data/posts.ts b/src/data/posts.ts
+index 68e2dc0..1557873 100644
+--- a/src/data/posts.ts
++++ b/src/data/posts.ts
+@@ -102,45 +102,44 @@ export const posts: readonly TravelPost[] = [
+       { name: '漓江清晨航段参考', category: '体验', price: 320, note: '演示价格，以现场水位与班次为准。' },
+       { name: '阳朔自行车 1 日', category: '当地交通', price: 80, note: '演示商品，骑行前检查车况与头盔。' },
+     ],
+     author: { name: '周舟', role: '行屿 AI 协作旅行编辑', avatar: '周' },
+     publishedAt: '2026-08-17T09:15:00+08:00',
+     updatedAt: '2026-08-19T09:20:00+08:00',
+     ai: { generated: true, rewritten: true },
+   },
+   {
+     slug: 'sichuan-autumn-road',
+-    title: '川西 7 日安全自驾：雪山、草原与秋日公路',
+-    excerpt: '从康定缓慢升高到新都桥、塔公与墨石公园，用两个机动日给高原反应和天气留余地。',
++    title: '川西 6 日安全自驾：雪山、草原与秋日公路',
++    excerpt: '从康定缓慢升高到新都桥、塔公与墨石公园，用机动返程日给高原反应和天气留余地。',
+     destination: '川西',
+-    days: 7,
++    days: 6,
+     budget: 8200,
+     media: destinationAssets.sichuan,
+     locations: [
+       { name: '新都桥', area: '甘孜州康定市', note: '第一晚不赶景点，先观察海拔适应情况。' },
+       { name: '塔公草原', area: '甘孜州康定市', note: '风大温差明显，下午云量变化快。' },
+       { name: '墨石公园', area: '甘孜州道孚县', note: '沿开放栈道行走，不离开游客安全区。' },
+       { name: '康定', area: '甘孜州', note: '作为进出高原的缓冲点，避免夜间翻山。' },
+     ],
+     tags: ['自驾', '雪山', '秋色', '安全'],
+     itinerary: [
+       { day: 1, title: '成都到康定', description: '白天完成转场，检查车辆与天气后在康定休息。', location: '康定' },
+       { day: 2, title: '缓慢进入新都桥', description: '不追日落，分段停车并留意高原反应。', location: '新都桥' },
+       { day: 3, title: '新都桥秋色短线', description: '只走路况明确的村落公路，下午提前回住处。', location: '新都桥' },
+       { day: 4, title: '塔公草原与雪峰', description: '在开放观景区停留，遇到大风或降雪立即缩短路线。', location: '塔公草原' },
+       { day: 5, title: '墨石地貌步行', description: '沿官方栈道完成半日线路，天黑前返回住宿点。', location: '墨石公园' },
+-      { day: 6, title: '天气机动日', description: '按路况选择留在塔公或提前回康定，不跨夜赶路。', location: '康定' },
+-      { day: 7, title: '白天返程成都', description: '预留堵车与休息时间，完成车辆检查后结束行程。', location: '成都' },
++      { day: 6, title: '机动返程成都', description: '按天气和路况选择提前回康定，白天返程并预留堵车与休息时间。', location: '成都' },
+     ],
+     products: [
+-      { name: '川西 7 日车辆预算', category: '当地交通', price: 3200, note: '演示预算，不含真实租车或保险服务。' },
+-      { name: '高原住宿 6 晚', category: '住宿', price: 2400, note: '演示价格，优先选择可取消方案。' },
++      { name: '川西 6 日车辆预算', category: '当地交通', price: 3200, note: '演示预算，不含真实租车或保险服务。' },
++      { name: '高原住宿 5 晚', category: '住宿', price: 2200, note: '演示价格，优先选择可取消方案。' },
+     ],
+     author: { name: '陈野', role: '行屿 AI 协作公路编辑', avatar: '陈' },
+     publishedAt: '2026-08-16T12:00:00+08:00',
+     updatedAt: '2026-08-19T09:30:00+08:00',
+     ai: { generated: true, rewritten: true },
+   },
+   {
+     slug: 'sanya-bay-rainforest-5d',
+     title: '三亚 5 日：海湾清晨、后海慢住与雨林降温',
+     excerpt: '把海边活动放在清晨和傍晚，中间用后海村巷与呀诺达雨林拉开节奏。',
+@@ -149,21 +148,21 @@ export const posts: readonly TravelPost[] = [
+     budget: 6100,
+     media: destinationAssets.sanya,
+     locations: [
+       { name: '亚龙湾', area: '吉阳区', note: '清晨沿岸散步，正午回到室内休息。' },
+       { name: '蜈支洲岛', area: '海棠区', note: '以官方航班和海况为准，预留停航替代日程。' },
+       { name: '后海村', area: '海棠区', note: '冲浪体验选择正规教练，不进入离岸流区域。' },
+       { name: '呀诺达雨林', area: '保亭县', note: '穿防滑鞋，雷雨时服从园区关闭安排。' },
+     ],
+     tags: ['海岛', '慢旅行', '雨林', '亲子'],
+     itinerary: [
+-      { day: 1, title: '亚龙湾黎明', description: '抵达后早睡，第二天从清晨海岸开始。', location: '亚龙湾' },
++      { day: 1, title: '亚龙湾黎明', description: '前一晚抵达并早睡，第一天从清晨海岸开始。', location: '亚龙湾' },
+       { day: 2, title: '蜈支洲清水海岸', description: '按海况登岛，避开正午暴晒并及时补水。', location: '蜈支洲岛' },
+       { day: 3, title: '后海村慢住', description: '看村巷与海边日常，体验项目控制在半天内。', location: '后海村' },
+       { day: 4, title: '呀诺达雨林降温', description: '沿维护步道完成短线，雨后放慢脚步。', location: '呀诺达雨林' },
+       { day: 5, title: '海湾早餐与返程', description: '不再安排远距离景点，留足机场交通时间。', location: '三亚市区' },
+     ],
+     products: [
+       { name: '海湾住宿 4 晚', category: '住宿', price: 2200, note: '演示价格，不连接真实库存。' },
+       { name: '雨林往返交通', category: '当地交通', price: 260, note: '演示预算，雨天先确认道路与园区开放。' },
+     ],
+     author: { name: '许澜', role: '行屿 AI 协作海岛编辑', avatar: '许' },
+@@ -291,20 +290,33 @@ export const posts: readonly TravelPost[] = [
+     publishedAt: '2026-08-11T09:00:00+08:00',
+     updatedAt: '2026-08-19T10:20:00+08:00',
+     ai: { generated: true, rewritten: true },
+   },
+ ];
+ 
+ export const postsBySlug: Readonly<Record<string, TravelPost>> = Object.fromEntries(
+   posts.map((post) => [post.slug, post]),
+ );
+ 
++const legacyPostRedirects: Readonly<Record<string, string>> = {
++  'rainy-mountain-notes': 'sichuan-autumn-road',
++};
++
++export function canonicalPostSlug(slug: string): string {
++  return legacyPostRedirects[slug] ?? slug;
++}
++
++export function postHrefForSlug(slug: string): string {
++  const canonicalSlug = canonicalPostSlug(slug);
++  return postsBySlug[canonicalSlug] ? `/square/${canonicalSlug}` : '/square';
++}
++
+ export function orderPosts(mode: FeedMode, interestTags: readonly string[] = []): TravelPost[] {
+   const latestFirst = [...posts].sort(
+     (left, right) => Date.parse(right.publishedAt) - Date.parse(left.publishedAt),
+   );
+   if (mode === 'chronological') return latestFirst;
+ 
+   return latestFirst.sort((left, right) => {
+     const rightMatches = right.tags.filter((tag) => interestTags.includes(tag)).length;
+     const leftMatches = left.tags.filter((tag) => interestTags.includes(tag)).length;
+     return rightMatches - leftMatches;
+diff --git a/src/features/trips/trip-draft-handoff.tsx b/src/features/trips/trip-draft-handoff.tsx
+index 453416e..b7d6944 100644
+--- a/src/features/trips/trip-draft-handoff.tsx
++++ b/src/features/trips/trip-draft-handoff.tsx
+@@ -1,25 +1,25 @@
+ 'use client';
+ 
+ import Link from 'next/link';
+ import { useEffect } from 'react';
+-import { postsBySlug } from '@/data/posts';
++import { postHrefForSlug } from '@/data/posts';
+ import { hydrateWorkbenchTripStore, useTripStore, useTripStoreHydration } from '@/stores/trip-store';
+ import styles from '@/features/square/square.module.css';
+ 
+ export function TripDraftHandoff({ slug }: { slug: string }) {
+   const trip = useTripStore((state) => Object.values(state.trips).find(
+     (candidate) => candidate.sourcePostSlug === slug,
+   ));
+   const hydrated = useTripStoreHydration((state) => state.hydrated);
+   const hydrationError = useTripStoreHydration((state) => state.hydrationError);
+-  const sourceHref = postsBySlug[slug] ? `/square/${slug}` : '/square';
++  const sourceHref = postHrefForSlug(slug);
+ 
+   useEffect(() => {
+     void hydrateWorkbenchTripStore();
+   }, []);
+ 
+   if (!hydrated) {
+     return (
+       <main className={styles.detailPage}>
+         <section className={styles.handoffPanel} aria-live="polite">
+           <p>LOCAL DRAFT</p>
+@@ -56,15 +56,15 @@ export function TripDraftHandoff({ slug }: { slug: string }) {
+   }
+ 
+   return (
+     <main className={styles.detailPage}>
+       <section className={styles.handoffPanel}>
+         <p>LOCAL DRAFT</p>
+         <h1>{trip.destination} · {trip.items.length} 天行程已保存</h1>
+         <span>已完成攻略到本地草稿的交接。完整行程工作台将继续在此草稿上编辑。</span>
+         <dl className={styles.draftSummary}><div><dt>预算</dt><dd>¥{trip.budget.toLocaleString('zh-CN')}</dd></div><div><dt>行程节点</dt><dd>{trip.items.length} 个</dd></div><div><dt>状态</dt><dd>可继续规划</dd></div></dl>
+         <ol className={styles.handoffItems}>{trip.items.map((item) => <li key={item.id}><strong>{item.title}</strong><span>{item.location} · {item.description}</span></li>)}</ol>
+-        <Link href={`/square/${trip.sourcePostSlug}`}>返回原攻略</Link>
++        <Link href={postHrefForSlug(trip.sourcePostSlug)}>返回原攻略</Link>
+       </section>
+     </main>
+   );
+ }
+diff --git a/src/features/trips/trip-workbench.tsx b/src/features/trips/trip-workbench.tsx
+index b91a0f5..fdcf165 100644
+--- a/src/features/trips/trip-workbench.tsx
++++ b/src/features/trips/trip-workbench.tsx
+@@ -7,20 +7,21 @@ import {
+   getBudgetSummary,
+   hydrateWorkbenchTripStore,
+   type WorkbenchTrip,
+   useTripStore,
+   useTripStoreHydration,
+ } from '@/stores/trip-store';
+ import { DecisionRoom } from './decision-room';
+ import { ItineraryEditor } from './itinerary-editor';
+ import styles from './trips.module.css';
+ import { demoViewerProfile } from '@/data/partners';
++import { postHrefForSlug } from '@/data/posts';
+ import { tripToPartnerIntent } from '@/features/partners/trip-to-partner-intent';
+ import { hydratePartnerStore, usePartnerStore, usePartnerStoreHydration } from '@/stores/partner-store';
+ 
+ export function TripWorkbench({ slug }: { slug: string }) {
+   const workbenchHydrated = useTripStoreHydration((state) => state.hydrated);
+   const workbenchHydrationError = useTripStoreHydration((state) => state.hydrationError);
+   const partnerHydrated = usePartnerStoreHydration((state) => state.hydrated);
+   const partnerIntent = usePartnerStore((state) => state.intents[demoViewerProfile.id]);
+   const publishPartnerMatchIntent = usePartnerStore((state) => state.publishIntent);
+   const tripId = useTripStore((state) =>
+@@ -48,33 +49,39 @@ export function TripWorkbench({ slug }: { slug: string }) {
+       travelers: String(trip.travelers),
+     });
+     return `/compare?${query.toString()}`;
+   }, [trip]);
+ 
+   if (!workbenchHydrated || !partnerHydrated) {
+     return <WorkbenchState title="正在读取本地行程…" message="正在读取浏览器中的行程工作台状态。" />;
+   }
+ 
+   if (!trip && workbenchHydrationError) {
+-    return <WorkbenchState title="本地行程暂时无法读取" message="浏览器中的数据未被覆盖。请返回原攻略，稍后再试。" sourceHref={`/square/${slug}`} />;
++    return <WorkbenchState title="本地行程暂时无法读取" message="浏览器中的数据未被覆盖。请返回原攻略，稍后再试。" sourceHref={postHrefForSlug(slug)} />;
+   }
+ 
+   if (!trip) {
+-    return <WorkbenchState title="未找到本地行程" message="行程只保存在创建它的浏览器中。请返回攻略重新保存。" sourceHref={`/square/${slug}`} />;
++    return <WorkbenchState title="未找到本地行程" message="行程只保存在创建它的浏览器中。请返回攻略重新保存。" sourceHref={postHrefForSlug(slug)} />;
+   }
+ 
+   const budgetSummary = getBudgetSummary(trip);
+   return (
+     <main className={styles.page}>
+       {workbenchHydrationError && <p className={styles.hydrationWarning} role="status">工作台存储校验失败，继续使用当前安全的内存状态；原存储未被覆盖。</p>}
+       <header className={styles.hero}>
+-        <div className={styles.eyebrow}><span>LOCAL TRIP / {trip.destination}</span><span>本地演示工作台</span></div>
++        <div className={styles.eyebrow}>
++          <span>LOCAL TRIP / {trip.destination}</span>
++          <span className={styles.eyebrowActions}>
++            <Link href={postHrefForSlug(trip.sourcePostSlug)}>返回原攻略</Link>
++            <span>本地演示工作台</span>
++          </span>
++        </div>
+         <div className={styles.heroTitle}>
+           <div><p>{trip.destination} · {trip.items.length} DAYS</p><h1>{trip.title}</h1></div>
+           <span className={styles.statusPill}>{trip.guardianEnabled ? '守护演示中' : '共同规划中'}</span>
+         </div>
+         <p className={styles.heroLead}>把来自攻略的灵感拆成可以讨论、调整与核算的 {trip.items.length} 天。所有编辑仅保存在当前浏览器。</p>
+         <div className={styles.tripMeta}>
+           <span><MapPin aria-hidden size={18} />{trip.destination}</span>
+           <span><CalendarBlank aria-hidden size={18} />{trip.startDate} — {trip.endDate}</span>
+           <span><UsersThree aria-hidden size={18} />{trip.travelers} 位演示同行者</span>
+         </div>
+diff --git a/src/features/trips/trips.module.css b/src/features/trips/trips.module.css
+index 2fb4886..a73d4f4 100644
+--- a/src/features/trips/trips.module.css
++++ b/src/features/trips/trips.module.css
+@@ -49,20 +49,32 @@
+ }
+ 
+ .eyebrow {
+   position: relative;
+   z-index: 1;
+   justify-content: space-between;
+   color: #d4c59e;
+   font-size: 11px;
+   letter-spacing: .18em;
+ }
++.eyebrow a { color: inherit; text-underline-offset: 3px; }
++
++.eyebrowActions {
++  display: flex;
++  align-items: center;
++  gap: 10px;
++}
++
++.eyebrowActions > span {
++  padding-left: 10px;
++  border-left: 1px solid rgb(212 197 158 / 35%);
++}
+ 
+ .heroTitle {
+   position: relative;
+   z-index: 1;
+   justify-content: space-between;
+   gap: 32px;
+   margin-top: 64px;
+ }
+ 
+ .heroTitle p,
+diff --git a/tests/component/trip-workbench.test.tsx b/tests/component/trip-workbench.test.tsx
+index 2f4e305..e7e99a1 100644
+--- a/tests/component/trip-workbench.test.tsx
++++ b/tests/component/trip-workbench.test.tsx
+@@ -36,22 +36,22 @@ describe('TripWorkbench', () => {
+ 
+   it('uses the canonical destination and day count for every accepted guide route', async () => {
+     const sichuanPost = postsBySlug['sichuan-autumn-road'];
+     useTripStore.setState({ trips: {}, partnerIntents: {}, guardianPlans: {} });
+     useTripStore.getState().savePostAsTrip(extractTripDraft(sichuanPost), sichuanPost.media[0].src);
+ 
+     render(<TripWorkbench slug={sichuanPost.slug} />);
+ 
+     expect(await screen.findByRole('heading', { name: '川西慢行计划' })).toBeInTheDocument();
+     expect(screen.getByText('LOCAL TRIP / 川西')).toBeInTheDocument();
+-    expect(screen.getByText(/拆成可以讨论、调整与核算的 4 天/)).toBeInTheDocument();
+-    expect(screen.getByText('4 个节点 · 自动保存至本浏览器')).toBeInTheDocument();
++    expect(screen.getByText(/拆成可以讨论、调整与核算的 6 天/)).toBeInTheDocument();
++    expect(screen.getByText('6 个节点 · 自动保存至本浏览器')).toBeInTheDocument();
+     expect(screen.queryByText('LOCAL TRIP / DALI')).not.toBeInTheDocument();
+   });
+ 
+   it('edits dates, budget and an itinerary item with validation', async () => {
+     const user = userEvent.setup();
+     render(<TripWorkbench slug="dali-slow-5d" />);
+     await screen.findByRole('heading', { name: /大理慢行计划/ });
+ 
+     await user.clear(screen.getByLabelText('出发日期'));
+     await user.type(screen.getByLabelText('出发日期'), '2026-10-01');
+@@ -225,11 +225,29 @@ describe('TripWorkbench', () => {
+   it('keeps loading and recovery states stable around canonical hydration', async () => {
+     useTripStore.setState({ trips: {}, partnerIntents: {}, guardianPlans: {} });
+     useTripStoreHydration.setState({ hydrated: false, hydrationError: false });
+     render(<TripWorkbench slug="dali-slow-5d" />);
+     expect(screen.getByText('正在读取本地行程…')).toBeInTheDocument();
+ 
+     useTripStoreHydration.setState({ hydrated: true, hydrationError: true });
+     await waitFor(() => expect(screen.getByText('本地行程暂时无法读取')).toBeInTheDocument());
+     expect(screen.getByRole('link', { name: '返回原攻略' })).toHaveAttribute('href', '/square/dali-slow-5d');
+   });
++
++  it('keeps a persisted legacy source slug out of discovery while linking to its current guide', async () => {
++    const legacyDraft = {
++      ...draft,
++      id: 'draft-rainy-mountain-notes',
++      sourcePostSlug: 'rainy-mountain-notes',
++    };
++    useTripStore.setState({ trips: {}, partnerIntents: {}, guardianPlans: {} });
++    useTripStore.getState().savePostAsTrip(legacyDraft);
++
++    render(<TripWorkbench slug="rainy-mountain-notes" />);
++
++    expect(await screen.findByRole('heading', { name: /大理慢行计划/ })).toBeInTheDocument();
++    expect(screen.getByRole('link', { name: '返回原攻略' })).toHaveAttribute(
++      'href',
++      '/square/sichuan-autumn-road',
++    );
++  });
+ });
+diff --git a/tests/unit/assets.test.ts b/tests/unit/assets.test.ts
+index 77f12d4..db19380 100644
+--- a/tests/unit/assets.test.ts
++++ b/tests/unit/assets.test.ts
+@@ -1,34 +1,51 @@
++import { createHash } from 'node:crypto';
+ import { readFile, stat } from 'node:fs/promises';
+ import { expect, it } from 'vitest';
+ import { brandAssets, destinationAssets } from '@/data/assets';
+ 
+ it('ships every visible branded image as a real local asset', async () => {
+   for (const asset of Object.values(brandAssets)) {
+     const info = await stat(`public${asset.src}`);
+     const bytes = await readFile(`public${asset.src}`);
+ 
+     expect(info.size).toBeGreaterThan(20_000);
+     expect(asset.alt.length).toBeGreaterThan(6);
+     expect(bytes.subarray(0, 8).toString('hex')).toBe('89504e470d0a1a0a');
+     expect(bytes.readUInt32BE(16)).toBe(asset.width);
+     expect(bytes.readUInt32BE(20)).toBe(asset.height);
+   }
+ });
+ 
+ it('registers every destination image with metadata matching the shipped PNG', async () => {
+   const registered = Object.values(destinationAssets).flat();
++  const expectedPaths = [
++    'dali',
++    'guilin',
++    'sichuan',
++    'sanya',
++    'hangzhou',
++    'nanjing',
++    'shanghai',
++    'guizhou',
++  ].flatMap((destination) =>
++    ['01', '02', '03', '04'].map((shot) => `/assets/destinations/${destination}/${shot}.png`),
++  );
++  const hashes: string[] = [];
+ 
+   expect(Object.keys(destinationAssets)).toHaveLength(8);
+   expect(registered).toHaveLength(32);
+-  expect(new Set(registered.map((asset) => asset.src)).size).toBe(32);
++  expect(registered.map((asset) => asset.src).sort()).toEqual(expectedPaths.sort());
+ 
+   for (const asset of registered) {
+     const bytes = await readFile(`public${asset.src}`);
++    hashes.push(createHash('sha256').update(bytes).digest('hex'));
+ 
+     expect(asset.width).toBe(1536);
+     expect(asset.height).toBe(1024);
+     expect(asset.alt.length).toBeGreaterThan(6);
+     expect(bytes.readUInt32BE(16)).toBe(asset.width);
+     expect(bytes.readUInt32BE(20)).toBe(asset.height);
+   }
++
++  expect(new Set(hashes).size).toBe(32);
+ });
+diff --git a/tests/unit/content-invariants.test.ts b/tests/unit/content-invariants.test.ts
+index e601cf4..5fc617f 100644
+--- a/tests/unit/content-invariants.test.ts
++++ b/tests/unit/content-invariants.test.ts
+@@ -13,30 +13,39 @@ function readPngDimensions(bytes: Buffer) {
+     width: bytes.readUInt32BE(16),
+     height: bytes.readUInt32BE(20),
+   };
+ }
+ 
+ it('ships eight complete destination guides with four independent images each', () => {
+   const destinations = posts.map((post) => post.destination);
+ 
+   for (const destination of requiredDestinations) expect(destinations).toContain(destination);
+   for (const post of posts.filter((item) => requiredDestinations.includes(item.destination as (typeof requiredDestinations)[number]))) {
++    expect(post.days).toBeGreaterThanOrEqual(3);
++    expect(post.days).toBeLessThanOrEqual(6);
+     expect(post.media.length).toBeGreaterThanOrEqual(4);
+     expect(new Set(post.media.map((asset) => asset.src)).size).toBe(post.media.length);
+     expect(post.itinerary).toHaveLength(post.days);
+     expect(post.locations.length).toBeGreaterThanOrEqual(2);
+     expect(post.tags.length).toBeGreaterThanOrEqual(2);
+     expect(post.budget).toBeGreaterThan(0);
+     expect(post.ai.generated || post.ai.rewritten).toBe(true);
+   }
+ });
+ 
++it('starts the Sanya guide at dawn only after a clearly stated prior-night arrival', () => {
++  const sanya = posts.find((post) => post.slug === 'sanya-bay-rainforest-5d');
++
++  expect(sanya?.itinerary[0]).toMatchObject({ day: 1, title: '亚龙湾黎明' });
++  expect(sanya?.itinerary[0].description).toMatch(/前一晚.*抵达/);
++});
++
+ it('ships all 32 independent destination PNGs at the registered 3:2 source size', async () => {
+   const expectedPaths = assetDirectories.flatMap((destination) =>
+     ['01', '02', '03', '04'].map((shot) => `public/assets/destinations/${destination}/${shot}.png`),
+   );
+ 
+   expect(expectedPaths).toHaveLength(32);
+   for (const path of expectedPaths) {
+     const info = await stat(path);
+     const bytes = await readFile(path);
+ 
+diff --git a/tests/unit/extract-trip-draft.test.ts b/tests/unit/extract-trip-draft.test.ts
+index 60d9fac..3c13e76 100644
+--- a/tests/unit/extract-trip-draft.test.ts
++++ b/tests/unit/extract-trip-draft.test.ts
+@@ -17,29 +17,38 @@ describe('extractTripDraft', () => {
+     ]);
+     expect(draft.status).toBe('review');
+   });
+ 
+   it('orders recommended posts by active interests rather than timestamp alone', () => {
+     const chronological = orderPosts('chronological').map((post) => post.slug);
+     const recommended = orderPosts('recommended', ['自驾']).map((post) => post.slug);
+ 
+     expect(chronological).toEqual([
+       'dali-slow-5d',
+-      'sichuan-autumn-road',
+       'guilin-river-morning',
+-      'rainy-mountain-notes',
++      'sichuan-autumn-road',
++      'sanya-bay-rainforest-5d',
++      'hangzhou-lake-tea-4d',
++      'nanjing-wall-qinhuai-4d',
++      'shanghai-urban-walk-3d',
++      'guizhou-karst-miao-6d',
+     ]);
+     expect(recommended).toEqual([
+       'sichuan-autumn-road',
+-      'rainy-mountain-notes',
+       'dali-slow-5d',
+       'guilin-river-morning',
++      'sanya-bay-rainforest-5d',
++      'hangzhou-lake-tea-4d',
++      'nanjing-wall-qinhuai-4d',
++      'shanghai-urban-walk-3d',
++      'guizhou-karst-miao-6d',
+     ]);
++    expect(posts.map((post) => post.slug)).not.toContain('rainy-mountain-notes');
+   });
+ 
+   it('keeps every published guide convertible for each declared day', () => {
+     for (const post of posts) {
+       expect(post.itinerary).toHaveLength(post.days);
+       expect(extractTripDraft(post).items).toHaveLength(post.days);
+     }
+   });
+ });

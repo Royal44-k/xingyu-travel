@@ -1,0 +1,6 @@
+
+Running 1 test using 1 worker
+
+  ok 1 [chromium] › tests\e2e\responsive.spec.ts:42:5 › mobile public MVP › does not horizontally overflow on /square (1.0s)
+
+  1 passed (3.1s)

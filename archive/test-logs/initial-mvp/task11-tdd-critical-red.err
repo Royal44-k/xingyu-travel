@@ -1,0 +1,23 @@
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/unit/trip-to-partner-intent.test.ts [ tests/unit/trip-to-partner-intent.test.ts ]
+Error: Failed to resolve import "@/features/partners/trip-to-partner-intent" from "tests/unit/trip-to-partner-intent.test.ts". Does the file exist?
+  Plugin: vite:import-analysis
+  File: D:/Codex-chat/xingyu-travel/.worktrees/xingyu-public-mvp/tests/unit/trip-to-partner-intent.test.ts:3:36
+  1  |  import { describe, expect, it } from "vitest";
+  2  |  import { defaultPartnerIntent, demoPartnerCandidates, filterPartnerCandidates, scorePartnerCandidate } from "@/data/p...
+  3  |  import { tripToPartnerIntent } from "@/features/partners/trip-to-partner-intent";
+     |                                       ^
+  4  |  describe("tripToPartnerIntent", () => {
+  5  |  	it("uses canonical trip fields while preserving personal preferences and keeps 木雨 at score 92", () => {
+ ❯ TransformPluginContext._formatLog node_modules/.pnpm/vite@8.2.1_@types+node@26.2.0/node_modules/vite/dist/node/chunks/node.js:31066:39
+ ❯ TransformPluginContext.error node_modules/.pnpm/vite@8.2.1_@types+node@26.2.0/node_modules/vite/dist/node/chunks/node.js:31063:14
+ ❯ normalizeUrl node_modules/.pnpm/vite@8.2.1_@types+node@26.2.0/node_modules/vite/dist/node/chunks/node.js:28008:18
+ ❯ node_modules/.pnpm/vite@8.2.1_@types+node@26.2.0/node_modules/vite/dist/node/chunks/node.js:28076:30
+ ❯ TransformPluginContext.transform node_modules/.pnpm/vite@8.2.1_@types+node@26.2.0/node_modules/vite/dist/node/chunks/node.js:28044:4
+ ❯ EnvironmentPluginContainer.transform node_modules/.pnpm/vite@8.2.1_@types+node@26.2.0/node_modules/vite/dist/node/chunks/node.js:30851:14
+ ❯ loadAndTransform node_modules/.pnpm/vite@8.2.1_@types+node@26.2.0/node_modules/vite/dist/node/chunks/node.js:20619:26
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

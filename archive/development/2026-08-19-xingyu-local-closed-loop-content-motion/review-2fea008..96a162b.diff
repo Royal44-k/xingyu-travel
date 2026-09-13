@@ -1,0 +1,811 @@
+# Review package: 2fea008..96a162b
+
+## Commits
+96a162b feat: restore editable travel interests
+
+## Files changed
+ eslint.config.mjs                            |   2 +-
+ src/app/globals.css                          |  35 +++++-
+ src/data/interest-tags.ts                    |  21 ++++
+ src/features/profile/interest-tag-picker.tsx | 155 +++++++++++++++++++++++
+ src/features/profile/preference-settings.tsx |  17 +--
+ src/stores/profile-store.ts                  | 181 +++++++++++++++++++++++----
+ tests/component/interest-tag-picker.test.tsx |  41 ++++++
+ tests/component/preference-settings.test.tsx |   5 +-
+ tests/unit/profile-preferences.test.ts       |  74 +++++++++++
+ 9 files changed, 495 insertions(+), 36 deletions(-)
+
+## Diff
+diff --git a/eslint.config.mjs b/eslint.config.mjs
+index 73c8c79..c71d109 100644
+--- a/eslint.config.mjs
++++ b/eslint.config.mjs
+@@ -1,9 +1,9 @@
+ import { defineConfig, globalIgnores } from 'eslint/config';
+ import nextTs from 'eslint-config-next/typescript';
+ import nextVitals from 'eslint-config-next/core-web-vitals';
+ 
+ export default defineConfig([
+   ...nextVitals,
+   ...nextTs,
+-  globalIgnores(['.next/**', 'artifacts/**']),
++  globalIgnores(['.next/**', '.vercel/**', 'artifacts/**']),
+ ]);
+diff --git a/src/app/globals.css b/src/app/globals.css
+index ef88b06..c4f94a3 100644
+--- a/src/app/globals.css
++++ b/src/app/globals.css
+@@ -107,21 +107,47 @@ textarea { font: inherit; }
+ .preferenceSwitchRow { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin: 24px 0 14px; }
+ .preferenceSwitchRow button,
+ .preferenceClear { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 40px; padding: 0 14px; color: var(--ivory); border: 1px solid var(--pine); border-radius: var(--radius-control); background: var(--pine); cursor: pointer; }
+ .preferenceSwitchRow button[aria-checked='false'],
+ .preferenceClear { color: var(--ink); border-color: rgb(16 16 15 / 20%); background: transparent; }
+ .preferenceSwitchRow button:disabled,
+ .preferenceClear:disabled { opacity: 0.55; cursor: not-allowed; }
+ .preferenceTags { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0; }
+ .preferenceTags span { padding: 6px 9px; border-radius: 999px; background: #e7e1d5; font-size: 13px; }
+ .preferenceSwitchRow button:focus-visible,
+-.preferenceClear:focus-visible { outline: 2px solid var(--sand); outline-offset: 3px; }
++.preferenceClear:focus-visible,
++.interestTagPicker button:focus-visible,
++.customInterestForm input:focus-visible { outline: 2px solid var(--sand); outline-offset: 3px; }
++
++.interestTagPicker { margin-top: 28px; padding-top: 24px; border-top: 1px solid rgb(16 16 15 / 13%); }
++.interestPickerHeader { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
++.interestPickerEyebrow { margin: 0; color: var(--sand); font-size: 10px; letter-spacing: 0.15em; }
++.interestPickerHeader h3 { margin: 6px 0 5px; font-family: var(--font-display); font-size: 22px; font-weight: 500; }
++.interestPickerHeader p:not(.interestPickerEyebrow) { margin: 0; color: rgb(16 16 15 / 70%); font-size: 13px; line-height: 1.65; }
++.interestClearConfirm { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 8px; color: rgb(16 16 15 / 72%); font-size: 12px; }
++.interestClearConfirm button,
++.customInterestForm button { min-height: 36px; padding: 0 11px; color: var(--ivory); border: 1px solid var(--pine); border-radius: var(--radius-control); background: var(--pine); cursor: pointer; }
++.interestClearConfirm button:last-child { color: var(--ink); border-color: rgb(16 16 15 / 20%); background: transparent; }
++.selectedInterestTag { display: inline-flex; align-items: center; gap: 4px; }
++.selectedInterestTag button { display: inline-flex; padding: 0; color: rgb(16 16 15 / 65%); border: 0; background: transparent; cursor: pointer; }
++.interestCategoryList { display: grid; gap: 16px; margin-top: 24px; }
++.interestCategory { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 12px; align-items: start; }
++.interestCategory h4 { margin: 7px 0 0; color: rgb(16 16 15 / 68%); font-size: 12px; font-weight: 700; }
++.interestChipList { display: flex; flex-wrap: wrap; gap: 8px; }
++.interestChip { display: inline-flex; align-items: center; gap: 5px; min-height: 34px; padding: 0 11px; color: var(--ink); border: 1px solid rgb(16 16 15 / 20%); border-radius: 999px; background: transparent; cursor: pointer; font-size: 13px; }
++.interestChip[aria-pressed='true'] { border-color: var(--sand); background: #e7e1d5; box-shadow: inset 0 0 0 1px rgb(183 154 104 / 25%); }
++.customInterestForm { margin-top: 24px; }
++.customInterestForm label { display: block; margin-bottom: 8px; font-size: 13px; font-weight: 700; }
++.customInterestForm > div { display: flex; gap: 8px; }
++.customInterestForm input { width: min(100%, 280px); min-height: 38px; padding: 0 11px; color: var(--ink); border: 1px solid rgb(16 16 15 / 25%); border-radius: var(--radius-control); background: rgb(244 240 232 / 65%); }
++.customInterestForm p { margin: 7px 0 0; color: #a94032; font-size: 12px; }
++.interestPickerStatus { min-height: 20px; margin: 12px 0 0; color: rgb(16 16 15 / 68%); font-size: 12px; }
+ 
+ @media (prefers-reduced-motion: reduce) {
+   *,
+   *::before,
+   *::after {
+     scroll-behavior: auto !important;
+     animation-duration: 0.01ms !important;
+     transition-duration: 0.01ms !important;
+   }
+ }
+@@ -135,11 +161,18 @@ textarea { font: inherit; }
+     text-align: left;
+   }
+ 
+   body > main:not(.homePage) {
+     padding-top: 154px;
+   }
+ 
+   .profilePage { width: min(calc(100% - 28px), 860px); padding: 94px 0 70px; }
+   .preferenceSwitchRow { align-items: flex-start; flex-direction: column; }
+   .preferenceSwitchRow button { width: 100%; }
++  .interestPickerHeader { flex-direction: column; }
++  .interestClearConfirm { justify-content: flex-start; }
++  .interestCategory { grid-template-columns: 1fr; gap: 7px; }
++  .interestCategory h4 { margin-top: 0; }
++  .customInterestForm > div { flex-direction: column; }
++  .customInterestForm input,
++  .customInterestForm button { width: 100%; }
+ }
+diff --git a/src/data/interest-tags.ts b/src/data/interest-tags.ts
+new file mode 100644
+index 0000000..151bb40
+--- /dev/null
++++ b/src/data/interest-tags.ts
+@@ -0,0 +1,21 @@
++export const INTEREST_CATEGORIES = [
++  { id: 'style', label: '旅行方式', tags: ['慢旅行', '自驾', '亲子', '独自出发', '周末'] },
++  { id: 'nature', label: '自然景观', tags: ['海岛', '山水', '雪山', '轻徒步'] },
++  { id: 'culture', label: '城市人文', tags: ['古镇', '城市漫游', '人文历史', '摄影'] },
++  { id: 'lodging', label: '住宿偏好', tags: ['特色民宿', '精品酒店'] },
++  { id: 'food', label: '美食体验', tags: ['美食'] },
++  { id: 'safety', label: '安全与同行', tags: ['雨天出行', '安全'] },
++] as const;
++
++export function normalizeInterestTag(raw: string): string {
++  return raw.trim().replace(/^#+/, '').replace(/\s+/g, ' ');
++}
++
++export function hasValidInterestTagLength(tag: string): boolean {
++  const visibleCharacterCount = Array.from(tag.replace(/\s/g, '')).length;
++  return visibleCharacterCount >= 2 && visibleCharacterCount <= 12;
++}
++
++export function interestTagKey(tag: string): string {
++  return normalizeInterestTag(tag).toLocaleLowerCase();
++}
+diff --git a/src/features/profile/interest-tag-picker.tsx b/src/features/profile/interest-tag-picker.tsx
+new file mode 100644
+index 0000000..4bbb756
+--- /dev/null
++++ b/src/features/profile/interest-tag-picker.tsx
+@@ -0,0 +1,155 @@
++'use client';
++
++import { Check, X } from '@phosphor-icons/react';
++import { FormEvent, useState } from 'react';
++import { INTEREST_CATEGORIES, interestTagKey, normalizeInterestTag } from '@/data/interest-tags';
++
++type InterestTagPickerProps = {
++  interestTags: string[];
++  onAddInterestTag: (tag: string) => void;
++  onClearInterestTags: () => void;
++  onRemoveInterestTag: (tag: string) => void;
++};
++
++function errorMessage(error: unknown): string {
++  if (error instanceof Error && error.message === 'PROFILE_TAG_LIMIT') return '最多选择 12 个兴趣标签';
++  return '兴趣标签需为 2–12 个可见字符';
++}
++
++export function InterestTagPicker({
++  interestTags,
++  onAddInterestTag,
++  onClearInterestTags,
++  onRemoveInterestTag,
++}: InterestTagPickerProps) {
++  const [customTag, setCustomTag] = useState('');
++  const [error, setError] = useState<string | null>(null);
++  const [status, setStatus] = useState('');
++  const [confirmingClear, setConfirmingClear] = useState(false);
++
++  const isSelected = (tag: string) => interestTags.some((selectedTag) => interestTagKey(selectedTag) === interestTagKey(tag));
++
++  function toggleTag(tag: string) {
++    setError(null);
++    if (isSelected(tag)) {
++      onRemoveInterestTag(tag);
++      setStatus(`已移除 ${tag}`);
++      return;
++    }
++
++    try {
++      onAddInterestTag(tag);
++      setStatus(`已添加 ${normalizeInterestTag(tag)}`);
++    } catch (caughtError) {
++      setError(errorMessage(caughtError));
++    }
++  }
++
++  function addCustomTag(event: FormEvent<HTMLFormElement>) {
++    event.preventDefault();
++    const normalizedTag = normalizeInterestTag(customTag);
++    setError(null);
++
++    if (isSelected(normalizedTag)) {
++      setStatus(`${normalizedTag} 已在兴趣列表中`);
++      setCustomTag('');
++      return;
++    }
++
++    try {
++      onAddInterestTag(customTag);
++      setCustomTag('');
++      setStatus(`已添加 ${normalizedTag}`);
++    } catch (caughtError) {
++      setError(errorMessage(caughtError));
++    }
++  }
++
++  function confirmClear() {
++    onClearInterestTags();
++    setConfirmingClear(false);
++    setError(null);
++    setStatus('已清除全部兴趣');
++  }
++
++  return (
++    <section aria-labelledby="interest-picker-title" className="interestTagPicker">
++      <div className="interestPickerHeader">
++        <div>
++          <p className="interestPickerEyebrow">TRAVEL INTEREST LIBRARY</p>
++          <h3 id="interest-picker-title">选择你的旅行兴趣</h3>
++          <p>标签只保存在当前浏览器，可随时调整。</p>
++        </div>
++        {confirmingClear ? (
++          <div className="interestClearConfirm" role="group" aria-label="确认清除兴趣">
++            <span>确认清除全部兴趣？</span>
++            <button onClick={confirmClear} type="button">确认清除</button>
++            <button onClick={() => setConfirmingClear(false)} type="button">取消</button>
++          </div>
++        ) : (
++          <button
++            className="preferenceClear"
++            disabled={!interestTags.length}
++            onClick={() => setConfirmingClear(true)}
++            type="button"
++          >
++            <X aria-hidden size={16} /> 清除全部兴趣
++          </button>
++        )}
++      </div>
++
++      <div aria-label="当前兴趣标签" className="preferenceTags">
++        {interestTags.length ? interestTags.map((tag) => (
++          <span key={tag} className="selectedInterestTag">
++            #{tag}
++            <button aria-label={`移除 ${tag}`} onClick={() => toggleTag(tag)} type="button">
++              <X aria-hidden size={13} />
++            </button>
++          </span>
++        )) : <span>尚无兴趣标签；从下方标签库开始选择。</span>}
++      </div>
++
++      <div className="interestCategoryList">
++        {INTEREST_CATEGORIES.map((category) => (
++          <section aria-labelledby={`interest-category-${category.id}`} className="interestCategory" key={category.id}>
++            <h4 id={`interest-category-${category.id}`}>{category.label}</h4>
++            <div className="interestChipList">
++              {category.tags.map((tag) => {
++                const selected = isSelected(tag);
++                return (
++                  <button
++                    aria-label={tag}
++                    aria-pressed={selected}
++                    className="interestChip"
++                    key={tag}
++                    onClick={() => toggleTag(tag)}
++                    type="button"
++                  >
++                    {selected ? <Check aria-hidden size={15} weight="bold" /> : null}
++                    {tag}
++                  </button>
++                );
++              })}
++            </div>
++          </section>
++        ))}
++      </div>
++
++      <form className="customInterestForm" onSubmit={addCustomTag}>
++        <label htmlFor="custom-interest-tag">自定义兴趣</label>
++        <div>
++          <input
++            aria-describedby={error ? 'custom-interest-error' : undefined}
++            id="custom-interest-tag"
++            onChange={(event) => setCustomTag(event.target.value)}
++            placeholder="例如：博物馆"
++            value={customTag}
++          />
++          <button type="submit">添加兴趣</button>
++        </div>
++        {error ? <p id="custom-interest-error" role="alert">{error}</p> : null}
++      </form>
++      <p aria-live="polite" className="interestPickerStatus">{status}</p>
++    </section>
++  );
++}
+diff --git a/src/features/profile/preference-settings.tsx b/src/features/profile/preference-settings.tsx
+index fdc2462..afce130 100644
+--- a/src/features/profile/preference-settings.tsx
++++ b/src/features/profile/preference-settings.tsx
+@@ -1,24 +1,27 @@
+ 'use client';
+ 
+-import { Sparkle, X } from '@phosphor-icons/react';
++import { Sparkle } from '@phosphor-icons/react';
+ import { useEffect } from 'react';
++import { InterestTagPicker } from '@/features/profile/interest-tag-picker';
+ import {
+   hydrateProfileStore,
+   useProfileStore,
+   useProfileStoreHydration,
+ } from '@/stores/profile-store';
+ 
+ export function PreferenceSettings() {
+   const personalizedFeed = useProfileStore((state) => state.personalizedFeed);
+   const interestTags = useProfileStore((state) => state.interestTags);
+   const setPersonalizedFeed = useProfileStore((state) => state.setPersonalizedFeed);
++  const addInterestTag = useProfileStore((state) => state.addInterestTag);
++  const removeInterestTag = useProfileStore((state) => state.removeInterestTag);
+   const clearInterestTags = useProfileStore((state) => state.clearInterestTags);
+   const resetProfilePreferences = useProfileStore((state) => state.resetProfilePreferences);
+   const hydrated = useProfileStoreHydration((state) => state.hydrated);
+   const hydrationError = useProfileStoreHydration((state) => state.hydrationError);
+   const canPersonalize = interestTags.length > 0;
+ 
+   useEffect(() => {
+     void hydrateProfileStore();
+   }, []);
+ 
+@@ -46,20 +49,20 @@ export function PreferenceSettings() {
+           role="switch"
+           type="button"
+         >
+           <Sparkle aria-hidden size={17} weight="fill" />
+           {personalizedFeed && canPersonalize ? '已开启' : '已关闭'}
+         </button>
+       </div>
+       {!canPersonalize ? (
+         <p id="personalization-disabled">兴趣标签已清除；添加兴趣后才可重新开启个性化推荐。</p>
+       ) : null}
+-      <div aria-label="当前兴趣标签" className="preferenceTags">
+-        {interestTags.length ? interestTags.map((tag) => <span key={tag}>#{tag}</span>) : <span>尚无兴趣标签</span>}
+-      </div>
+-      <button className="preferenceClear" disabled={!interestTags.length} onClick={clearInterestTags} type="button">
+-        <X aria-hidden size={16} /> 清除兴趣标签
+-      </button>
++      <InterestTagPicker
++        interestTags={interestTags}
++        onAddInterestTag={addInterestTag}
++        onClearInterestTags={clearInterestTags}
++        onRemoveInterestTag={removeInterestTag}
++      />
+       <p role="status">{personalizedFeed && canPersonalize ? '当前使用个性化推荐排序' : '当前使用按时间排序'}</p>
+     </section>
+   );
+ }
+diff --git a/src/stores/profile-store.ts b/src/stores/profile-store.ts
+index 1da1ca3..134d268 100644
+--- a/src/stores/profile-store.ts
++++ b/src/stores/profile-store.ts
+@@ -1,136 +1,267 @@
+ 'use client';
+ 
+ import { create } from 'zustand';
+ import { createStore } from 'zustand/vanilla';
+-import { persist } from 'zustand/middleware';
++import { createJSONStorage, persist } from 'zustand/middleware';
+ import { z } from 'zod';
++import { hasValidInterestTagLength, interestTagKey, normalizeInterestTag } from '@/data/interest-tags';
+ 
+ export type DemoProfile = {
+   age: 26;
+   identityVerified: true;
+   riskStatus: 'clear';
+ };
+ 
+-export type ProfileState = {
+-  demoProfile: DemoProfile;
++export type ProfilePreferences = {
+   personalizedFeed: boolean;
+   interestTags: string[];
++};
++
++export type ProfileState = ProfilePreferences & {
++  demoProfile: DemoProfile;
+   setPersonalizedFeed: (value: boolean) => void;
++  addInterestTag: (tag: string) => void;
++  removeInterestTag: (tag: string) => void;
++  replaceInterestTags: (tags: string[]) => void;
+   clearInterestTags: () => void;
+   resetProfilePreferences: () => void;
+ };
+ 
+ type ProfileHydrationState = {
+   hydrated: boolean;
+   hydrationError: boolean;
+ };
+ 
+ type CreateProfileStoreOptions = {
+   onHydrationError?: (error: unknown) => void;
++  onHydrationFailure?: () => void;
++  onPreserveMalformedBytes?: () => void;
+ };
+ 
+ const defaultProfileState = {
+   demoProfile: { age: 26, identityVerified: true, riskStatus: 'clear' },
+   personalizedFeed: true,
+   interestTags: ['山野', '人文', '慢旅行'],
+ } as const satisfies Pick<ProfileState, 'demoProfile' | 'personalizedFeed' | 'interestTags'>;
+ 
+ const failedClosedProfileState: Pick<ProfileState, 'demoProfile' | 'personalizedFeed' | 'interestTags'> = {
+   demoProfile: { ...defaultProfileState.demoProfile },
+   personalizedFeed: false,
+   interestTags: [],
+ };
+ 
+-const persistedProfileSchema = z.object({
+-  demoProfile: z.object({
++const demoProfileSchema = z.object({
+     age: z.literal(26),
+     identityVerified: z.literal(true),
+     riskStatus: z.literal('clear'),
+-  }).strict(),
++  }).strict();
++
++const interestTagsSchema = z.array(z.string().superRefine((tag, context) => {
++  if (tag !== normalizeInterestTag(tag) || !hasValidInterestTagLength(tag)) {
++    context.addIssue({ code: 'custom', message: 'invalid interest tag' });
++  }
++})).max(12);
++
++const profilePreferencesSchema = z.object({
+   personalizedFeed: z.boolean(),
+-  interestTags: z.array(z.string().min(1).max(40)).max(12),
++  interestTags: interestTagsSchema,
+ }).strict().superRefine((value, context) => {
+-  if (new Set(value.interestTags).size !== value.interestTags.length) {
++  if (new Set(value.interestTags.map(interestTagKey)).size !== value.interestTags.length) {
+     context.addIssue({ code: 'custom', path: ['interestTags'], message: 'duplicate interest tag' });
+   }
+   if (value.personalizedFeed && value.interestTags.length === 0) {
+     context.addIssue({ code: 'custom', path: ['personalizedFeed'], message: 'personalization needs interests' });
+   }
+ });
+ 
++const persistedProfileSchema = profilePreferencesSchema.extend({
++  demoProfile: demoProfileSchema,
++}).strict();
++
++const persistedV1PreferencesSchema = z.object({
++  personalizedFeed: z.boolean(),
++  interestTags: z.array(z.string().min(1).max(40)).max(12),
++}).strict();
++
++const persistedV1ProfileSchema = z.union([
++  persistedV1PreferencesSchema,
++  persistedV1PreferencesSchema.extend({ demoProfile: demoProfileSchema }).strict(),
++]);
++
+ type PersistedProfileState = z.infer<typeof persistedProfileSchema>;
+ 
+ function parsePersistedProfile(state: unknown): PersistedProfileState {
+   const parsed = persistedProfileSchema.safeParse(state);
+   if (parsed.success) return parsed.data;
+   throw new Error('PROFILE_INVALID_PERSISTED_STATE');
+ }
+ 
+-function stateCreator(set: (recipe: (state: ProfileState) => Partial<ProfileState>) => void): ProfileState {
++function validateInterestTag(raw: string): string {
++  const tag = normalizeInterestTag(raw);
++  if (!hasValidInterestTagLength(tag)) throw new Error('PROFILE_TAG_INVALID');
++  return tag;
++}
++
++function normalizeInterestTags(tags: string[]): string[] {
++  const normalized: string[] = [];
++  const knownTags = new Set<string>();
++
++  for (const raw of tags) {
++    const tag = validateInterestTag(raw);
++    const key = interestTagKey(tag);
++    if (knownTags.has(key)) continue;
++    if (normalized.length === 12) throw new Error('PROFILE_TAG_LIMIT');
++    knownTags.add(key);
++    normalized.push(tag);
++  }
++
++  return normalized;
++}
++
++function migrateV1ProfileState(persistedState: unknown): PersistedProfileState {
++  const parsed = persistedV1ProfileSchema.safeParse(persistedState);
++  if (!parsed.success) throw new Error('PROFILE_INVALID_PERSISTED_STATE');
++
++  const interestTags = normalizeInterestTags(parsed.data.interestTags);
++  return {
++    demoProfile: 'demoProfile' in parsed.data ? parsed.data.demoProfile : { ...defaultProfileState.demoProfile },
++    personalizedFeed: parsed.data.personalizedFeed && interestTags.length > 0,
++    interestTags,
++  };
++}
++
++function stateCreator(
++  set: (recipe: (state: ProfileState) => Partial<ProfileState>) => void,
++  registerHydrationFailure?: (handler: () => void) => void,
++  allowPersistence?: () => void,
++): ProfileState {
++  registerHydrationFailure?.(() => set(() => ({ ...failedClosedProfileState })));
+   return {
+     ...defaultProfileState,
+     setPersonalizedFeed: (value) => set((state) => ({
+       personalizedFeed: value && state.interestTags.length > 0,
+     })),
++    addInterestTag: (raw) => set((state) => {
++      const tag = validateInterestTag(raw);
++      if (state.interestTags.some((existingTag) => interestTagKey(existingTag) === interestTagKey(tag))) return {};
++      if (state.interestTags.length === 12) throw new Error('PROFILE_TAG_LIMIT');
++      return { interestTags: [...state.interestTags, tag] };
++    }),
++    removeInterestTag: (raw) => set((state) => {
++      const key = interestTagKey(raw);
++      const interestTags = state.interestTags.filter((tag) => interestTagKey(tag) !== key);
++      return {
++        interestTags,
++        personalizedFeed: interestTags.length > 0 ? state.personalizedFeed : false,
++      };
++    }),
++    replaceInterestTags: (tags) => set((state) => {
++      const interestTags = normalizeInterestTags(tags);
++      return {
++        interestTags,
++        personalizedFeed: interestTags.length > 0 ? state.personalizedFeed : false,
++      };
++    }),
+     clearInterestTags: () => set(() => ({ interestTags: [], personalizedFeed: false })),
+-    resetProfilePreferences: () => set(() => ({
+-      demoProfile: { ...defaultProfileState.demoProfile },
+-      personalizedFeed: true,
+-      interestTags: [...defaultProfileState.interestTags],
+-    })),
++    resetProfilePreferences: () => {
++      allowPersistence?.();
++      set(() => ({
++        demoProfile: { ...defaultProfileState.demoProfile },
++        personalizedFeed: true,
++        interestTags: [...defaultProfileState.interestTags],
++      }));
++    },
+   };
+ }
+ 
+ function persistenceOptions(options: CreateProfileStoreOptions = {}) {
+   return {
+     name: 'xingyu-profile-demo-v1',
+-    version: 1,
++    version: 2,
+     skipHydration: true,
+     partialize: (state: ProfileState): PersistedProfileState => ({
+       demoProfile: state.demoProfile,
+       personalizedFeed: state.personalizedFeed,
+       interestTags: state.interestTags,
+     }),
+     merge: (persistedState: unknown, currentState: ProfileState): ProfileState => {
+       if (persistedState === undefined) return currentState;
+       try {
+         return { ...currentState, ...parsePersistedProfile(persistedState) };
+       } catch (error) {
+         options.onHydrationError?.(error);
++        options.onPreserveMalformedBytes?.();
+         return { ...currentState, ...failedClosedProfileState };
+       }
+     },
++    migrate: (persistedState: unknown, version: number): PersistedProfileState => {
++      try {
++        if (version !== 1) throw new Error('PROFILE_INVALID_PERSISTED_STATE');
++        return migrateV1ProfileState(persistedState);
++      } catch (error) {
++        options.onHydrationError?.(error);
++        options.onPreserveMalformedBytes?.();
++        return { ...failedClosedProfileState };
++      }
++    },
+     onRehydrateStorage: () => (_state: ProfileState | undefined, error: unknown) => {
+-      if (error) options.onHydrationError?.(error);
++      if (error) {
++        options.onHydrationError?.(error);
++        options.onPreserveMalformedBytes?.();
++        options.onHydrationFailure?.();
++      }
+     },
+   };
+ }
+ 
+-export function createProfileStore(options: CreateProfileStoreOptions = {}) {
+-  return createStore<ProfileState>()(
+-    persist<ProfileState, [], [], PersistedProfileState>(stateCreator, persistenceOptions(options)),
++function createPersistedProfileState(options: CreateProfileStoreOptions = {}) {
++  let failClosed = () => {};
++  let preserveMalformedBytes = false;
++  const profileStorage = createJSONStorage<PersistedProfileState>(() => localStorage) ?? {
++    getItem: () => null,
++    setItem: () => {},
++    removeItem: () => {},
++  };
++  const preserveMalformedBytesForRecovery = () => { preserveMalformedBytes = true; };
++  const allowPersistence = () => { preserveMalformedBytes = false; };
++
++  return persist<ProfileState, [], [], PersistedProfileState>(
++    (set) => stateCreator(set, (handler) => { failClosed = handler; }, allowPersistence),
++    {
++      ...persistenceOptions({
++        ...options,
++        onHydrationFailure: () => failClosed(),
++        onPreserveMalformedBytes: preserveMalformedBytesForRecovery,
++      }),
++      storage: {
++        getItem: (name) => profileStorage.getItem(name),
++        setItem: (name, value) => (preserveMalformedBytes ? undefined : profileStorage.setItem(name, value)),
++        removeItem: (name) => profileStorage.removeItem(name),
++      },
++    },
+   );
+ }
+ 
++export function createProfileStore(options: CreateProfileStoreOptions = {}) {
++  return createStore<ProfileState>()(createPersistedProfileState(options));
++}
++
+ export const useProfileStoreHydration = create<ProfileHydrationState>(() => ({
+   hydrated: false,
+   hydrationError: false,
+ }));
+ 
+ export const useProfileStore = create<ProfileState>()(
+-  persist<ProfileState, [], [], PersistedProfileState>(
+-    stateCreator,
+-    persistenceOptions({
+-      onHydrationError: () => useProfileStoreHydration.setState({ hydrationError: true }),
+-    }),
+-  ),
++  createPersistedProfileState({
++    onHydrationError: () => useProfileStoreHydration.setState({ hydrationError: true }),
++  }),
+ );
+ 
+ export async function hydrateProfileStore() {
+   if (typeof window === 'undefined' || useProfileStoreHydration.getState().hydrated) return;
+   try {
+     useProfileStoreHydration.setState({ hydrated: false, hydrationError: false });
+     await useProfileStore.persist.rehydrate();
+   } catch {
+     useProfileStoreHydration.setState({ hydrationError: true });
+   } finally {
+diff --git a/tests/component/interest-tag-picker.test.tsx b/tests/component/interest-tag-picker.test.tsx
+new file mode 100644
+index 0000000..2f99a59
+--- /dev/null
++++ b/tests/component/interest-tag-picker.test.tsx
+@@ -0,0 +1,41 @@
++import { render, screen } from '@testing-library/react';
++import userEvent from '@testing-library/user-event';
++import { beforeEach, describe, expect, it } from 'vitest';
++import { PreferenceSettings } from '@/features/profile/preference-settings';
++import { useProfileStore, useProfileStoreHydration } from '@/stores/profile-store';
++
++describe('InterestTagPicker', () => {
++  beforeEach(() => {
++    window.localStorage.clear();
++    useProfileStore.setState({
++      personalizedFeed: true,
++      interestTags: ['山野', '人文', '慢旅行'],
++    });
++    useProfileStoreHydration.setState({ hydrated: true, hydrationError: false });
++  });
++
++  it('keeps the tag library available after clear and can add a custom tag', async () => {
++    const user = userEvent.setup();
++    render(<PreferenceSettings />);
++
++    await user.click(screen.getByRole('button', { name: '清除全部兴趣' }));
++    await user.click(screen.getByRole('button', { name: '确认清除' }));
++    await user.click(screen.getByRole('button', { name: '海岛' }));
++    await user.type(screen.getByLabelText('自定义兴趣'), '博物馆{Enter}');
++
++    expect(useProfileStore.getState().interestTags).toEqual(['海岛', '博物馆']);
++    expect(screen.getByRole('button', { name: '海岛' })).toHaveAttribute('aria-pressed', 'true');
++  });
++
++  it('removes a selected custom tag and explains invalid custom input inline', async () => {
++    const user = userEvent.setup();
++    render(<PreferenceSettings />);
++
++    await user.type(screen.getByLabelText('自定义兴趣'), '博物馆{Enter}');
++    await user.click(screen.getByRole('button', { name: '移除 博物馆' }));
++    await user.type(screen.getByLabelText('自定义兴趣'), '旅{Enter}');
++
++    expect(useProfileStore.getState().interestTags).not.toContain('博物馆');
++    expect(screen.getByRole('alert')).toHaveTextContent('兴趣标签需为 2–12 个可见字符');
++  });
++});
+diff --git a/tests/component/preference-settings.test.tsx b/tests/component/preference-settings.test.tsx
+index 8ab2c37..fcfb1e1 100644
+--- a/tests/component/preference-settings.test.tsx
++++ b/tests/component/preference-settings.test.tsx
+@@ -33,26 +33,27 @@ describe('PreferenceSettings', () => {
+     expect(store.getState().interestTags).toEqual([]);
+     expect(hydrationError).toBeInstanceOf(Error);
+     expect(window.localStorage.getItem('xingyu-profile-demo-v1')).toBe(malformed);
+ 
+     store.getState().resetProfilePreferences();
+     expect(store.getState().personalizedFeed).toBe(true);
+     expect(store.getState().interestTags).toEqual(['山野', '人文', '慢旅行']);
+     expect(window.localStorage.getItem('xingyu-profile-demo-v1')).not.toBe(malformed);
+   });
+ 
+-  it('clears interest labels and disables personalized recommendations', async () => {
++  it('clears interest labels and disables personalized recommendations after confirmation', async () => {
+     const user = userEvent.setup();
+     render(<PreferenceSettings />);
+ 
+     await user.click(screen.getByRole('switch', { name: '个性化推荐' }));
+-    await user.click(screen.getByRole('button', { name: '清除兴趣标签' }));
++    await user.click(screen.getByRole('button', { name: '清除全部兴趣' }));
++    await user.click(screen.getByRole('button', { name: '确认清除' }));
+ 
+     expect(screen.getByText('当前使用按时间排序')).toBeInTheDocument();
+     expect(useProfileStore.getState().personalizedFeed).toBe(false);
+     expect(useProfileStore.getState().interestTags).toEqual([]);
+   });
+ 
+   it('keeps recommendation disabled when no interests remain', async () => {
+     const user = userEvent.setup();
+     useProfileStore.setState({ personalizedFeed: false, interestTags: [] });
+     render(<PreferenceSettings />);
+diff --git a/tests/unit/profile-preferences.test.ts b/tests/unit/profile-preferences.test.ts
+new file mode 100644
+index 0000000..162e88c
+--- /dev/null
++++ b/tests/unit/profile-preferences.test.ts
+@@ -0,0 +1,74 @@
++import { beforeEach, describe, expect, it } from 'vitest';
++import { normalizeInterestTag } from '@/data/interest-tags';
++import { createProfileStore } from '@/stores/profile-store';
++
++describe('profile preferences v2', () => {
++  beforeEach(() => {
++    window.localStorage.clear();
++  });
++
++  it('normalizes, de-duplicates, and restores interests after clearing', async () => {
++    const store = createProfileStore();
++    await store.persist.rehydrate();
++
++    store.getState().clearInterestTags();
++    store.getState().addInterestTag('  #海岛  ');
++    store.getState().addInterestTag('海岛');
++
++    expect(store.getState().interestTags).toEqual(['海岛']);
++    expect(store.getState().personalizedFeed).toBe(false);
++  });
++
++  it('normalizes whitespace and removes hash prefixes', () => {
++    expect(normalizeInterestTag('  ##城市   漫游  ')).toBe('城市 漫游');
++  });
++
++  it('rejects invalid tags without changing saved interests', () => {
++    const store = createProfileStore();
++    const before = store.getState().interestTags;
++
++    expect(() => store.getState().addInterestTag('#旅')).toThrow('PROFILE_TAG_INVALID');
++    expect(store.getState().interestTags).toEqual(before);
++  });
++
++  it('prevents case-insensitive duplicates and enforces the tag limit', () => {
++    const store = createProfileStore();
++    store.getState().replaceInterestTags([
++      '山野', '人文', '慢旅行', '海岛', '山水', '雪山',
++      '古镇', '摄影', '亲子', '自驾', '周末', 'Safety',
++    ]);
++    store.getState().addInterestTag('SAFETY');
++
++    expect(store.getState().interestTags).toHaveLength(12);
++    expect(() => store.getState().addInterestTag('博物馆')).toThrow('PROFILE_TAG_LIMIT');
++    expect(store.getState().interestTags).toHaveLength(12);
++  });
++
++  it('migrates version one preferences to version two', async () => {
++    window.localStorage.setItem('xingyu-profile-demo-v1', JSON.stringify({
++      state: { personalizedFeed: true, interestTags: [' #山野 ', '山野'] },
++      version: 1,
++    }));
++    const store = createProfileStore();
++
++    await store.persist.rehydrate();
++
++    expect(store.getState().interestTags).toEqual(['山野']);
++    expect(JSON.parse(window.localStorage.getItem('xingyu-profile-demo-v1')!).version).toBe(2);
++  });
++
++  it('fails closed without overwriting malformed version two bytes', async () => {
++    const malformed = JSON.stringify({
++      state: { personalizedFeed: true, interestTags: ['山野', '山野'] },
++      version: 2,
++    });
++    window.localStorage.setItem('xingyu-profile-demo-v1', malformed);
++    const store = createProfileStore();
++
++    await store.persist.rehydrate();
++
++    expect(store.getState().personalizedFeed).toBe(false);
++    expect(store.getState().interestTags).toEqual([]);
++    expect(window.localStorage.getItem('xingyu-profile-demo-v1')).toBe(malformed);
++  });
++});

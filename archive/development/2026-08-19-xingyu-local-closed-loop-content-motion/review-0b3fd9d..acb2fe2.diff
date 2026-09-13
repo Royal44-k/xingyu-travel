@@ -1,0 +1,737 @@
+# Review package: 0b3fd9d..acb2fe2
+
+## Commits
+acb2fe2 fix: guard local guardian activation flows
+
+## Files changed
+ .../task-9-report.md                               |  76 +++++++++++
+ src/features/guardian/guardian.module.css          |   2 +-
+ src/features/guardian/risk-timeline.tsx            | 147 +++++++++++++++++++--
+ src/features/trips/decision-room.tsx               |   9 +-
+ src/features/trips/trip-collection.tsx             |  17 ++-
+ tests/component/risk-timeline.test.tsx             |  96 +++++++++++++-
+ tests/component/trip-collection.test.tsx           |  42 +++++-
+ tests/component/trip-workbench.test.tsx            |  20 +++
+ 8 files changed, 374 insertions(+), 35 deletions(-)
+
+## Diff
+diff --git a/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/task-9-report.md b/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/task-9-report.md
+new file mode 100644
+index 0000000..6f9162b
+--- /dev/null
++++ b/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/task-9-report.md
+@@ -0,0 +1,76 @@
++# Task 9 Report: Navigation Connected to Real Local Journeys
++
++## Result
++
++Implemented Task 9 and review round 1 without touching the ledger, running browser/E2E, or deploying:
++
++- Replaced placeholder header destinations with valid `/trips`, `/assistant`, and `/profile` routes.
++- Made the Guardian header destination hydration-safe and data-driven: no guarded trip returns to `/trips?intent=guardian`; the newest supported guarded trip opens its canonical `/guardian/{sourcePostSlug}` route with deterministic update/create/slug tie-breaking.
++- Preserved one accessible mobile menu with Escape close, focus restoration, explicit personal-center copy, and contained 390px overflow.
++- Added Guardian intent guidance to the trip collection and kept every CTA on an existing route.
++- Included discoverable static public routes in the sitemap without inventing dynamic Guardian IDs.
++- Restricted Guardian activation to trips backed by the shared `isKnownGuardianTrip` event predicate. An existing unguarded Dali trip links to its workbench; unsupported-only or empty collections explain the sandbox boundary and link directly to `/square/dali-slow-5d`.
++- Disabled the Guardian workbench control for unsupported trips, named the support boundary, and prevented it from opening consent or changing trip state.
++- Made the risk timeline explicitly hydrate the local trip store and fail closed through neutral loading, malformed-storage recovery, missing-local-trip, and known-but-not-enabled states.
++- Rendered Plan actions only for a hydrated canonical guarded trip. Event-time store reads and a defensive catch prevent stale clicks from emitting `TRIP_NOT_FOUND` or persisting a plan after eligibility disappears.
++
++The initial Task 9 implementation was committed as `0b3fd9d` (`fix: connect navigation to real local journeys`). Review round 1 resolved both Important findings; none remain open in this round.
++
++## TDD Evidence
++
++Initial Task 9 RED/GREEN:
++
++- Focused GREEN: 40 tests passed across header, trip collection, trip store, and route/sitemap coverage.
++- Related GREEN: 62 tests passed.
++- Full GREEN: 41 files and 333 tests passed.
++
++Review round 1, supported activation RED:
++
++- Added collection and workbench contracts before production changes.
++- RED result: 4 expected failures with 19 existing passes. The failures proved that an unsupported Sichuan trip was selected as the setup target, empty/unsupported collections linked to generic Square, and the unsupported workbench control remained enabled.
++- GREEN result: 2 files and 23 tests passed after applying the shared supported-trip predicate to the collection and decision room.
++
++Review round 1, hydrated timeline RED:
++
++- Added delayed hydration, malformed storage, missing local trip, not-Guardian-enabled trip, valid guarded trip, and stale-click coverage before production changes.
++- RED result: 4 expected state failures plus the stale interaction's uncaught `TRIP_NOT_FOUND:dali-slow-5d`; 2 existing cases passed.
++- GREEN result: all 6 risk-timeline tests passed with explicit hydration and fail-closed eligibility handling.
++
++Related review GREEN:
++
++- Command: `pnpm test tests/component/site-header.test.tsx tests/component/trip-collection.test.tsx tests/component/trip-workbench.test.tsx tests/component/risk-timeline.test.tsx tests/unit/trip-store.test.ts tests/unit/assistant-routes.test.ts tests/unit/production-safeguards.test.ts`
++- Result: 7 files and 69 tests passed.
++
++## React Review Evidence
++
++- Hooks remain unconditional, and the reusable timeline state component is declared at module scope.
++- Zustand subscriptions select individual hydration flags, the canonical trip ID, one trip, or one saved plan; no component subscribes to the whole store.
++- Guardian plan callbacks defer live store reads until interaction time instead of subscribing to action-only state.
++- Canonical route resolution uses `sourcePostSlug`, preventing a route slug from being mistaken for an arbitrary local record key.
++- Native links, buttons, disabled state, live/status semantics, focus styles, Escape handling, and focus restoration remain explicit.
++
++## Fresh Verification
++
++- Related regression: 7 files, 69 tests passed.
++- Full Vitest: 41 files, 340 tests passed; exit 0.
++- `pnpm lint`: exit 0.
++- `pnpm typecheck`: exit 0. The restricted first attempt could not write `tsconfig.tsbuildinfo`; the approved project command rerun passed without diagnostics.
++- `pnpm build`: exit 0; Next.js 16.2.12 compiled successfully and generated 14/14 static pages.
++- `git diff --check`: no whitespace errors; only repository LF-to-CRLF notices were printed.
++- No browser, Playwright/E2E, ledger update, or deployment was performed.
++
++## Files
++
++Created:
++
++- `.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/task-9-report.md`
++
++Modified in review round 1:
++
++- `src/features/guardian/guardian.module.css`
++- `src/features/guardian/risk-timeline.tsx`
++- `src/features/trips/decision-room.tsx`
++- `src/features/trips/trip-collection.tsx`
++- `tests/component/risk-timeline.test.tsx`
++- `tests/component/trip-collection.test.tsx`
++- `tests/component/trip-workbench.test.tsx`
+diff --git a/src/features/guardian/guardian.module.css b/src/features/guardian/guardian.module.css
+index 5a005b0..6a83b5d 100644
+--- a/src/features/guardian/guardian.module.css
++++ b/src/features/guardian/guardian.module.css
+@@ -1 +1 @@
+-.page { width: min(100% - 40px, var(--content-max)); margin: 0 auto; padding: 126px 0 80px; }.hero { display: grid; grid-template-columns: 1fr 1fr; overflow: hidden; color: var(--ivory); background: var(--pine); }.heroCopy { padding: 48px; }.heroCopy p { margin: 0 0 11px; color: var(--sand); font-size: 11px; font-weight: 700; letter-spacing: .16em; }.eventHead p, .plan > p { margin: 0 0 11px; color: #765a2c; font-size: 11px; font-weight: 700; letter-spacing: .16em; }.hero h1 { margin: 0; font-family: var(--font-display); font-size: clamp(36px, 4.8vw, 62px); font-weight: 500; line-height: 1.15; }.hero span { display: block; margin-top: 20px; color: rgb(244 240 232 / 72%); line-height: 1.75; }.heroImage { width: 100%; height: 100%; min-height: 310px; object-fit: cover; }.timeline { margin-top: 26px; }.demoNote { margin: 0 0 16px; padding: 12px 15px; color: #674d1f; background: #f0e1ba; border-left: 3px solid #ae8440; font-size: 13px; }.alternativesHeading { margin: 0 0 14px; font-family: var(--font-display); font-size: 28px; font-weight: 600; }.event { padding: 30px; background: #fffdf8; border: 1px solid #d6cdc0; }.eventHead { display: flex; align-items: flex-start; gap: 12px; color: #963a2d; }.eventHead h2 { margin: 0; color: var(--ink); font-family: var(--font-display); font-size: 28px; }.event > p { max-width: 800px; line-height: 1.75; }.event > small { color: #625b52; }.plans { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 24px; }.plan { padding: 20px; background: #f1ece3; border: 1px solid #d7cec1; }.plan h3 { min-height: 54px; margin: 0 0 15px; font-family: var(--font-display); font-size: 20px; }.plan dl { display: grid; gap: 8px; margin: 0 0 18px; }.plan dl div { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; }.plan dt { color: #665e54; }.plan dd { margin: 0; text-align: right; }.plan button { width: 100%; min-height: 40px; color: var(--ivory); border: 0; border-radius: 6px; background: var(--pine); cursor: pointer; }.status { margin: 14px 0 0; color: #41634e; font-size: 13px; }.page button:focus-visible { outline: 3px solid var(--sand); outline-offset: 3px; }@media (max-width: 760px) { .page { width: min(100% - 24px, var(--content-max)); padding-top: 102px; }.hero { grid-template-columns: 1fr; }.heroCopy { padding: 36px 24px; }.heroImage { min-height: 210px; }.event { padding: 22px 18px; }.plans { grid-template-columns: 1fr; } }
++.page { width: min(100% - 40px, var(--content-max)); margin: 0 auto; padding: 126px 0 80px; }.hero { display: grid; grid-template-columns: 1fr 1fr; overflow: hidden; color: var(--ivory); background: var(--pine); }.heroCopy { padding: 48px; }.heroCopy p { margin: 0 0 11px; color: var(--sand); font-size: 11px; font-weight: 700; letter-spacing: .16em; }.eventHead p, .plan > p { margin: 0 0 11px; color: #765a2c; font-size: 11px; font-weight: 700; letter-spacing: .16em; }.hero h1 { margin: 0; font-family: var(--font-display); font-size: clamp(36px, 4.8vw, 62px); font-weight: 500; line-height: 1.15; }.hero span { display: block; margin-top: 20px; color: rgb(244 240 232 / 72%); line-height: 1.75; }.heroImage { width: 100%; height: 100%; min-height: 310px; object-fit: cover; }.timeline { margin-top: 26px; }.timelineState { margin-top: 26px; padding: 34px; text-align: center; background: #eae3d7; border: 1px solid #d0c6b7; }.timelineState p { margin: 0 0 8px; color: #765a2c; font-size: 11px; font-weight: 700; letter-spacing: .16em; }.timelineState h2 { margin: 0 0 12px; font-family: var(--font-display); font-size: 30px; font-weight: 500; }.timelineState span { display: block; color: #625b52; line-height: 1.75; }.timelineState a { display: inline-flex; min-height: 42px; align-items: center; margin-top: 20px; padding: 9px 14px; color: var(--ivory); background: var(--pine); text-decoration: none; }.demoNote { margin: 0 0 16px; padding: 12px 15px; color: #674d1f; background: #f0e1ba; border-left: 3px solid #ae8440; font-size: 13px; }.alternativesHeading { margin: 0 0 14px; font-family: var(--font-display); font-size: 28px; font-weight: 600; }.event { padding: 30px; background: #fffdf8; border: 1px solid #d6cdc0; }.eventHead { display: flex; align-items: flex-start; gap: 12px; color: #963a2d; }.eventHead h2 { margin: 0; color: var(--ink); font-family: var(--font-display); font-size: 28px; }.event > p { max-width: 800px; line-height: 1.75; }.event > small { color: #625b52; }.plans { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 24px; }.plan { padding: 20px; background: #f1ece3; border: 1px solid #d7cec1; }.plan h3 { min-height: 54px; margin: 0 0 15px; font-family: var(--font-display); font-size: 20px; }.plan dl { display: grid; gap: 8px; margin: 0 0 18px; }.plan dl div { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; }.plan dt { color: #665e54; }.plan dd { margin: 0; text-align: right; }.plan button { width: 100%; min-height: 40px; color: var(--ivory); border: 0; border-radius: 6px; background: var(--pine); cursor: pointer; }.status { margin: 14px 0 0; color: #41634e; font-size: 13px; }.page :is(button, a):focus-visible { outline: 3px solid var(--sand); outline-offset: 3px; }@media (max-width: 760px) { .page { width: min(100% - 24px, var(--content-max)); padding-top: 102px; }.hero { grid-template-columns: 1fr; }.heroCopy { padding: 36px 24px; }.heroImage { min-height: 210px; }.event { padding: 22px 18px; }.plans { grid-template-columns: 1fr; }.timelineState { padding: 28px 20px; } }
+diff --git a/src/features/guardian/risk-timeline.tsx b/src/features/guardian/risk-timeline.tsx
+index a3d884c..7b4eccf 100644
+--- a/src/features/guardian/risk-timeline.tsx
++++ b/src/features/guardian/risk-timeline.tsx
+@@ -1,35 +1,156 @@
+ 'use client';
+ 
+ import { WarningCircle } from '@phosphor-icons/react';
++import Link from 'next/link';
++import { useEffect } from 'react';
+ import type { GuardianRiskEvent } from '@/data/risk-events';
+-import { useTripStore } from '@/stores/trip-store';
++import {
++  hydrateWorkbenchTripStore,
++  selectTripBySourceSlug,
++  useTripStore,
++  useTripStoreHydration,
++} from '@/stores/trip-store';
+ import styles from './guardian.module.css';
+ 
+-interface RiskTimelineProps { events: GuardianRiskEvent[]; tripId: string; }
++interface RiskTimelineProps {
++  events: GuardianRiskEvent[];
++  tripId: string;
++}
+ 
+ export function RiskTimeline({ events, tripId }: RiskTimelineProps) {
+-  const selectGuardianPlan = useTripStore((state) => state.selectGuardianPlan);
+-  const selectedPlan = useTripStore((state) => {
+-    const canonicalTripId = state.trips[tripId]?.id ?? Object.values(state.trips).find(
+-      (trip) => trip.sourcePostSlug === tripId,
+-    )?.id ?? tripId;
+-    return state.guardianPlans[canonicalTripId];
+-  });
++  const hydrated = useTripStoreHydration((state) => state.hydrated);
++  const hydrationError = useTripStoreHydration((state) => state.hydrationError);
++  const canonicalTripId = useTripStore(
++    (state) => selectTripBySourceSlug(state, tripId)?.id,
++  );
++  const trip = useTripStore((state) => canonicalTripId ? state.trips[canonicalTripId] : undefined);
++  const selectedPlan = useTripStore(
++    (state) => canonicalTripId ? state.guardianPlans[canonicalTripId] : undefined,
++  );
++
++  useEffect(() => {
++    void hydrateWorkbenchTripStore();
++  }, []);
++
++  if (!hydrated) {
++    return (
++      <TimelineState
++        message="正在校验保存在当前浏览器中的行程与守护状态。"
++        title="正在读取守护行程…"
++      />
++    );
++  }
++  if (hydrationError) {
++    return (
++      <TimelineState
++        actionHref="/trips?intent=guardian"
++        actionLabel="返回我的行程"
++        alert
++        message="行程存储校验失败；原始浏览器数据已保留且没有被覆盖。请返回我的行程恢复或重新创建守护示例。"
++        title="本地守护行程暂时无法读取"
++      />
++    );
++  }
++  if (!trip) {
++    return (
++      <TimelineState
++        actionHref="/trips?intent=guardian"
++        actionLabel="返回我的行程"
++        message="守护事件可以公开查看，但方案选择只属于当前浏览器中已开启守护的本地行程。"
++        title="当前浏览器没有这条守护行程"
++      />
++    );
++  }
++  if (trip.status !== 'guarded' || !trip.guardianEnabled) {
++    return (
++      <TimelineState
++        actionHref={`/trips/${trip.sourcePostSlug}`}
++        actionLabel="返回行程开启守护"
++        message="先在行程工作台阅读边界并确认开启，本页才会允许保存 Plan A/B/C 选择。"
++        title="这条行程尚未开启守护"
++      />
++    );
++  }
++
+   const selectedPlanIndex = selectedPlan
+     ? events.flatMap((event) => event.plans).findIndex((plan) => plan.id === selectedPlan.id)
+     : -1;
++  const selectPlan = (plan: { id: string; title: string }) => {
++    const hydration = useTripStoreHydration.getState();
++    if (!hydration.hydrated || hydration.hydrationError) return;
++    const state = useTripStore.getState();
++    const currentTrip = selectTripBySourceSlug(state, tripId);
++    if (!currentTrip || currentTrip.status !== 'guarded' || !currentTrip.guardianEnabled) return;
++    try {
++      state.selectGuardianPlan(currentTrip.id, plan);
++    } catch {
++      // The local trip can be removed between the eligibility check and the persisted update.
++    }
++  };
++
+   return (
+     <section aria-label="行程守护风险时间线" className={styles.timeline} role="region">
+       <p className={styles.demoNote}>固定沙箱事件，不读取实时位置、天气或航班状态。</p>
+       <h2 className={styles.alternativesHeading}>备选方案</h2>
+       {events.map((event) => (
+         <article className={styles.event} key={event.id}>
+-          <div className={styles.eventHead}><WarningCircle aria-hidden size={22} weight="fill" /><div><p>RISK / {event.status.toUpperCase()}</p><h2>{event.title}</h2></div></div>
+-          <p>{event.description}</p><small>来源：{event.source} · 证据时间：{event.observedAt}</small>
+-          <div className={styles.plans}>{event.plans.map((plan, index) => <article aria-label={`Plan ${String.fromCharCode(65 + index)}`} className={styles.plan} key={plan.id}><p>PLAN {String.fromCharCode(65 + index)}</p><h3>{plan.title}</h3><dl><div><dt>成本</dt><dd>{plan.cost}</dd></div><div><dt>耗时</dt><dd>{plan.duration}</dd></div><div><dt>风险</dt><dd>{plan.risk}</dd></div></dl><button aria-label={`选择 Plan ${String.fromCharCode(65 + index)}：${plan.title}方案`} aria-pressed={selectedPlan?.id === plan.id} onClick={() => selectGuardianPlan(tripId, { id: plan.id, title: plan.title })} type="button">选择{plan.title}方案</button></article>)}</div>
++          <div className={styles.eventHead}>
++            <WarningCircle aria-hidden size={22} weight="fill" />
++            <div><p>RISK / {event.status.toUpperCase()}</p><h2>{event.title}</h2></div>
++          </div>
++          <p>{event.description}</p>
++          <small>来源：{event.source} · 证据时间：{event.observedAt}</small>
++          <div className={styles.plans}>
++            {event.plans.map((plan, index) => (
++              <article aria-label={`Plan ${String.fromCharCode(65 + index)}`} className={styles.plan} key={plan.id}>
++                <p>PLAN {String.fromCharCode(65 + index)}</p>
++                <h3>{plan.title}</h3>
++                <dl>
++                  <div><dt>成本</dt><dd>{plan.cost}</dd></div>
++                  <div><dt>耗时</dt><dd>{plan.duration}</dd></div>
++                  <div><dt>风险</dt><dd>{plan.risk}</dd></div>
++                </dl>
++                <button
++                  aria-label={`选择 Plan ${String.fromCharCode(65 + index)}：${plan.title}方案`}
++                  aria-pressed={selectedPlan?.id === plan.id}
++                  onClick={() => selectPlan({ id: plan.id, title: plan.title })}
++                  type="button"
++                >
++                  选择{plan.title}方案
++                </button>
++              </article>
++            ))}
++          </div>
+         </article>
+       ))}
+-      {selectedPlan && selectedPlanIndex >= 0 ? <p className={styles.status} role="status">已选择 Plan {String.fromCharCode(65 + selectedPlanIndex)}：{selectedPlan.title}；方案已保存到本浏览器的旅行决策，未创建订单</p> : null}
++      {selectedPlan && selectedPlanIndex >= 0 ? (
++        <p className={styles.status} role="status">
++          已选择 Plan {String.fromCharCode(65 + selectedPlanIndex)}：{selectedPlan.title}；方案已保存到本浏览器的旅行决策，未创建订单
++        </p>
++      ) : null}
++    </section>
++  );
++}
++
++function TimelineState({
++  title,
++  message,
++  actionHref,
++  actionLabel,
++  alert = false,
++}: {
++  title: string;
++  message: string;
++  actionHref?: string;
++  actionLabel?: string;
++  alert?: boolean;
++}) {
++  return (
++    <section aria-live="polite" className={styles.timelineState} role={alert ? 'alert' : 'status'}>
++      <p>LOCAL GUARDIAN</p>
++      <h2>{title}</h2>
++      <span>{message}</span>
++      {actionHref && actionLabel ? <Link href={actionHref}>{actionLabel}</Link> : null}
+     </section>
+   );
+ }
+diff --git a/src/features/trips/decision-room.tsx b/src/features/trips/decision-room.tsx
+index 92fe338..ae3f0aa 100644
+--- a/src/features/trips/decision-room.tsx
++++ b/src/features/trips/decision-room.tsx
+@@ -1,14 +1,15 @@
+ 'use client';
+ 
+ import { CheckCircle, ShieldCheck, UsersThree, X } from '@phosphor-icons/react';
+ import { useRef, useState } from 'react';
++import { isKnownGuardianTrip } from '@/data/risk-events';
+ import { useDialogFocus } from '@/features/comparison/use-dialog-focus';
+ import { demoMembers, type WorkbenchTrip } from '@/stores/trip-store';
+ import styles from './trips.module.css';
+ 
+ interface DecisionRoomProps {
+   trip: WorkbenchTrip;
+   partnerIntentPublished: boolean;
+   onEnableGuardian: (consent: boolean) => void;
+   onPublishPartnerIntent: () => void;
+   onVote: (memberId: string, candidateId: string) => void;
+@@ -16,20 +17,21 @@ interface DecisionRoomProps {
+ 
+ export function DecisionRoom({
+   trip,
+   partnerIntentPublished,
+   onEnableGuardian,
+   onPublishPartnerIntent,
+   onVote,
+ }: DecisionRoomProps) {
+   const [guardianDialogOpen, setGuardianDialogOpen] = useState(false);
+   const [consent, setConsent] = useState(false);
++  const guardianSupported = isKnownGuardianTrip(trip.sourcePostSlug);
+   const triggerRef = useRef<HTMLButtonElement>(null);
+   const dialogRef = useRef<HTMLDivElement>(null);
+   const closeGuardianDialog = () => {
+     setGuardianDialogOpen(false);
+     setConsent(false);
+   };
+   useDialogFocus(
+     guardianDialogOpen,
+     dialogRef,
+     triggerRef,
+@@ -39,25 +41,25 @@ export function DecisionRoom({
+   const counts = Object.fromEntries(
+     trip.candidates.map((candidate) => [
+       candidate.id,
+       Object.values(trip.votes).filter((candidateId) => candidateId === candidate.id).length,
+     ]),
+   );
+   const consensus = trip.candidates.find((candidate) => counts[candidate.id] >= 2);
+ 
+   const toggleGuardian = () => {
+     if (trip.guardianEnabled) onEnableGuardian(false);
+-    else setGuardianDialogOpen(true);
++    else if (guardianSupported) setGuardianDialogOpen(true);
+   };
+ 
+   const confirmGuardian = () => {
+-    if (!consent) return;
++    if (!guardianSupported || !consent) return;
+     onEnableGuardian(true);
+     closeGuardianDialog();
+   };
+ 
+   return (
+     <section aria-labelledby="decision-title" className={styles.decisionSection}>
+       <div className={styles.sectionHeading}>
+         <div><p>DECISION ROOM / 02</p><h2 id="decision-title">同行决策室</h2></div>
+         <span>三位演示成员 · 每人一票</span>
+       </div>
+@@ -102,25 +104,26 @@ export function DecisionRoom({
+ 
+       <div className={styles.localActions}>
+         <div><UsersThree aria-hidden size={21} /><span><strong>寻找同行</strong><small>仅创建浏览器本地演示意愿</small></span></div>
+         <button disabled={partnerIntentPublished} onClick={onPublishPartnerIntent} type="button">
+           {partnerIntentPublished ? '已保存搭子意愿' : '发布搭子意愿'}
+         </button>
+       </div>
+       {partnerIntentPublished && <p className={styles.localConfirmation} role="status">搭子意愿已保存到本浏览器，未发布到平台。</p>}
+ 
+       <div className={styles.localActions}>
+-        <div><ShieldCheck aria-hidden size={21} /><span><strong>行程守护</strong><small>不读取实时坐标，不连接真实监测服务</small></span></div>
++        <div><ShieldCheck aria-hidden size={21} /><span><strong>行程守护</strong><small>{guardianSupported ? '不读取实时坐标，不连接真实监测服务' : '当前守护沙箱只支持大理慢行示例'}</small></span></div>
+         <button
+           aria-checked={trip.guardianEnabled}
+           aria-label="行程守护演示"
+           className={styles.switch}
++          disabled={!guardianSupported}
+           onClick={toggleGuardian}
+           ref={triggerRef}
+           role="switch"
+           type="button"
+         ><span /></button>
+       </div>
+       {trip.guardianEnabled && <p className={styles.guardianNotice}>仅为本地监测演示，不读取实时位置</p>}
+ 
+       {guardianDialogOpen && (
+         <div className={styles.dialogBackdrop}>
+diff --git a/src/features/trips/trip-collection.tsx b/src/features/trips/trip-collection.tsx
+index cdcdf3e..dec2833 100644
+--- a/src/features/trips/trip-collection.tsx
++++ b/src/features/trips/trip-collection.tsx
+@@ -1,16 +1,17 @@
+ 'use client';
+ 
+ import { ArrowRight, CalendarBlank, MapPin, ShieldCheck } from '@phosphor-icons/react';
+ import Image from 'next/image';
+ import Link from 'next/link';
+ import { useEffect, useMemo, useState } from 'react';
++import { isKnownGuardianTrip } from '@/data/risk-events';
+ import {
+   hydrateWorkbenchTripStore,
+   selectTripRecords,
+   type WorkbenchTrip,
+   type WorkbenchTripStatus,
+   useTripStore,
+   useTripStoreHydration,
+ } from '@/stores/trip-store';
+ import styles from './trips.module.css';
+ 
+@@ -45,42 +46,44 @@ export function TripCollection({ intent }: { intent?: 'guardian' }) {
+     [trips],
+   );
+   const filteredTrips = filter === 'all'
+     ? collectionTrips
+     : collectionTrips.filter((trip) => trip.status === filter);
+   const counts = {
+     active: collectionTrips.filter((trip) => trip.status === 'active').length,
+     guarded: collectionTrips.filter((trip) => trip.status === 'guarded').length,
+     archived: collectionTrips.filter((trip) => trip.status === 'archived').length,
+   };
+-  const guardianSetupTrip = collectionTrips.find((trip) => trip.status === 'active');
++  const guardianSetupTrip = collectionTrips.find(
++    (trip) => trip.status === 'active' && isKnownGuardianTrip(trip.sourcePostSlug),
++  );
+ 
+   if (!hydrated) {
+     return <CollectionState title="正在读取我的行程…" message="正在校验保存在当前浏览器中的行程。" />;
+   }
+   if (hydrationError) {
+     return (
+       <CollectionState
+         actionHref="/square"
+         actionLabel="去灵感广场"
+         message="浏览器中的原数据没有被覆盖。你可以稍后重试，或从攻略页重新开始。"
+         title="本地行程暂时无法读取"
+       />
+     );
+   }
+   if (collectionTrips.length === 0) {
+     if (intent === 'guardian') {
+       return (
+         <CollectionState
+-          actionHref="/square"
+-          actionLabel="从攻略创建行程"
+-          message="进入行程工作台后，可在“共同决策”中确认并开启本地守护演示。守护不会读取实时位置或发出真实预警。"
++          actionHref="/square/dali-slow-5d"
++          actionLabel="查看大理慢行攻略"
++          message="当前守护沙箱只支持大理慢行示例。请先从这篇攻略创建行程，再在工作台中确认开启；守护不会读取实时位置或发出真实预警。"
+           secondaryHref="/compare"
+           secondaryLabel="先做一次比价"
+           title="开启守护前，先创建行程"
+         />
+       );
+     }
+     return (
+       <CollectionState
+         actionHref="/square"
+         actionLabel="去灵感广场"
+@@ -126,26 +129,28 @@ export function TripCollection({ intent }: { intent?: 'guardian' }) {
+     </main>
+   );
+ }
+ 
+ function GuardianSetup({ trip }: { trip?: WorkbenchTrip }) {
+   return (
+     <section aria-labelledby="guardian-setup-title" className={styles.guardianSetup}>
+       <div>
+         <p>GUARDIAN SETUP / LOCAL DEMO</p>
+         <h2 id="guardian-setup-title">开启行程守护</h2>
+-        <span>行程守护不会自动开启。请进入一条规划中的行程，阅读本地演示边界并确认授权。</span>
++        <span>{trip
++          ? '行程守护不会自动开启。请进入这条大理行程，阅读本地演示边界并确认授权。'
++          : '当前守护沙箱只支持大理慢行示例；其他目的地不会显示无法使用的守护入口。'}</span>
+       </div>
+       {trip ? (
+         <Link href={`/trips/${trip.sourcePostSlug}`}>前往{trip.title}开启守护 <ArrowRight aria-hidden size={17} /></Link>
+       ) : (
+-        <Link href="/square">创建可开启守护的行程 <ArrowRight aria-hidden size={17} /></Link>
++        <Link href="/square/dali-slow-5d">查看大理慢行攻略 <ArrowRight aria-hidden size={17} /></Link>
+       )}
+     </section>
+   );
+ }
+ 
+ function FilterButton({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
+   return <button aria-pressed={active} onClick={onClick} type="button">{label}</button>;
+ }
+ 
+ export function TripCollectionCard({ trip }: { trip: WorkbenchTrip }) {
+diff --git a/tests/component/risk-timeline.test.tsx b/tests/component/risk-timeline.test.tsx
+index 6a47088..0251869 100644
+--- a/tests/component/risk-timeline.test.tsx
++++ b/tests/component/risk-timeline.test.tsx
+@@ -1,36 +1,120 @@
+-import { render, screen, within } from '@testing-library/react';
++import { render, screen, waitFor, within } from '@testing-library/react';
+ import userEvent from '@testing-library/user-event';
+-import { beforeEach, describe, expect, it } from 'vitest';
++import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+ import { riskEventsForTrip } from '@/data/risk-events';
+ import { postsBySlug } from '@/data/posts';
+ import { extractTripDraft } from '@/domain/trips/extract-draft';
+ import { RiskTimeline } from '@/features/guardian/risk-timeline';
+-import { useTripStore } from '@/stores/trip-store';
++import { useTripStore, useTripStoreHydration } from '@/stores/trip-store';
++
++const tripSlug = 'dali-slow-5d';
++const draft = extractTripDraft(postsBySlug[tripSlug]);
+ 
+ beforeEach(() => {
++  window.localStorage.clear();
++  useTripStore.setState({ trips: {}, partnerIntents: {}, guardianPlans: {} });
++  useTripStoreHydration.setState({ hydrated: true, hydrationError: false });
++});
++
++afterEach(() => {
++  vi.restoreAllMocks();
++  window.localStorage.clear();
+   useTripStore.setState({ trips: {}, partnerIntents: {}, guardianPlans: {} });
+-  useTripStore.getState().acceptDraft(extractTripDraft(postsBySlug['dali-slow-5d']));
++  useTripStoreHydration.setState({ hydrated: false, hydrationError: false });
+ });
+ 
+ describe('RiskTimeline', () => {
+-  it('makes demo risk freshness explicit and records a Plan A choice only in local trip decisions', async () => {
++  it('keeps a neutral state while the local trip store is still hydrating', async () => {
++    useTripStoreHydration.setState({ hydrated: false, hydrationError: false });
++    let finishHydration: (() => void) | undefined;
++    const hydration = new Promise<void>((resolve) => { finishHydration = resolve; });
++    vi.spyOn(useTripStore.persist, 'rehydrate').mockReturnValue(hydration);
++
++    render(<RiskTimeline events={riskEventsForTrip(tripSlug)} tripId={tripSlug} />);
++
++    expect(screen.getByRole('heading', { name: '正在读取守护行程…' })).toBeInTheDocument();
++    expect(screen.queryByRole('button', { name: /选择 Plan/ })).not.toBeInTheDocument();
++    finishHydration?.();
++    await waitFor(() => expect(useTripStoreHydration.getState().hydrated).toBe(true));
++  });
++
++  it('fails closed with named recovery when persisted trip validation fails', () => {
++    seedTrip({ guarded: true });
++    useTripStoreHydration.setState({ hydrated: true, hydrationError: true });
++
++    render(<RiskTimeline events={riskEventsForTrip(tripSlug)} tripId={tripSlug} />);
++
++    expect(screen.getByRole('heading', { name: '本地守护行程暂时无法读取' })).toBeInTheDocument();
++    expect(screen.getByText(/原始浏览器数据已保留且没有被覆盖/)).toBeInTheDocument();
++    expect(screen.getByRole('link', { name: '返回我的行程' })).toHaveAttribute(
++      'href',
++      '/trips?intent=guardian',
++    );
++    expect(screen.queryByRole('button', { name: /选择 Plan/ })).not.toBeInTheDocument();
++  });
++
++  it('does not expose plan actions when the known event has no local trip', () => {
++    render(<RiskTimeline events={riskEventsForTrip(tripSlug)} tripId={tripSlug} />);
++
++    expect(screen.getByRole('heading', { name: '当前浏览器没有这条守护行程' })).toBeInTheDocument();
++    expect(screen.getByRole('link', { name: '返回我的行程' })).toHaveAttribute(
++      'href',
++      '/trips?intent=guardian',
++    );
++    expect(screen.queryByRole('button', { name: /选择 Plan/ })).not.toBeInTheDocument();
++  });
++
++  it('directs a known but not guardian-enabled trip back to its workbench', () => {
++    seedTrip({ guarded: false });
++
++    render(<RiskTimeline events={riskEventsForTrip(tripSlug)} tripId={tripSlug} />);
++
++    expect(screen.getByRole('heading', { name: '这条行程尚未开启守护' })).toBeInTheDocument();
++    expect(screen.getByText(/先在行程工作台阅读边界并确认开启/)).toBeInTheDocument();
++    expect(screen.getByRole('link', { name: '返回行程开启守护' })).toHaveAttribute(
++      'href',
++      '/trips/dali-slow-5d',
++    );
++    expect(screen.queryByRole('button', { name: /选择 Plan/ })).not.toBeInTheDocument();
++  });
++
++  it('makes demo risk freshness explicit and records a Plan A choice for a hydrated guarded trip', async () => {
+     const user = userEvent.setup();
+-    render(<RiskTimeline events={riskEventsForTrip('dali-slow-5d')} tripId="dali-slow-5d" />);
++    seedTrip({ guarded: true });
++    render(<RiskTimeline events={riskEventsForTrip(tripSlug)} tripId={tripSlug} />);
+ 
+     const timeline = screen.getByRole('region', { name: '行程守护风险时间线' });
+     expect(timeline).toHaveTextContent('固定沙箱事件');
+     expect(timeline).toHaveTextContent('2026-08-16T09:00:00+08:00');
+     expect(within(timeline).getAllByRole('article', { name: /Plan [ABC]/ })).toHaveLength(3);
+     const planA = within(timeline).getByRole('button', { name: '选择 Plan A：调整苍山徒步为古城慢游方案' });
+     expect(planA).toHaveAttribute('aria-pressed', 'false');
+     expect(screen.queryByRole('status')).not.toBeInTheDocument();
+ 
+     await user.click(planA);
+     expect(planA).toHaveAttribute('aria-pressed', 'true');
+     expect(screen.getByRole('status')).toHaveTextContent('已选择 Plan A：调整苍山徒步为古城慢游；方案已保存到本浏览器的旅行决策，未创建订单');
+     expect(useTripStore.getState().guardianPlans['draft-dali-slow-5d']).toEqual({
+       id: 'PLAN-A',
+       title: '调整苍山徒步为古城慢游',
+     });
+   });
++
++  it('ignores a stale plan click if the canonical trip disappears before the handler runs', async () => {
++    const user = userEvent.setup();
++    seedTrip({ guarded: true });
++    render(
++      <div onClickCapture={() => useTripStore.setState({ trips: {} })}>
++        <RiskTimeline events={riskEventsForTrip(tripSlug)} tripId={tripSlug} />
++      </div>,
++    );
++
++    await expect(user.click(screen.getByRole('button', { name: /选择 Plan A/ }))).resolves.toBeUndefined();
++    expect(useTripStore.getState().guardianPlans).toEqual({});
++  });
+ });
++
++function seedTrip({ guarded }: { guarded: boolean }) {
++  const trip = useTripStore.getState().savePostAsTrip(draft);
++  if (guarded) useTripStore.getState().enableGuardian(trip.id, true);
++}
+diff --git a/tests/component/trip-collection.test.tsx b/tests/component/trip-collection.test.tsx
+index faa00f8..44b131a 100644
+--- a/tests/component/trip-collection.test.tsx
++++ b/tests/component/trip-collection.test.tsx
+@@ -74,40 +74,70 @@ describe('TripCollection', () => {
+ 
+     expect(screen.getByRole('heading', { name: '还没有保存的行程' })).toBeInTheDocument();
+     expect(screen.getByRole('link', { name: '去灵感广场' })).toHaveAttribute('href', '/square');
+     expect(screen.getByRole('link', { name: '先做一次比价' })).toHaveAttribute('href', '/compare');
+   });
+ 
+   it('explains how to create and enable guardian when guardian intent opens an empty collection', () => {
+     render(<TripCollection intent="guardian" />);
+ 
+     expect(screen.getByRole('heading', { name: '开启守护前，先创建行程' })).toBeInTheDocument();
+-    expect(screen.getByText(/进入行程工作台后，可在“共同决策”中确认并开启本地守护演示/)).toBeInTheDocument();
+-    expect(screen.getByRole('link', { name: '从攻略创建行程' })).toHaveAttribute('href', '/square');
++    expect(screen.getByText(/当前守护沙箱只支持大理慢行示例/)).toBeInTheDocument();
++    expect(screen.getByRole('link', { name: '查看大理慢行攻略' })).toHaveAttribute(
++      'href',
++      '/square/dali-slow-5d',
++    );
+   });
+ 
+-  it('offers the most recent active trip as the guardian setup destination', () => {
+-    seedTrips();
++  it('offers the supported Dali trip instead of a newer unsupported active trip', () => {
++    seedGuardianSetupTrips();
+     render(<TripCollection intent="guardian" />);
+ 
+     const setup = screen.getByRole('region', { name: '开启行程守护' });
+     expect(within(setup).getByText(/行程守护不会自动开启/)).toBeInTheDocument();
+-    expect(within(setup).getByRole('link', { name: '前往川西慢行计划开启守护' })).toHaveAttribute(
++    expect(within(setup).getByRole('link', { name: '前往大理慢行计划开启守护' })).toHaveAttribute(
+       'href',
+-      '/trips/sichuan-autumn-road',
++      '/trips/dali-slow-5d',
++    );
++  });
++
++  it('names the support boundary and links to the supported guide when only unsupported trips exist', () => {
++    const store = createTripStore();
++    const sichuan = store.getState().savePostAsTrip(extractTripDraft(postsBySlug['sichuan-autumn-road']));
++    useTripStore.setState({ trips: { [sichuan.id]: sichuan } });
++
++    render(<TripCollection intent="guardian" />);
++
++    const setup = screen.getByRole('region', { name: '开启行程守护' });
++    expect(within(setup).getByText(/当前守护沙箱只支持大理慢行示例/)).toBeInTheDocument();
++    expect(within(setup).getByRole('link', { name: '查看大理慢行攻略' })).toHaveAttribute(
++      'href',
++      '/square/dali-slow-5d',
+     );
+   });
+ });
+ 
+ function seedTrips() {
+   const store = createTripStore();
+   const dali = store.getState().savePostAsTrip(extractTripDraft(postsBySlug['dali-slow-5d']));
+   const sichuan = store.getState().savePostAsTrip(extractTripDraft(postsBySlug['sichuan-autumn-road']));
+   const guilin = store.getState().savePostAsTrip(extractTripDraft(postsBySlug['guilin-river-morning']));
+   useTripStore.setState({
+     trips: {
+       [dali.id]: { ...dali, status: 'guarded', guardianEnabled: true, updatedAt: '2026-08-19T09:00:00.000Z' },
+       [sichuan.id]: { ...sichuan, status: 'active', updatedAt: '2026-08-19T11:00:00.000Z' },
+       [guilin.id]: { ...guilin, status: 'archived', updatedAt: '2026-08-19T10:00:00.000Z' },
+     },
+   });
+ }
++
++function seedGuardianSetupTrips() {
++  const store = createTripStore();
++  const dali = store.getState().savePostAsTrip(extractTripDraft(postsBySlug['dali-slow-5d']));
++  const sichuan = store.getState().savePostAsTrip(extractTripDraft(postsBySlug['sichuan-autumn-road']));
++  useTripStore.setState({
++    trips: {
++      [dali.id]: { ...dali, updatedAt: '2026-08-19T10:00:00.000Z' },
++      [sichuan.id]: { ...sichuan, updatedAt: '2026-08-19T11:00:00.000Z' },
++    },
++  });
++}
+diff --git a/tests/component/trip-workbench.test.tsx b/tests/component/trip-workbench.test.tsx
+index e7e99a1..497cf03 100644
+--- a/tests/component/trip-workbench.test.tsx
++++ b/tests/component/trip-workbench.test.tsx
+@@ -41,20 +41,40 @@ describe('TripWorkbench', () => {
+ 
+     render(<TripWorkbench slug={sichuanPost.slug} />);
+ 
+     expect(await screen.findByRole('heading', { name: '川西慢行计划' })).toBeInTheDocument();
+     expect(screen.getByText('LOCAL TRIP / 川西')).toBeInTheDocument();
+     expect(screen.getByText(/拆成可以讨论、调整与核算的 6 天/)).toBeInTheDocument();
+     expect(screen.getByText('6 个节点 · 自动保存至本浏览器')).toBeInTheDocument();
+     expect(screen.queryByText('LOCAL TRIP / DALI')).not.toBeInTheDocument();
+   });
+ 
++  it('keeps guardian activation unavailable for trips without supported risk events', async () => {
++    const user = userEvent.setup();
++    const sichuanPost = postsBySlug['sichuan-autumn-road'];
++    useTripStore.setState({ trips: {}, partnerIntents: {}, guardianPlans: {} });
++    const trip = useTripStore.getState().savePostAsTrip(extractTripDraft(sichuanPost));
++
++    render(<TripWorkbench slug={sichuanPost.slug} />);
++    await screen.findByRole('heading', { name: '川西慢行计划' });
++
++    const guardian = screen.getByRole('switch', { name: '行程守护演示' });
++    expect(guardian).toBeDisabled();
++    expect(screen.getByText('当前守护沙箱只支持大理慢行示例')).toBeInTheDocument();
++    await user.click(guardian);
++    expect(screen.queryByRole('dialog', { name: '授权行程守护演示' })).not.toBeInTheDocument();
++    expect(useTripStore.getState().trips[trip.id]).toMatchObject({
++      guardianEnabled: false,
++      status: 'active',
++    });
++  });
++
+   it('edits dates, budget and an itinerary item with validation', async () => {
+     const user = userEvent.setup();
+     render(<TripWorkbench slug="dali-slow-5d" />);
+     await screen.findByRole('heading', { name: /大理慢行计划/ });
+ 
+     await user.clear(screen.getByLabelText('出发日期'));
+     await user.type(screen.getByLabelText('出发日期'), '2026-10-01');
+     await user.clear(screen.getByLabelText('返程日期'));
+     await user.type(screen.getByLabelText('返程日期'), '2026-09-30');
+     await user.click(screen.getByRole('button', { name: '保存行程设置' }));

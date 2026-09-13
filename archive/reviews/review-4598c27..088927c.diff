@@ -1,0 +1,1477 @@
+# COMMITS
+088927c feat: build immersive xingyu home search
+
+# STAT
+ src/app/globals.css                                |   9 +-
+ src/app/layout.tsx                                 |   2 +-
+ src/app/page.tsx                                   |   8 +-
+ src/components/site-header.module.css              | 155 ++++++++++++++
+ src/components/site-header.tsx                     |  62 ++++++
+ src/features/home/featured-destinations.module.css | 160 ++++++++++++++
+ src/features/home/featured-destinations.tsx        |  64 ++++++
+ src/features/home/hero.module.css                  | 203 ++++++++++++++++++
+ src/features/home/hero.tsx                         |  68 ++++++
+ src/features/home/search-composer.module.css       | 218 +++++++++++++++++++
+ src/features/home/search-composer.tsx              | 232 +++++++++++++++++++++
+ src/test/setup.ts                                  |   4 +
+ tests/component/search-composer.test.tsx           |  87 ++++++++
+ tests/component/site-header.test.tsx               |  49 +++++
+ 14 files changed, 1318 insertions(+), 3 deletions(-)
+
+# DIFF
+diff --git a/src/app/globals.css b/src/app/globals.css
+index ff84d5e..5910526 100644
+--- a/src/app/globals.css
++++ b/src/app/globals.css
+@@ -6,29 +6,36 @@
+   --pine: #26312b;
+   --font-display: var(--font-noto-serif-sc), "Songti SC", serif;
+   --font-ui: var(--font-noto-sans-sc), "PingFang SC", sans-serif;
+   --content-max: 1320px;
+   --radius-control: 10px;
+   --radius-panel: 18px;
+ }
+ 
+ * { box-sizing: border-box; }
+ 
+-html { scroll-behavior: smooth; }
++html {
++  overflow-x: hidden;
++  scroll-behavior: smooth;
++}
+ 
+ body {
+   margin: 0;
++  overflow-x: hidden;
+   color: var(--ink);
+   background: var(--ivory);
+   font-family: var(--font-ui);
++  -webkit-font-smoothing: antialiased;
+ }
+ 
++a { color: inherit; }
++
+ button,
+ input,
+ select,
+ textarea { font: inherit; }
+ 
+ @media (prefers-reduced-motion: reduce) {
+   *,
+   *::before,
+   *::after {
+     scroll-behavior: auto !important;
+diff --git a/src/app/layout.tsx b/src/app/layout.tsx
+index f9ab173..1b639a3 100644
+--- a/src/app/layout.tsx
++++ b/src/app/layout.tsx
+@@ -9,21 +9,21 @@ const sans = Noto_Sans_SC({
+ });
+ 
+ const serif = Noto_Serif_SC({
+   subsets: ['latin'],
+   display: 'swap',
+   variable: '--font-noto-serif-sc',
+   weight: ['400', '500', '600'],
+ });
+ 
+ export const metadata: Metadata = {
+-  title: { default: '行域 XINGYU', template: '%s | 行域 XINGYU' },
++  title: { default: '行屿 XINGYU', template: '%s | 行屿 XINGYU' },
+   description: '透明比价、可信搭子、攻略转行程与主动式旅行守护。',
+ };
+ 
+ export const viewport: Viewport = { width: 'device-width', initialScale: 1 };
+ 
+ export default function RootLayout({ children }: { children: React.ReactNode }) {
+   return (
+     <html lang="zh-CN" className={`${sans.variable} ${serif.variable}`}>
+       <body>{children}</body>
+     </html>
+diff --git a/src/app/page.tsx b/src/app/page.tsx
+index e850d63..e367379 100644
+--- a/src/app/page.tsx
++++ b/src/app/page.tsx
+@@ -1,7 +1,13 @@
++import { SiteHeader } from '@/components/site-header';
++import { FeaturedDestinations } from '@/features/home/featured-destinations';
++import { Hero } from '@/features/home/hero';
++
+ export default function HomePage() {
+   return (
+     <main>
+-      <h1>把远方，变成一段安心抵达的旅程</h1>
++      <SiteHeader activePath="/" />
++      <Hero />
++      <FeaturedDestinations />
+     </main>
+   );
+ }
+diff --git a/src/components/site-header.module.css b/src/components/site-header.module.css
+new file mode 100644
+index 0000000..018db61
+--- /dev/null
++++ b/src/components/site-header.module.css
+@@ -0,0 +1,155 @@
++.header {
++  position: fixed;
++  z-index: 30;
++  inset: 0 0 auto;
++  color: var(--ivory);
++  border-bottom: 1px solid transparent;
++  background: rgb(0 0 0 / 14%);
++  backdrop-filter: blur(2px);
++  transition:
++    color 220ms ease,
++    background-color 220ms ease,
++    border-color 220ms ease,
++    box-shadow 220ms ease;
++}
++
++.header[data-scrolled='true'] {
++  color: var(--ink);
++  border-color: rgb(16 16 15 / 14%);
++  background: rgb(244 240 232 / 96%);
++  box-shadow: 0 10px 30px rgb(16 16 15 / 7%);
++  backdrop-filter: blur(16px);
++}
++
++.inner {
++  width: min(calc(100% - 64px), var(--content-max));
++  min-height: 82px;
++  margin: 0 auto;
++  display: grid;
++  grid-template-columns: 190px 1fr 128px;
++  align-items: center;
++  gap: 32px;
++}
++
++.brand {
++  display: inline-flex;
++  align-items: baseline;
++  gap: 9px;
++  width: max-content;
++  color: inherit;
++  text-decoration: none;
++}
++
++.brandChinese {
++  font-family: var(--font-display);
++  font-size: 25px;
++  letter-spacing: 0.08em;
++}
++
++.brandLatin {
++  font-size: 17px;
++  font-weight: 300;
++  letter-spacing: 0.14em;
++}
++
++.nav {
++  display: flex;
++  justify-content: center;
++  gap: clamp(24px, 3.8vw, 58px);
++}
++
++.navLink,
++.tripLink {
++  position: relative;
++  color: inherit;
++  font-size: 15px;
++  letter-spacing: 0.08em;
++  text-decoration: none;
++  white-space: nowrap;
++}
++
++.navLink::after {
++  content: '';
++  position: absolute;
++  right: 0;
++  bottom: -11px;
++  left: 0;
++  height: 1px;
++  background: currentColor;
++  transform: scaleX(0);
++  transform-origin: left;
++  transition: transform 180ms ease;
++}
++
++.navLink:hover::after,
++.navLink:focus-visible::after,
++.navLink[aria-current='page']::after {
++  transform: scaleX(1);
++}
++
++.tripLink {
++  justify-self: end;
++  padding: 11px 15px;
++  border: 1px solid rgb(244 240 232 / 52%);
++}
++
++.header[data-scrolled='true'] .tripLink {
++  border-color: rgb(16 16 15 / 30%);
++}
++
++.brand:focus-visible,
++.navLink:focus-visible,
++.tripLink:focus-visible {
++  outline: 2px solid var(--sand);
++  outline-offset: 5px;
++}
++
++@media (max-width: 900px) {
++  .inner {
++    width: min(calc(100% - 40px), var(--content-max));
++    grid-template-columns: 1fr auto;
++    gap: 8px 24px;
++    padding: 14px 0 12px;
++  }
++
++  .nav {
++    grid-column: 1 / -1;
++    grid-row: 2;
++    justify-content: flex-start;
++    gap: 25px;
++    overflow-x: auto;
++    padding: 4px 0 10px;
++    scrollbar-width: none;
++  }
++
++  .nav::-webkit-scrollbar {
++    display: none;
++  }
++
++  .navLink {
++    font-size: 13px;
++  }
++
++  .navLink::after {
++    bottom: -8px;
++  }
++}
++
++@media (max-width: 520px) {
++  .inner {
++    width: calc(100% - 32px);
++  }
++
++  .brandChinese {
++    font-size: 21px;
++  }
++
++  .brandLatin {
++    font-size: 14px;
++  }
++
++  .tripLink {
++    padding: 8px 10px;
++    font-size: 13px;
++  }
++}
+diff --git a/src/components/site-header.tsx b/src/components/site-header.tsx
+new file mode 100644
+index 0000000..6bb4cf7
+--- /dev/null
++++ b/src/components/site-header.tsx
+@@ -0,0 +1,62 @@
++'use client';
++
++import Link from 'next/link';
++import { useEffect, useState } from 'react';
++import styles from './site-header.module.css';
++
++const primaryLinks = [
++  { href: '/', label: '首页' },
++  { href: '/compare', label: '真实比价' },
++  { href: '/square', label: '灵感广场' },
++  { href: '/partners', label: '寻找搭子' },
++  { href: '/guardian/demo', label: '行程守护' },
++] as const;
++
++type SiteHeaderProps = {
++  activePath?: string;
++};
++
++export function SiteHeader({ activePath = '/' }: SiteHeaderProps) {
++  const [hasScrolled, setHasScrolled] = useState(false);
++
++  useEffect(() => {
++    const updateHeader = () => setHasScrolled(window.scrollY > 48);
++    updateHeader();
++    window.addEventListener('scroll', updateHeader, { passive: true });
++    return () => window.removeEventListener('scroll', updateHeader);
++  }, []);
++
++  return (
++    <header
++      className={styles.header}
++      data-scrolled={hasScrolled ? 'true' : 'false'}
++    >
++      <div className={styles.inner}>
++        <Link className={styles.brand} href="/" aria-label="行屿 XINGYU">
++          <span className={styles.brandChinese}>行屿</span>
++          <span className={styles.brandLatin}>XINGYU</span>
++        </Link>
++
++        <nav className={styles.nav} aria-label="主导航">
++          {primaryLinks.map((link) => {
++            const isCurrent = activePath === link.href;
++            return (
++              <Link
++                className={styles.navLink}
++                href={link.href}
++                key={link.href}
++                aria-current={isCurrent ? 'page' : undefined}
++              >
++                {link.label}
++              </Link>
++            );
++          })}
++        </nav>
++
++        <Link className={styles.tripLink} href="/trips/demo">
++          我的行程
++        </Link>
++      </div>
++    </header>
++  );
++}
+diff --git a/src/features/home/featured-destinations.module.css b/src/features/home/featured-destinations.module.css
+new file mode 100644
+index 0000000..ec5bc03
+--- /dev/null
++++ b/src/features/home/featured-destinations.module.css
+@@ -0,0 +1,160 @@
++.section {
++  position: relative;
++  display: grid;
++  grid-template-columns: minmax(260px, 0.76fr) 2fr;
++  gap: clamp(36px, 5vw, 76px);
++  width: min(calc(100% - 80px), var(--content-max));
++  margin: 0 auto;
++  padding: 72px 0 84px;
++  color: var(--ivory);
++}
++
++.section::before {
++  content: '';
++  position: absolute;
++  z-index: -1;
++  top: 0;
++  bottom: 0;
++  left: 50%;
++  width: 100vw;
++  background: #141514;
++  transform: translateX(-50%);
++}
++
++.intro {
++  align-self: center;
++}
++
++.intro > p {
++  margin: 0 0 22px;
++  color: var(--sand);
++  font-size: 10px;
++  letter-spacing: 0.24em;
++}
++
++.intro h2 {
++  margin: 0;
++  font-family: var(--font-display);
++  font-size: clamp(30px, 3vw, 42px);
++  font-weight: 400;
++  line-height: 1.4;
++  letter-spacing: 0.06em;
++}
++
++.intro > span {
++  display: block;
++  margin-top: 18px;
++  color: rgb(244 240 232 / 65%);
++  font-size: 15px;
++  line-height: 1.8;
++}
++
++.intro::after {
++  content: '';
++  display: block;
++  width: 34px;
++  height: 1px;
++  margin-top: 27px;
++  background: var(--sand);
++}
++
++.destinations {
++  display: grid;
++  grid-template-columns: repeat(2, minmax(0, 1fr));
++  gap: 18px;
++}
++
++.card {
++  position: relative;
++  min-height: 310px;
++  overflow: hidden;
++  border-radius: 2px;
++  background: var(--pine);
++}
++
++.destinationImage {
++  object-fit: cover;
++  transition: transform 700ms cubic-bezier(0.2, 0.8, 0.2, 1);
++}
++
++.card:hover .destinationImage {
++  transform: scale(1.035);
++}
++
++.cardScrim {
++  position: absolute;
++  inset: 0;
++  background: rgb(3 6 5 / 17%);
++  box-shadow: inset 0 -190px 120px rgb(3 6 5 / 72%);
++}
++
++.cardCopy {
++  position: absolute;
++  right: 30px;
++  bottom: 25px;
++  left: 30px;
++  color: var(--ivory);
++  transition: transform 300ms ease;
++}
++
++.card:hover .cardCopy {
++  transform: translateY(-5px);
++}
++
++.cardCopy h3 {
++  margin: 0 0 7px;
++  font-family: var(--font-display);
++  font-size: 24px;
++  font-weight: 500;
++  letter-spacing: 0.06em;
++}
++
++.cardCopy p {
++  margin: 0;
++  color: rgb(244 240 232 / 77%);
++  font-size: 13px;
++  letter-spacing: 0.06em;
++}
++
++.cardCopy a {
++  display: inline-flex;
++  margin-top: 18px;
++  color: inherit;
++}
++
++.cardCopy a:focus-visible {
++  outline: 2px solid var(--sand);
++  outline-offset: 5px;
++}
++
++@media (max-width: 900px) {
++  .section {
++    grid-template-columns: 1fr;
++  }
++
++  .intro {
++    max-width: 540px;
++  }
++}
++
++@media (max-width: 680px) {
++  .section {
++    width: calc(100% - 32px);
++    padding: 56px 0 64px;
++  }
++
++  .destinations {
++    grid-template-columns: 1fr;
++  }
++
++  .card {
++    min-height: 300px;
++  }
++}
++
++@media (prefers-reduced-motion: reduce) {
++  .destinationImage,
++  .cardCopy {
++    transition: none;
++  }
++}
+diff --git a/src/features/home/featured-destinations.tsx b/src/features/home/featured-destinations.tsx
+new file mode 100644
+index 0000000..e99afe9
+--- /dev/null
++++ b/src/features/home/featured-destinations.tsx
+@@ -0,0 +1,64 @@
++'use client';
++
++import { ArrowRight } from '@phosphor-icons/react';
++import { motion, useReducedMotion } from 'motion/react';
++import Image from 'next/image';
++import Link from 'next/link';
++import { brandAssets } from '@/data/assets';
++import styles from './featured-destinations.module.css';
++
++const destinations = [
++  {
++    title: '川西秘境',
++    description: '雪山湖泊，秋色铺满高原',
++    image: brandAssets.sichuan,
++    href: '/compare?kind=ticket&destination=%E5%B7%9D%E8%A5%BF&from=2026-09-18&to=2026-09-24&travelers=2',
++  },
++  {
++    title: '桂林山水',
++    description: '江作青罗带，山如碧玉簪',
++    image: brandAssets.guilin,
++    href: '/compare?kind=ticket&destination=%E6%A1%82%E6%9E%97&from=2026-10-02&to=2026-10-06&travelers=2',
++  },
++] as const;
++
++export function FeaturedDestinations() {
++  const reduceMotion = useReducedMotion();
++
++  return (
++    <section className={styles.section} aria-labelledby="featured-title">
++      <div className={styles.intro}>
++        <p>SEASONAL EDIT</p>
++        <h2 id="featured-title">今秋值得出发的地方</h2>
++        <span>在山海之间，遇见更辽阔的自己</span>
++      </div>
++
++      <div className={styles.destinations}>
++        {destinations.map((destination) => (
++          <motion.article
++            className={styles.card}
++            key={destination.title}
++            whileHover={reduceMotion ? undefined : { y: -8 }}
++            transition={{ duration: 0.32, ease: 'easeOut' }}
++          >
++            <Image
++              alt={destination.image.alt}
++              className={styles.destinationImage}
++              fill
++              sizes="(max-width: 760px) 100vw, 38vw"
++              src={destination.image.src}
++            />
++            <div className={styles.cardScrim} aria-hidden />
++            <div className={styles.cardCopy}>
++              <h3>{destination.title}</h3>
++              <p>{destination.description}</p>
++              <Link href={destination.href} aria-label={`探索${destination.title}`}>
++                <ArrowRight aria-hidden size={25} weight="light" />
++              </Link>
++            </div>
++          </motion.article>
++        ))}
++      </div>
++    </section>
++  );
++}
+diff --git a/src/features/home/hero.module.css b/src/features/home/hero.module.css
+new file mode 100644
+index 0000000..9916443
+--- /dev/null
++++ b/src/features/home/hero.module.css
+@@ -0,0 +1,203 @@
++.hero {
++  position: relative;
++  min-height: 820px;
++  overflow: hidden;
++  color: var(--ivory);
++  background: #171a18;
++}
++
++.imageLayer {
++  position: absolute;
++  inset: -44px 0;
++}
++
++.image {
++  object-fit: cover;
++  object-position: center 54%;
++  transform: scale(1.035);
++}
++
++.scrim {
++  position: absolute;
++  inset: 0;
++  background: rgb(5 7 6 / 25%);
++  box-shadow:
++    inset 340px 0 210px rgb(5 7 6 / 46%),
++    inset 0 -250px 170px rgb(5 7 6 / 54%);
++}
++
++.copy {
++  position: absolute;
++  z-index: 2;
++  top: 174px;
++  left: clamp(24px, 7.5vw, 112px);
++  width: min(710px, 60vw);
++}
++
++.eyebrow {
++  margin: 0 0 25px;
++  color: rgb(244 240 232 / 70%);
++  font-size: 11px;
++  letter-spacing: 0.24em;
++}
++
++.copy h1 {
++  margin: 0;
++  font-family: var(--font-display);
++  font-size: clamp(44px, 4.2vw, 68px);
++  font-weight: 400;
++  line-height: 1.38;
++  letter-spacing: 0.06em;
++  text-wrap: balance;
++  text-shadow: 0 3px 22px rgb(0 0 0 / 25%);
++}
++
++.description {
++  margin: 26px 0 0;
++  color: rgb(244 240 232 / 79%);
++  font-size: 17px;
++  line-height: 1.9;
++  letter-spacing: 0.08em;
++}
++
++.route {
++  position: absolute;
++  z-index: 2;
++  top: 285px;
++  right: clamp(28px, 7vw, 104px);
++  display: flex;
++  align-items: center;
++  gap: 10px;
++  width: min(250px, 23vw);
++  color: rgb(244 240 232 / 72%);
++  font-size: 12px;
++  letter-spacing: 0.08em;
++}
++
++.route strong {
++  display: block;
++  margin-top: 2px;
++  color: var(--ivory);
++  font-family: var(--font-display);
++  font-size: 15px;
++  font-weight: 500;
++}
++
++.routeRule {
++  flex: 1;
++  height: 1px;
++  background: rgb(244 240 232 / 42%);
++}
++
++.searchArea {
++  position: absolute;
++  z-index: 3;
++  right: 0;
++  bottom: 42px;
++  left: 0;
++  display: flex;
++  flex-direction: column;
++  align-items: center;
++}
++
++.trustLine {
++  display: flex;
++  align-items: center;
++  gap: 8px;
++  margin: 18px 0 0;
++  color: rgb(244 240 232 / 70%);
++  font-size: 13px;
++  letter-spacing: 0.08em;
++}
++
++@media (max-width: 900px) {
++  .hero {
++    min-height: 980px;
++  }
++
++  .copy {
++    top: 160px;
++    width: min(760px, calc(100% - 48px));
++  }
++
++  .route {
++    top: 390px;
++    width: 230px;
++  }
++}
++
++@media (max-width: 720px) {
++  .hero {
++    min-height: 1120px;
++  }
++
++  .imageLayer {
++    inset: 0;
++    transform: none !important;
++  }
++
++  .image {
++    object-position: 62% center;
++    transform: none;
++  }
++
++  .scrim {
++    background: rgb(5 7 6 / 34%);
++    box-shadow:
++      inset 120px 0 110px rgb(5 7 6 / 37%),
++      inset 0 -360px 190px rgb(5 7 6 / 65%);
++  }
++
++  .copy {
++    top: 184px;
++    left: 24px;
++  }
++
++  .eyebrow {
++    margin-bottom: 18px;
++  }
++
++  .copy h1 {
++    font-size: clamp(35px, 10vw, 49px);
++    line-height: 1.42;
++  }
++
++  .description {
++    margin-top: 20px;
++    font-size: 15px;
++  }
++
++  .route {
++    top: 430px;
++    right: 24px;
++    width: 210px;
++  }
++
++  .searchArea {
++    bottom: 28px;
++  }
++}
++
++@media (max-width: 450px) {
++  .hero {
++    min-height: 1180px;
++  }
++
++  .copy {
++    top: 178px;
++  }
++
++  .copy h1 {
++    font-size: 34px;
++  }
++
++  .route {
++    top: 438px;
++  }
++
++  .trustLine {
++    max-width: calc(100% - 40px);
++    text-align: center;
++    font-size: 11px;
++  }
++}
+diff --git a/src/features/home/hero.tsx b/src/features/home/hero.tsx
+new file mode 100644
+index 0000000..c3ab682
+--- /dev/null
++++ b/src/features/home/hero.tsx
+@@ -0,0 +1,68 @@
++'use client';
++
++import { MapPin, ShieldCheck } from '@phosphor-icons/react';
++import { motion, useReducedMotion, useScroll, useTransform } from 'motion/react';
++import Image from 'next/image';
++import { brandAssets } from '@/data/assets';
++import { SearchComposer } from './search-composer';
++import styles from './hero.module.css';
++
++export function Hero() {
++  const reduceMotion = useReducedMotion();
++  const { scrollY } = useScroll();
++  const imageY = useTransform(scrollY, [0, 820], [0, 44]);
++
++  return (
++    <section className={styles.hero} aria-labelledby="hero-title">
++      <motion.div
++        className={styles.imageLayer}
++        style={reduceMotion ? undefined : { y: imageY }}
++      >
++        <Image
++          alt={brandAssets.hero.alt}
++          className={styles.image}
++          fill
++          priority
++          sizes="100vw"
++          src={brandAssets.hero.src}
++        />
++      </motion.div>
++      <div className={styles.scrim} aria-hidden />
++
++      <motion.div
++        animate={{ opacity: 1, y: 0 }}
++        className={styles.copy}
++        initial={reduceMotion ? false : { opacity: 0, y: 18 }}
++        transition={{ duration: reduceMotion ? 0 : 0.8, ease: 'easeOut' }}
++      >
++        <p className={styles.eyebrow}>XINGYU · TRAVEL WITH CLARITY</p>
++        <h1 id="hero-title">
++          把远方，<br />
++          变成一段安心抵达的旅程
++        </h1>
++        <p className={styles.description}>
++          真实比价，严选资源，行程守护
++          <br />
++          每一步，都有可靠的答案
++        </p>
++      </motion.div>
++
++      <div className={styles.route} aria-label="目的地路径：大理至丽江">
++        <MapPin aria-hidden size={19} weight="light" />
++        <span>大理</span>
++        <span className={styles.routeRule} aria-hidden />
++        <span>
++          下一站 <strong>丽江</strong>
++        </span>
++      </div>
++
++      <div className={styles.searchArea}>
++        <SearchComposer />
++        <p className={styles.trustLine}>
++          <ShieldCheck aria-hidden size={18} weight="light" />
++          含税总价 · 条件可比 · 数据更新时间可见
++        </p>
++      </div>
++    </section>
++  );
++}
+diff --git a/src/features/home/search-composer.module.css b/src/features/home/search-composer.module.css
+new file mode 100644
+index 0000000..c4f2fa8
+--- /dev/null
++++ b/src/features/home/search-composer.module.css
+@@ -0,0 +1,218 @@
++.composer {
++  width: min(calc(100% - 64px), 1220px);
++  color: var(--ink);
++  border-radius: 12px;
++  background: rgb(244 240 232 / 96%);
++  box-shadow: 0 24px 70px rgb(0 0 0 / 31%);
++  backdrop-filter: blur(16px);
++}
++
++.tabs {
++  position: relative;
++  display: flex;
++  gap: 42px;
++  min-height: 58px;
++  padding: 0 24px;
++  border-bottom: 1px solid rgb(16 16 15 / 12%);
++}
++
++.tab {
++  position: relative;
++  display: inline-flex;
++  align-items: center;
++  gap: 8px;
++  padding: 0 2px;
++  color: rgb(16 16 15 / 62%);
++  border: 0;
++  background: transparent;
++  cursor: pointer;
++}
++
++.tab::after {
++  content: '';
++  position: absolute;
++  right: 0;
++  bottom: -1px;
++  left: 0;
++  height: 2px;
++  background: var(--ink);
++  transform: scaleX(0);
++  transition: transform 200ms ease;
++}
++
++.tab[aria-selected='true'] {
++  color: var(--ink);
++}
++
++.tab[aria-selected='true']::after {
++  transform: scaleX(1);
++}
++
++.tab:focus-visible,
++.submit:focus-visible,
++.fields input:focus-visible,
++.fields select:focus-visible {
++  outline: 2px solid var(--sand);
++  outline-offset: 3px;
++}
++
++.fields {
++  display: grid;
++  grid-template-columns: minmax(215px, 1.2fr) minmax(340px, 1.65fr) minmax(150px, 0.72fr) 206px;
++  gap: 0;
++  padding: 12px 18px 16px;
++}
++
++.fields > label,
++.dates {
++  min-width: 0;
++  padding: 9px 22px;
++  border-right: 1px solid rgb(16 16 15 / 13%);
++}
++
++.fields label > span:first-child,
++.dates label > span:first-child {
++  display: block;
++  margin-bottom: 4px;
++  color: rgb(16 16 15 / 52%);
++  font-size: 11px;
++  letter-spacing: 0.1em;
++}
++
++.controlRow {
++  display: flex;
++  align-items: center;
++  gap: 11px;
++}
++
++.fields input,
++.fields select {
++  min-width: 0;
++  width: 100%;
++  padding: 2px 0;
++  color: var(--ink);
++  border: 0;
++  border-radius: 0;
++  background: transparent;
++  font-size: 16px;
++}
++
++.fields select {
++  appearance: none;
++  cursor: pointer;
++}
++
++.dates {
++  display: grid;
++  grid-template-columns: auto minmax(115px, 1fr) auto minmax(115px, 1fr);
++  align-items: center;
++  gap: 12px;
++}
++
++.dateDash {
++  color: rgb(16 16 15 / 38%);
++}
++
++.submit {
++  display: flex;
++  align-items: center;
++  justify-content: space-between;
++  min-height: 68px;
++  margin-left: 12px;
++  padding: 0 28px;
++  color: var(--ivory);
++  border: 1px solid var(--ink);
++  border-radius: 4px;
++  background: var(--ink);
++  font-size: 17px;
++  letter-spacing: 0.08em;
++  cursor: pointer;
++  transition:
++    color 180ms ease,
++    background-color 180ms ease;
++}
++
++.submit:hover {
++  color: var(--ink);
++  background: var(--sand);
++}
++
++@media (max-width: 1050px) {
++  .fields {
++    grid-template-columns: 1fr 1.6fr 0.72fr;
++  }
++
++  .submit {
++    grid-column: 1 / -1;
++    min-height: 58px;
++    margin: 14px 0 0;
++  }
++
++  .travelersField {
++    border-right: 0 !important;
++  }
++}
++
++@media (max-width: 720px) {
++  .composer {
++    width: calc(100% - 32px);
++  }
++
++  .tabs {
++    justify-content: space-between;
++    gap: 10px;
++    min-height: 54px;
++    padding: 0 17px;
++  }
++
++  .fields {
++    display: flex;
++    flex-direction: column;
++    padding: 8px 16px 16px;
++  }
++
++  .fields > label,
++  .dates {
++    min-height: 68px;
++    padding: 10px 4px;
++    border-right: 0;
++    border-bottom: 1px solid rgb(16 16 15 / 13%);
++  }
++
++  .dates {
++    grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr);
++    gap: 8px;
++  }
++
++  .fields[data-kind='ticket'] .dates {
++    grid-template-columns: auto 1fr;
++  }
++
++  .fields input,
++  .fields select {
++    font-size: 15px;
++  }
++
++  .submit {
++    min-height: 56px;
++  }
++}
++
++@media (max-width: 450px) {
++  .tab {
++    gap: 5px;
++    font-size: 14px;
++  }
++
++  .dates {
++    grid-template-columns: auto minmax(0, 1fr);
++  }
++
++  .dateDash {
++    display: none;
++  }
++
++  .dates label:last-child {
++    grid-column: 2;
++  }
++}
+diff --git a/src/features/home/search-composer.tsx b/src/features/home/search-composer.tsx
+new file mode 100644
+index 0000000..c88e4e6
+--- /dev/null
++++ b/src/features/home/search-composer.tsx
+@@ -0,0 +1,232 @@
++'use client';
++
++import {
++  AirplaneTilt,
++  ArrowRight,
++  Buildings,
++  CalendarBlank,
++  CaretDown,
++  MapPin,
++  Ticket,
++  UsersThree,
++} from '@phosphor-icons/react';
++import { motion, useReducedMotion } from 'motion/react';
++import { useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
++import styles from './search-composer.module.css';
++
++export type ProductKind = 'flight' | 'hotel' | 'ticket';
++
++export type HomeSearch = {
++  kind: ProductKind;
++  destination: string;
++  from: string;
++  to: string;
++  travelers: number;
++};
++
++type SearchComposerProps = {
++  onSubmit?: (search: HomeSearch) => void;
++};
++
++const kinds = [
++  { id: 'flight', label: '机票', icon: AirplaneTilt },
++  { id: 'hotel', label: '酒店', icon: Buildings },
++  { id: 'ticket', label: '门票', icon: Ticket },
++] as const;
++
++const fieldLabels: Record<
++  ProductKind,
++  { destination: string; from: string; to?: string; travelers: string }
++> = {
++  flight: {
++    destination: '到达地',
++    from: '出发日期',
++    to: '返程日期',
++    travelers: '乘机人',
++  },
++  hotel: {
++    destination: '入住地',
++    from: '入住日期',
++    to: '退房日期',
++    travelers: '住客',
++  },
++  ticket: {
++    destination: '游玩地',
++    from: '游玩日期',
++    travelers: '游客',
++  },
++};
++
++export function buildComparisonHref(search: HomeSearch) {
++  const params = new URLSearchParams({
++    kind: search.kind,
++    destination: search.destination,
++    from: search.from,
++    to: search.to,
++    travelers: String(search.travelers),
++  });
++  return `/compare?${params.toString()}`;
++}
++
++function navigateToComparison(search: HomeSearch) {
++  if (typeof window !== 'undefined') {
++    window.location.assign(buildComparisonHref(search));
++  }
++}
++
++export function SearchComposer({
++  onSubmit = navigateToComparison,
++}: SearchComposerProps) {
++  const [kind, setKind] = useState<ProductKind>('flight');
++  const [destination, setDestination] = useState('大理');
++  const [from, setFrom] = useState('2026-08-22');
++  const [to, setTo] = useState('2026-08-27');
++  const [travelers, setTravelers] = useState('2');
++  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
++  const reduceMotion = useReducedMotion();
++  const labels = fieldLabels[kind];
++
++  function selectAdjacentTab(event: KeyboardEvent<HTMLButtonElement>, index: number) {
++    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
++    event.preventDefault();
++
++    let nextIndex = index;
++    if (event.key === 'ArrowRight') nextIndex = (index + 1) % kinds.length;
++    if (event.key === 'ArrowLeft') nextIndex = (index - 1 + kinds.length) % kinds.length;
++    if (event.key === 'Home') nextIndex = 0;
++    if (event.key === 'End') nextIndex = kinds.length - 1;
++
++    const nextKind = kinds[nextIndex];
++    setKind(nextKind.id);
++    tabRefs.current[nextIndex]?.focus();
++  }
++
++  function submitSearch(event: FormEvent<HTMLFormElement>) {
++    event.preventDefault();
++    onSubmit({
++      kind,
++      destination: destination.trim(),
++      from,
++      to,
++      travelers: Number(travelers),
++    });
++  }
++
++  return (
++    <form className={styles.composer} onSubmit={submitSearch}>
++      <div className={styles.tabs} role="tablist" aria-label="比价类型">
++        {kinds.map((item, index) => {
++          const Icon = item.icon;
++          const selected = kind === item.id;
++          return (
++            <button
++              aria-controls="home-search-fields"
++              aria-selected={selected}
++              className={styles.tab}
++              id={`search-tab-${item.id}`}
++              key={item.id}
++              onClick={() => setKind(item.id)}
++              onKeyDown={(event) => selectAdjacentTab(event, index)}
++              ref={(element) => {
++                tabRefs.current[index] = element;
++              }}
++              role="tab"
++              tabIndex={selected ? 0 : -1}
++              type="button"
++            >
++              <Icon aria-hidden size={20} weight="light" />
++              {item.label}
++            </button>
++          );
++        })}
++      </div>
++
++      <motion.div
++        animate={{ opacity: 1, x: 0 }}
++        aria-labelledby={`search-tab-${kind}`}
++        className={styles.fields}
++        data-kind={kind}
++        id="home-search-fields"
++        initial={reduceMotion ? false : { opacity: 0.72, x: 10 }}
++        key={kind}
++        role="tabpanel"
++        transition={{ duration: reduceMotion ? 0 : 0.2, ease: 'easeOut' }}
++      >
++        <label className={styles.destinationField}>
++          <span>{labels.destination}</span>
++          <span className={styles.controlRow}>
++            <MapPin aria-hidden size={22} weight="light" />
++            <input
++              autoComplete="address-level2"
++              name="destination"
++              onChange={(event) => setDestination(event.target.value)}
++              required
++              type="text"
++              value={destination}
++            />
++            <CaretDown aria-hidden size={16} />
++          </span>
++        </label>
++
++        <div className={styles.dates}>
++          <CalendarBlank aria-hidden size={22} weight="light" />
++          <label>
++            <span>{labels.from}</span>
++            <input
++              name="from"
++              onChange={(event) => setFrom(event.target.value)}
++              required
++              type="date"
++              value={from}
++            />
++          </label>
++          {labels.to ? (
++            <>
++              <span className={styles.dateDash} aria-hidden>
++                —
++              </span>
++              <label>
++                <span>{labels.to}</span>
++                <input
++                  min={from}
++                  name="to"
++                  onChange={(event) => setTo(event.target.value)}
++                  required
++                  type="date"
++                  value={to}
++                />
++              </label>
++            </>
++          ) : (
++            <input name="to" type="hidden" value={to} />
++          )}
++        </div>
++
++        <label className={styles.travelersField}>
++          <span>{labels.travelers}</span>
++          <span className={styles.controlRow}>
++            <UsersThree aria-hidden size={22} weight="light" />
++            <select
++              name="travelers"
++              onChange={(event) => setTravelers(event.target.value)}
++              value={travelers}
++            >
++              <option value="1">1 位</option>
++              <option value="2">2 位</option>
++              <option value="3">3 位</option>
++              <option value="4">4 位</option>
++              <option value="5">5 位</option>
++              <option value="6">6 位</option>
++            </select>
++            <CaretDown aria-hidden size={16} />
++          </span>
++        </label>
++
++        <button className={styles.submit} type="submit">
++          <span>开始规划</span>
++          <ArrowRight aria-hidden size={22} weight="light" />
++        </button>
++      </motion.div>
++    </form>
++  );
++}
+diff --git a/src/test/setup.ts b/src/test/setup.ts
+index bb02c60..1443952 100644
+--- a/src/test/setup.ts
++++ b/src/test/setup.ts
+@@ -1 +1,5 @@
+ import '@testing-library/jest-dom/vitest';
++import { cleanup } from '@testing-library/react';
++import { afterEach } from 'vitest';
++
++afterEach(() => cleanup());
+diff --git a/tests/component/search-composer.test.tsx b/tests/component/search-composer.test.tsx
+new file mode 100644
+index 0000000..0e66d04
+--- /dev/null
++++ b/tests/component/search-composer.test.tsx
+@@ -0,0 +1,87 @@
++import { render, screen } from '@testing-library/react';
++import userEvent from '@testing-library/user-event';
++import { expect, it, vi } from 'vitest';
++import {
++  buildComparisonHref,
++  SearchComposer,
++} from '@/features/home/search-composer';
++
++it('exposes the flight search as the selected accessible tab by default', () => {
++  render(<SearchComposer onSubmit={vi.fn()} />);
++
++  expect(screen.getByRole('tablist', { name: '比价类型' })).toBeInTheDocument();
++  expect(screen.getByRole('tab', { name: '机票' })).toHaveAttribute(
++    'aria-selected',
++    'true',
++  );
++  expect(screen.getByLabelText('到达地')).toHaveValue('大理');
++  expect(screen.getByLabelText('出发日期')).toHaveValue('2026-08-22');
++  expect(screen.getByLabelText('返程日期')).toHaveValue('2026-08-27');
++  expect(screen.getByLabelText('乘机人')).toHaveValue('2');
++});
++
++it('changes product-specific field labels when a different tab is selected', async () => {
++  const user = userEvent.setup();
++  render(<SearchComposer onSubmit={vi.fn()} />);
++
++  await user.click(screen.getByRole('tab', { name: '酒店' }));
++  expect(screen.getByLabelText('入住地')).toBeInTheDocument();
++  expect(screen.getByLabelText('入住日期')).toBeInTheDocument();
++  expect(screen.getByLabelText('退房日期')).toBeInTheDocument();
++  expect(screen.getByLabelText('住客')).toBeInTheDocument();
++
++  await user.click(screen.getByRole('tab', { name: '门票' }));
++  expect(screen.getByLabelText('游玩地')).toBeInTheDocument();
++  expect(screen.getByLabelText('游玩日期')).toBeInTheDocument();
++  expect(screen.queryByLabelText('返程日期')).not.toBeInTheDocument();
++  expect(screen.getByLabelText('游客')).toBeInTheDocument();
++});
++
++it('supports arrow-key movement between search tabs', async () => {
++  const user = userEvent.setup();
++  render(<SearchComposer onSubmit={vi.fn()} />);
++
++  const flightTab = screen.getByRole('tab', { name: '机票' });
++  flightTab.focus();
++  await user.keyboard('{ArrowRight}');
++
++  expect(screen.getByRole('tab', { name: '酒店' })).toHaveFocus();
++  expect(screen.getByRole('tab', { name: '酒店' })).toHaveAttribute(
++    'aria-selected',
++    'true',
++  );
++});
++
++it('submits the active product kind and edited destination', async () => {
++  const user = userEvent.setup();
++  const onSubmit = vi.fn();
++  render(<SearchComposer onSubmit={onSubmit} />);
++
++  await user.click(screen.getByRole('tab', { name: '酒店' }));
++  const destination = screen.getByLabelText('入住地');
++  await user.clear(destination);
++  await user.type(destination, '大理古城');
++  await user.click(screen.getByRole('button', { name: '开始规划' }));
++
++  expect(onSubmit).toHaveBeenCalledWith({
++    kind: 'hotel',
++    destination: '大理古城',
++    from: '2026-08-22',
++    to: '2026-08-27',
++    travelers: 2,
++  });
++});
++
++it('builds the exact encoded comparison route used by default submission', () => {
++  expect(
++    buildComparisonHref({
++      kind: 'flight',
++      destination: '大理',
++      from: '2026-08-22',
++      to: '2026-08-27',
++      travelers: 2,
++    }),
++  ).toBe(
++    '/compare?kind=flight&destination=%E5%A4%A7%E7%90%86&from=2026-08-22&to=2026-08-27&travelers=2',
++  );
++});
+diff --git a/tests/component/site-header.test.tsx b/tests/component/site-header.test.tsx
+new file mode 100644
+index 0000000..a3dd12f
+--- /dev/null
++++ b/tests/component/site-header.test.tsx
+@@ -0,0 +1,49 @@
++import { render, screen } from '@testing-library/react';
++import { expect, it } from 'vitest';
++import { SiteHeader } from '@/components/site-header';
++
++it('renders usable primary navigation with the homepage marked current', () => {
++  render(<SiteHeader activePath="/" />);
++
++  expect(screen.getByRole('navigation', { name: '主导航' })).toBeInTheDocument();
++  expect(screen.getByRole('link', { name: '行屿 XINGYU' })).toHaveAttribute(
++    'href',
++    '/',
++  );
++  expect(screen.getByRole('link', { name: '首页' })).toHaveAttribute(
++    'aria-current',
++    'page',
++  );
++  expect(screen.getByRole('link', { name: '真实比价' })).toHaveAttribute(
++    'href',
++    '/compare',
++  );
++  expect(screen.getByRole('link', { name: '灵感广场' })).toHaveAttribute(
++    'href',
++    '/square',
++  );
++  expect(screen.getByRole('link', { name: '寻找搭子' })).toHaveAttribute(
++    'href',
++    '/partners',
++  );
++  expect(screen.getByRole('link', { name: '行程守护' })).toHaveAttribute(
++    'href',
++    '/guardian/demo',
++  );
++  expect(screen.getByRole('link', { name: '我的行程' })).toHaveAttribute(
++    'href',
++    '/trips/demo',
++  );
++});
++
++it('marks only the matching route as current', () => {
++  render(<SiteHeader activePath="/partners" />);
++
++  expect(screen.getByRole('link', { name: '寻找搭子' })).toHaveAttribute(
++    'aria-current',
++    'page',
++  );
++  expect(screen.getByRole('link', { name: '首页' })).not.toHaveAttribute(
++    'aria-current',
++  );
++});

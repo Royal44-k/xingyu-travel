@@ -1,0 +1,12 @@
+
+Running 7 tests using 1 worker
+
+  ok 1 [chromium] › tests\e2e\responsive.spec.ts:24:3 › mobile public MVP › mobile navigation is available without horizontal overflow (1.1s)
+  ok 2 [chromium] › tests\e2e\responsive.spec.ts:42:5 › mobile public MVP › does not horizontally overflow on /compare?kind=flight&destination=%E5%A4%A7%E7%90%86&from=2026-08-22&to=2026-08-27&travelers=2 (797ms)
+  ok 3 [chromium] › tests\e2e\responsive.spec.ts:42:5 › mobile public MVP › does not horizontally overflow on /square (963ms)
+  ok 4 [chromium] › tests\e2e\responsive.spec.ts:42:5 › mobile public MVP › does not horizontally overflow on /trips/dali-slow-5d (968ms)
+  ok 5 [chromium] › tests\e2e\responsive.spec.ts:42:5 › mobile public MVP › does not horizontally overflow on /partners (1.0s)
+  ok 6 [chromium] › tests\e2e\responsive.spec.ts:42:5 › mobile public MVP › does not horizontally overflow on /assistant (807ms)
+  ok 7 [chromium] › tests\e2e\responsive.spec.ts:42:5 › mobile public MVP › does not horizontally overflow on /guardian/dali-slow-5d (924ms)
+
+  7 passed (8.9s)

@@ -1,0 +1,331 @@
+# Review package: 812a9cd..c413cfe
+
+## Commits
+c413cfe fix: validate local library persistence
+
+## Files changed
+ src/stores/library-store.ts      | 43 ++++++++++++++++------
+ tests/unit/library-store.test.ts | 78 +++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 110 insertions(+), 11 deletions(-)
+
+## Diff
+diff --git a/src/stores/library-store.ts b/src/stores/library-store.ts
+index f90c123..c0b8c82 100644
+--- a/src/stores/library-store.ts
++++ b/src/stores/library-store.ts
+@@ -107,20 +107,25 @@ const persistedLibraryStateSchema = z.object({
+       context.addIssue({ code: 'custom', path: ['favoriteOffers', offerKey], message: 'snapshot key mismatch' });
+     }
+   }
+   for (const [offerKey, alert] of Object.entries(state.priceAlerts)) {
+     if (!state.favoriteOffers[offerKey] || alert.offerKey !== offerKey) {
+       context.addIssue({ code: 'custom', path: ['priceAlerts', offerKey], message: 'orphaned alert' });
+     }
+   }
+ });
+ 
++const persistedLibraryEnvelopeSchema = z.object({
++  state: persistedLibraryStateSchema,
++  version: z.literal(libraryStorageVersion),
++}).strict();
++
+ type PersistedLibraryState = Pick<
+   LibraryStoreState,
+   'likedPostSlugs' | 'favoriteOffers' | 'priceAlerts'
+ >;
+ 
+ function parseOfferIdentity(key: string): { provider: string; id: string } | undefined {
+   try {
+     const parsed: unknown = JSON.parse(key);
+     if (!Array.isArray(parsed) || parsed.length !== 2 ||
+       typeof parsed[0] !== 'string' || typeof parsed[1] !== 'string' ||
+@@ -130,59 +135,73 @@ function parseOfferIdentity(key: string): { provider: string; id: string } | und
+     return undefined;
+   }
+ }
+ 
+ function parsePersistedLibraryState(state: unknown): PersistedLibraryState {
+   const parsed = persistedLibraryStateSchema.safeParse(state);
+   if (parsed.success) return parsed.data;
+   throw new Error('LIBRARY_INVALID_PERSISTED_STATE');
+ }
+ 
++function parsePersistedLibraryEnvelope(value: unknown): { state: PersistedLibraryState; version: number } {
++  const parsed = persistedLibraryEnvelopeSchema.safeParse(value);
++  if (parsed.success) return parsed.data;
++  throw new Error('LIBRARY_INVALID_PERSISTED_ENVELOPE');
++}
++
++function canonicalText(raw: unknown, errorCode: 'LIBRARY_INVALID_OFFER' | 'LIBRARY_INVALID_POST_SLUG'): string {
++  const parsed = nonEmptyText.safeParse(raw);
++  if (parsed.success) return parsed.data;
++  throw new Error(errorCode);
++}
++
+ function snapshotFromOffer(offer: NormalizedOffer): FavoriteOfferSnapshot {
+-  const destination = offer.destination?.trim();
+-  const offerKey = offerIdentity(offer);
++  const provider = canonicalText(offer.provider, 'LIBRARY_INVALID_OFFER');
++  const id = canonicalText(offer.id, 'LIBRARY_INVALID_OFFER');
++  const destination = canonicalText(offer.destination, 'LIBRARY_INVALID_OFFER');
++  const offerKey = offerIdentity({ provider, id });
+   const observedAt = offer.updatedAt;
+   const observedAtMilliseconds = Date.parse(observedAt);
+-  if (!destination || !comparisonProductKinds.includes(offer.kind as ComparisonProductKind) ||
++  if (!comparisonProductKinds.includes(offer.kind as ComparisonProductKind) ||
+     !Number.isFinite(offer.totalPrice) || offer.totalPrice < 0 || Number.isNaN(observedAtMilliseconds) ||
+-    !z.string().datetime({ offset: true }).safeParse(observedAt).success ||
+-    !offer.provider.trim() || !offer.id.trim()) {
++    !isoTimestamp.safeParse(observedAt).success) {
+     throw new Error('LIBRARY_INVALID_OFFER');
+   }
+-  return {
++  const snapshot: FavoriteOfferSnapshot = {
+     key: offerKey,
+-    provider: offer.provider,
++    provider,
+     productKind: offer.kind as ComparisonProductKind,
+     destination,
+     totalPrice: offer.totalPrice,
+     currency: 'CNY',
+     policySummary: `${offer.refundable ? '可退款' : '不可退款'}｜${offer.baggageIncluded ? '含行李' : '不含行李'}`,
+     observedAt,
+     expiresAt: new Date(observedAtMilliseconds + validityWindowMilliseconds).toISOString(),
+   };
++  if (!favoriteOfferSnapshotSchema.safeParse(snapshot).success) throw new Error('LIBRARY_INVALID_OFFER');
++  return snapshot;
+ }
+ 
+ function omitRecordEntry<T>(record: Record<string, T>, key: string): Record<string, T> {
+   return Object.fromEntries(Object.entries(record).filter(([candidateKey]) => candidateKey !== key));
+ }
+ 
+ function stateCreator(
+   set: (recipe: (state: LibraryStoreState) => Partial<LibraryStoreState>) => void,
+   registerHydrationFailure?: (handler: () => void) => void,
+   allowPersistence?: () => void,
+ ): LibraryStoreState {
+   registerHydrationFailure?.(() => set(() => ({ ...initialLibraryState })));
+   return {
+     ...initialLibraryState,
+     togglePostLike: (rawSlug) => set((state) => {
+-      const slug = rawSlug.trim();
+-      if (!slug) throw new Error('LIBRARY_INVALID_POST_SLUG');
++      const slug = canonicalText(rawSlug, 'LIBRARY_INVALID_POST_SLUG');
+       if (state.likedPostSlugs.includes(slug)) {
+         return { likedPostSlugs: state.likedPostSlugs.filter((existingSlug) => existingSlug !== slug) };
+       }
+       if (state.likedPostSlugs.length >= maxLikedPostSlugs) throw new Error('LIBRARY_LIKED_POST_LIMIT');
+       return { likedPostSlugs: [...state.likedPostSlugs, slug] };
+     }),
+     saveOffer: (offer) => set((state) => {
+       const snapshot = snapshotFromOffer(offer);
+       if (!state.favoriteOffers[snapshot.key] && Object.keys(state.favoriteOffers).length >= maxFavoriteOffers) {
+         throw new Error('LIBRARY_FAVORITE_OFFER_LIMIT');
+@@ -254,21 +273,25 @@ function createPersistedLibraryState(options: CreateLibraryStoreOptions = {}) {
+       options.onHydrationError?.(error);
+       failClosed();
+     },
+   };
+ 
+   return persist<LibraryStoreState, [], [], PersistedLibraryState>(
+     (set) => stateCreator(set, (handler) => { failClosed = handler; }, allowPersistence),
+     {
+       ...persistenceOptions(safeOptions),
+       storage: {
+-        getItem: (name) => libraryStorage.getItem(name),
++        getItem: (name) => {
++          const value = libraryStorage.getItem(name);
++          if (value === null) return null;
++          return parsePersistedLibraryEnvelope(value);
++        },
+         setItem: (name, value) => (preserveMalformedBytes ? undefined : libraryStorage.setItem(name, value)),
+         removeItem: (name) => (preserveMalformedBytes ? undefined : libraryStorage.removeItem(name)),
+       },
+     },
+   );
+ }
+ 
+ export function createLibraryStore(options: CreateLibraryStoreOptions = {}) {
+   return createStore<LibraryStoreState>()(createPersistedLibraryState(options));
+ }
+diff --git a/tests/unit/library-store.test.ts b/tests/unit/library-store.test.ts
+index 29abedf..0f1a69d 100644
+--- a/tests/unit/library-store.test.ts
++++ b/tests/unit/library-store.test.ts
+@@ -1,14 +1,19 @@
+ import { beforeEach, describe, expect, it } from 'vitest';
+ import { offerIdentity } from '@/domain/comparison/offer-identity';
+ import type { NormalizedOffer } from '@/domain/comparison/types';
+-import { createLibraryStore } from '@/stores/library-store';
++import {
++  createLibraryStore,
++  hydrateLibraryStore,
++  useLibraryStore,
++  useLibraryStoreHydration,
++} from '@/stores/library-store';
+ 
+ const storageKey = 'xingyu-library-demo-v1';
+ 
+ beforeEach(() => window.localStorage.clear());
+ 
+ describe('liked guides', () => {
+   it('toggles a guide slug without duplicating it', () => {
+     const store = createLibraryStore();
+ 
+     store.getState().togglePostLike('sanya-coast-rainforest');
+@@ -18,20 +23,27 @@ describe('liked guides', () => {
+   });
+ 
+   it('enforces the 500 liked-guide limit', () => {
+     const store = createLibraryStore();
+ 
+     for (let index = 0; index < 500; index += 1) store.getState().togglePostLike(`guide-${index}`);
+ 
+     expect(() => store.getState().togglePostLike('guide-over-limit')).toThrow('LIBRARY_LIKED_POST_LIMIT');
+     expect(store.getState().likedPostSlugs).toHaveLength(500);
+   });
++
++  it.each(['   ', 'x'.repeat(501)])('rejects a slug that the persisted schema would reject: %s', (slug) => {
++    const store = createLibraryStore();
++
++    expect(() => store.getState().togglePostLike(slug)).toThrow('LIBRARY_INVALID_POST_SLUG');
++    expect(store.getState().likedPostSlugs).toEqual([]);
++  });
+ });
+ 
+ describe('favorite offer snapshots', () => {
+   it('uses offerIdentity so delimiter-containing provider and id pairs remain distinct', () => {
+     const store = createLibraryStore();
+     const first = makeOffer({ provider: 'a:b', id: 'same:id' });
+     const second = makeOffer({ provider: 'a', id: 'b:same:id' });
+ 
+     store.getState().saveOffer(first);
+     store.getState().saveOffer(second);
+@@ -71,20 +83,47 @@ describe('favorite offer snapshots', () => {
+     ['a non-comparison product kind', { kind: 'train' }],
+     ['a negative total price', { totalPrice: -1 }],
+     ['an invalid timestamp', { updatedAt: 'not-a-date' }],
+   ])('rejects %s instead of saving an invalid snapshot', (_label, patch) => {
+     const store = createLibraryStore();
+ 
+     expect(() => store.getState().saveOffer(makeOffer(patch))).toThrow('LIBRARY_INVALID_OFFER');
+     expect(store.getState().favoriteOffers).toEqual({});
+   });
+ 
++  it.each<[string, Partial<NormalizedOffer>]>([
++    ['a whitespace-only provider', { provider: '   ' }],
++    ['an oversized provider', { provider: 'p'.repeat(501) }],
++    ['a whitespace-only destination', { destination: '   ' }],
++    ['an oversized destination', { destination: 'd'.repeat(501) }],
++    ['an identity key longer than the persisted key limit', { provider: 'p'.repeat(300), id: 'i'.repeat(300) }],
++  ])('rejects %s before it can create an unrehydratable snapshot', (_label, patch) => {
++    const store = createLibraryStore();
++
++    expect(() => store.getState().saveOffer(makeOffer(patch))).toThrow('LIBRARY_INVALID_OFFER');
++    expect(store.getState().favoriteOffers).toEqual({});
++  });
++
++  it('canonicalizes surrounding provider and id whitespace before persisting the offer identity', async () => {
++    const source = createLibraryStore();
++    const offer = makeOffer({ provider: '  canonical-provider  ', id: '  canonical-id  ', destination: '  大理  ' });
++    await source.persist.rehydrate();
++
++    source.getState().saveOffer(offer);
++
++    const key = offerIdentity({ provider: 'canonical-provider', id: 'canonical-id' });
++    expect(source.getState().favoriteOffers[key]).toMatchObject({ provider: 'canonical-provider', destination: '大理' });
++    const rehydrated = createLibraryStore();
++    await rehydrated.persist.rehydrate();
++    expect(rehydrated.getState().favoriteOffers[key]).toMatchObject({ provider: 'canonical-provider', destination: '大理' });
++  });
++
+   it('enforces the 200 saved-offer limit without blocking replacement of an existing offer', () => {
+     const store = createLibraryStore();
+ 
+     for (let index = 0; index < 200; index += 1) {
+       store.getState().saveOffer(makeOffer({ provider: `provider-${index}`, id: `offer-${index}` }));
+     }
+     store.getState().saveOffer(makeOffer({ provider: 'provider-0', id: 'offer-0', totalPrice: 777 }));
+ 
+     expect(store.getState().favoriteOffers['["provider-0","offer-0"]'].totalPrice).toBe(777);
+     expect(() => store.getState().saveOffer(makeOffer({ provider: 'provider-over-limit', id: 'offer-over-limit' })))
+@@ -169,20 +208,53 @@ describe('persistence and recovery', () => {
+       version: 1,
+     });
+     window.localStorage.setItem(storageKey, malformedBytes);
+ 
+     await store.persist.rehydrate();
+ 
+     expect(store.getState().likedPostSlugs).toEqual([]);
+     expect(window.localStorage.getItem(storageKey)).toBe(malformedBytes);
+   });
+ 
++  it.each([
++    ['an envelope without state', { version: 1 }],
++    ['an envelope with an unknown key', { state: emptyPersistedState(), version: 1, unexpected: true }],
++    ['an envelope without a version', { state: emptyPersistedState() }],
++    ['an envelope with a non-numeric version', { state: emptyPersistedState(), version: '1' }],
++  ])('fails closed and preserves bytes for %s', async (_label, envelope) => {
++    let hydrationError = false;
++    const errorAwareStore = createLibraryStore({ onHydrationError: () => { hydrationError = true; } });
++    errorAwareStore.getState().togglePostLike('in-memory-guide');
++    const malformedBytes = JSON.stringify(envelope);
++    window.localStorage.setItem(storageKey, malformedBytes);
++
++    await errorAwareStore.persist.rehydrate();
++    errorAwareStore.getState().togglePostLike('after-failure');
++
++    expect(hydrationError).toBe(true);
++    expect(errorAwareStore.getState().likedPostSlugs).toEqual(['after-failure']);
++    expect(window.localStorage.getItem(storageKey)).toBe(malformedBytes);
++  });
++
++  it('sets global hydrationError when the persisted envelope is malformed', async () => {
++    const malformedBytes = JSON.stringify({ version: 1 });
++    useLibraryStore.setState({ likedPostSlugs: ['in-memory-guide'], favoriteOffers: {}, priceAlerts: {} });
++    useLibraryStoreHydration.setState({ hydrated: false, hydrationError: false });
++    window.localStorage.setItem(storageKey, malformedBytes);
++
++    await hydrateLibraryStore();
++
++    expect(useLibraryStore.getState().likedPostSlugs).toEqual([]);
++    expect(useLibraryStoreHydration.getState()).toEqual({ hydrated: true, hydrationError: true });
++    expect(window.localStorage.getItem(storageKey)).toBe(malformedBytes);
++  });
++
+   it('rejects persisted snapshots with unknown nested keys', async () => {
+     const snapshot = {
+       key: '["mock-provider","offer-1"]',
+       provider: 'mock-provider',
+       productKind: 'flight',
+       destination: '大理',
+       totalPrice: 1280,
+       currency: 'CNY',
+       policySummary: '可退款｜含行李',
+       observedAt: '2026-08-19T10:00:00.000Z',
+@@ -196,20 +268,24 @@ describe('persistence and recovery', () => {
+     window.localStorage.setItem(storageKey, malformedBytes);
+     const store = createLibraryStore();
+ 
+     await store.persist.rehydrate();
+ 
+     expect(store.getState()).toMatchObject({ likedPostSlugs: [], favoriteOffers: {}, priceAlerts: {} });
+     expect(window.localStorage.getItem(storageKey)).toBe(malformedBytes);
+   });
+ });
+ 
++function emptyPersistedState() {
++  return { likedPostSlugs: [], favoriteOffers: {}, priceAlerts: {} };
++}
++
+ function makeOffer(patch: Partial<NormalizedOffer> = {}): NormalizedOffer {
+   return {
+     id: 'offer-1',
+     provider: 'mock-provider',
+     kind: 'flight',
+     title: '大理往返机票',
+     origin: '上海',
+     destination: '大理',
+     basePrice: 1000,
+     taxes: 180,

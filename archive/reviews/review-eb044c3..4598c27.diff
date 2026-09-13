@@ -1,0 +1,110 @@
+# COMMITS
+4598c27 feat: add original xingyu destination imagery
+
+# STAT
+ public/assets/ASSET-LICENSES.md           |  13 ++++++++++++
+ public/assets/destination-guilin.png      | Bin 0 -> 2053484 bytes
+ public/assets/destination-sichuan.png     | Bin 0 -> 1930144 bytes
+ public/assets/guardian-rainy-mountain.png | Bin 0 -> 1983177 bytes
+ public/assets/guide-dali-courtyard.png    | Bin 0 -> 2543010 bytes
+ public/assets/hero-dali-dawn.png          | Bin 0 -> 1761980 bytes
+ src/data/assets.ts                        |  32 ++++++++++++++++++++++++++++++
+ tests/unit/assets.test.ts                 |  12 +++++++++++
+ 8 files changed, 57 insertions(+)
+
+# DIFF
+diff --git a/public/assets/ASSET-LICENSES.md b/public/assets/ASSET-LICENSES.md
+new file mode 100644
+index 0000000..215919c
+--- /dev/null
++++ b/public/assets/ASSET-LICENSES.md
+@@ -0,0 +1,13 @@
++# Asset provenance and usage
++
++The five PNG files in this directory are original AI-generated project imagery created specifically for the Xingyu Travel public MVP with OpenAI's built-in Image Gen tool on 2026-08-16. They were not sourced from a third-party stock library, and no third-party reference images were supplied.
++
++Every generation request prohibited text, logos, watermarks, fake interfaces, commercial marks, branded objects, and recognizable faces. The selected files were visually inspected for those constraints before being added to the project.
++
++## Final prompt summaries
++
++- `hero-dali-dawn.png`: Photorealistic editorial sunrise over Dali mountains and lake valley, with a winding shoreline as a leading line, bright detail on the center-right, and a dark uncluttered left third reserved for white title copy; restrained black, gold, and ivory palette.
++- `destination-sichuan.png`: Low-camera editorial view across autumn grass on the western Sichuan plateau toward snow mountains, with layered depth and one tiny non-identifiable traveler; muted charcoal, ochre, gold, and ivory tones.
++- `destination-guilin.png`: Guilin karst river at dusk with layered limestone peaks, warm reflections, dark natural foreground framing, and one distant bamboo raft operator shown only as an unidentifiable silhouette.
++- `guide-dali-courtyard.png`: Intimate lived-in Bai courtyard in Dali with weathered white plaster, dark timber, plants, and a worn stone table in soft natural morning light; residential rather than commercial or resort styling.
++- `guardian-rainy-mountain.png`: Safe, non-sensational view from behind a continuous guardrail along an intact wet highland road, with distant rain curtains, layered clouds, and a subtle warm break in the sky; no vehicles, people, damage, or disaster imagery.
+diff --git a/public/assets/destination-guilin.png b/public/assets/destination-guilin.png
+new file mode 100644
+index 0000000..c49e27d
+Binary files /dev/null and b/public/assets/destination-guilin.png differ
+diff --git a/public/assets/destination-sichuan.png b/public/assets/destination-sichuan.png
+new file mode 100644
+index 0000000..c40c91e
+Binary files /dev/null and b/public/assets/destination-sichuan.png differ
+diff --git a/public/assets/guardian-rainy-mountain.png b/public/assets/guardian-rainy-mountain.png
+new file mode 100644
+index 0000000..6ec7322
+Binary files /dev/null and b/public/assets/guardian-rainy-mountain.png differ
+diff --git a/public/assets/guide-dali-courtyard.png b/public/assets/guide-dali-courtyard.png
+new file mode 100644
+index 0000000..00ec0df
+Binary files /dev/null and b/public/assets/guide-dali-courtyard.png differ
+diff --git a/public/assets/hero-dali-dawn.png b/public/assets/hero-dali-dawn.png
+new file mode 100644
+index 0000000..7504a30
+Binary files /dev/null and b/public/assets/hero-dali-dawn.png differ
+diff --git a/src/data/assets.ts b/src/data/assets.ts
+new file mode 100644
+index 0000000..dcfa44b
+--- /dev/null
++++ b/src/data/assets.ts
+@@ -0,0 +1,32 @@
++export const brandAssets = {
++  hero: {
++    src: '/assets/hero-dali-dawn.png',
++    width: 1536,
++    height: 1024,
++    alt: '晨光穿过大理群山与湖谷',
++  },
++  sichuan: {
++    src: '/assets/destination-sichuan.png',
++    width: 1586,
++    height: 992,
++    alt: '秋日川西雪山高原',
++  },
++  guilin: {
++    src: '/assets/destination-guilin.png',
++    width: 1586,
++    height: 992,
++    alt: '暮色中的桂林山水',
++  },
++  guide: {
++    src: '/assets/guide-dali-courtyard.png',
++    width: 1484,
++    height: 1060,
++    alt: '大理白族院落里的慢旅行片刻',
++  },
++  guardian: {
++    src: '/assets/guardian-rainy-mountain.png',
++    width: 1586,
++    height: 992,
++    alt: '雨幕中的高原山路',
++  },
++} as const;
+diff --git a/tests/unit/assets.test.ts b/tests/unit/assets.test.ts
+new file mode 100644
+index 0000000..d2c4715
+--- /dev/null
++++ b/tests/unit/assets.test.ts
+@@ -0,0 +1,12 @@
++import { stat } from 'node:fs/promises';
++import { expect, it } from 'vitest';
++import { brandAssets } from '@/data/assets';
++
++it('ships every visible branded image as a real local asset', async () => {
++  for (const asset of Object.values(brandAssets)) {
++    const info = await stat(`public${asset.src}`);
++
++    expect(info.size).toBeGreaterThan(20_000);
++    expect(asset.alt.length).toBeGreaterThan(6);
++  }
++});

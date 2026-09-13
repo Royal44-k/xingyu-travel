@@ -1,0 +1,216 @@
+# COMMITS
+fd4401e fix: address home review feedback
+
+# STAT
+ src/app/page.tsx                             | 10 ++++++----
+ src/features/home/search-composer.module.css |  2 +-
+ src/features/home/search-composer.tsx        | 24 +++++++++++++++++-------
+ tests/component/home-shell.test.tsx          |  9 +++++++++
+ tests/component/search-composer.test.tsx     | 13 +++++++++++++
+ 5 files changed, 46 insertions(+), 12 deletions(-)
+
+# DIFF
+diff --git a/src/app/page.tsx b/src/app/page.tsx
+index e367379..2dd38eb 100644
+--- a/src/app/page.tsx
++++ b/src/app/page.tsx
+@@ -1,13 +1,15 @@
+ import { SiteHeader } from '@/components/site-header';
+ import { FeaturedDestinations } from '@/features/home/featured-destinations';
+ import { Hero } from '@/features/home/hero';
+ 
+ export default function HomePage() {
+   return (
+-    <main>
++    <>
+       <SiteHeader activePath="/" />
+-      <Hero />
+-      <FeaturedDestinations />
+-    </main>
++      <main>
++        <Hero />
++        <FeaturedDestinations />
++      </main>
++    </>
+   );
+ }
+diff --git a/src/features/home/search-composer.module.css b/src/features/home/search-composer.module.css
+index c4f2fa8..4730435 100644
+--- a/src/features/home/search-composer.module.css
++++ b/src/features/home/search-composer.module.css
+@@ -67,21 +67,21 @@
+ .dates {
+   min-width: 0;
+   padding: 9px 22px;
+   border-right: 1px solid rgb(16 16 15 / 13%);
+ }
+ 
+ .fields label > span:first-child,
+ .dates label > span:first-child {
+   display: block;
+   margin-bottom: 4px;
+-  color: rgb(16 16 15 / 52%);
++  color: rgb(16 16 15 / 76%);
+   font-size: 11px;
+   letter-spacing: 0.1em;
+ }
+ 
+ .controlRow {
+   display: flex;
+   align-items: center;
+   gap: 11px;
+ }
+ 
+diff --git a/src/features/home/search-composer.tsx b/src/features/home/search-composer.tsx
+index c88e4e6..081e7ce 100644
+--- a/src/features/home/search-composer.tsx
++++ b/src/features/home/search-composer.tsx
+@@ -19,22 +19,25 @@ export type ProductKind = 'flight' | 'hotel' | 'ticket';
+ export type HomeSearch = {
+   kind: ProductKind;
+   destination: string;
+   from: string;
+   to: string;
+   travelers: number;
+ };
+ 
+ type SearchComposerProps = {
+   onSubmit?: (search: HomeSearch) => void;
++  assignLocation?: LocationAssigner;
+ };
+ 
++export type LocationAssigner = (href: string) => void;
++
+ const kinds = [
+   { id: 'flight', label: '机票', icon: AirplaneTilt },
+   { id: 'hotel', label: '酒店', icon: Buildings },
+   { id: 'ticket', label: '门票', icon: Ticket },
+ ] as const;
+ 
+ const fieldLabels: Record<
+   ProductKind,
+   { destination: string; from: string; to?: string; travelers: string }
+ > = {
+@@ -61,28 +64,32 @@ export function buildComparisonHref(search: HomeSearch) {
+   const params = new URLSearchParams({
+     kind: search.kind,
+     destination: search.destination,
+     from: search.from,
+     to: search.to,
+     travelers: String(search.travelers),
+   });
+   return `/compare?${params.toString()}`;
+ }
+ 
+-function navigateToComparison(search: HomeSearch) {
+-  if (typeof window !== 'undefined') {
+-    window.location.assign(buildComparisonHref(search));
+-  }
++export function navigateToComparison(
++  search: HomeSearch,
++  assignLocation?: LocationAssigner,
++) {
++  const href = buildComparisonHref(search);
++  if (assignLocation) return assignLocation(href);
++  if (typeof window !== 'undefined') window.location.assign(href);
+ }
+ 
+ export function SearchComposer({
+-  onSubmit = navigateToComparison,
++  onSubmit,
++  assignLocation,
+ }: SearchComposerProps) {
+   const [kind, setKind] = useState<ProductKind>('flight');
+   const [destination, setDestination] = useState('大理');
+   const [from, setFrom] = useState('2026-08-22');
+   const [to, setTo] = useState('2026-08-27');
+   const [travelers, setTravelers] = useState('2');
+   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+   const reduceMotion = useReducedMotion();
+   const labels = fieldLabels[kind];
+ 
+@@ -96,27 +103,30 @@ export function SearchComposer({
+     if (event.key === 'Home') nextIndex = 0;
+     if (event.key === 'End') nextIndex = kinds.length - 1;
+ 
+     const nextKind = kinds[nextIndex];
+     setKind(nextKind.id);
+     tabRefs.current[nextIndex]?.focus();
+   }
+ 
+   function submitSearch(event: FormEvent<HTMLFormElement>) {
+     event.preventDefault();
+-    onSubmit({
++    const search = {
+       kind,
+       destination: destination.trim(),
+       from,
+       to,
+       travelers: Number(travelers),
+-    });
++    };
++
++    if (onSubmit) onSubmit(search);
++    else navigateToComparison(search, assignLocation);
+   }
+ 
+   return (
+     <form className={styles.composer} onSubmit={submitSearch}>
+       <div className={styles.tabs} role="tablist" aria-label="比价类型">
+         {kinds.map((item, index) => {
+           const Icon = item.icon;
+           const selected = kind === item.id;
+           return (
+             <button
+diff --git a/tests/component/home-shell.test.tsx b/tests/component/home-shell.test.tsx
+index 7abe9a4..4b039f7 100644
+--- a/tests/component/home-shell.test.tsx
++++ b/tests/component/home-shell.test.tsx
+@@ -4,10 +4,19 @@ import HomePage from '@/app/page';
+ 
+ it('renders the Xingyu brand promise', () => {
+   render(<HomePage />);
+ 
+   expect(
+     screen.getByRole('heading', {
+       name: '把远方，变成一段安心抵达的旅程',
+     }),
+   ).toBeInTheDocument();
+ });
++
++it('keeps the site banner outside the main content landmark', () => {
++  render(<HomePage />);
++
++  const banner = screen.getByRole('banner');
++  const main = screen.getByRole('main');
++
++  expect(main).not.toContainElement(banner);
++});
+diff --git a/tests/component/search-composer.test.tsx b/tests/component/search-composer.test.tsx
+index 0e66d04..5bf8b04 100644
+--- a/tests/component/search-composer.test.tsx
++++ b/tests/component/search-composer.test.tsx
+@@ -78,10 +78,23 @@ it('builds the exact encoded comparison route used by default submission', () =>
+       kind: 'flight',
+       destination: '大理',
+       from: '2026-08-22',
+       to: '2026-08-27',
+       travelers: 2,
+     }),
+   ).toBe(
+     '/compare?kind=flight&destination=%E5%A4%A7%E7%90%86&from=2026-08-22&to=2026-08-27&travelers=2',
+   );
+ });
++
++it('uses the default submission path to assign the encoded comparison URL', async () => {
++  const user = userEvent.setup();
++  const assignLocation = vi.fn();
++  render(<SearchComposer assignLocation={assignLocation} />);
++
++  await user.click(screen.getByRole('button', { name: '开始规划' }));
++
++  expect(assignLocation).toHaveBeenCalledOnce();
++  expect(assignLocation).toHaveBeenCalledWith(
++    '/compare?kind=flight&destination=%E5%A4%A7%E7%90%86&from=2026-08-22&to=2026-08-27&travelers=2',
++  );
++});

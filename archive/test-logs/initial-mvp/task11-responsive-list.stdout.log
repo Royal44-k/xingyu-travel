@@ -1,0 +1,9 @@
+Listing tests:
+  [chromium] › responsive.spec.ts:24:3 › mobile public MVP › mobile navigation is available without horizontal overflow
+  [chromium] › responsive.spec.ts:42:5 › mobile public MVP › does not horizontally overflow on /compare?kind=flight&destination=%E5%A4%A7%E7%90%86&from=2026-08-22&to=2026-08-27&travelers=2
+  [chromium] › responsive.spec.ts:42:5 › mobile public MVP › does not horizontally overflow on /square
+  [chromium] › responsive.spec.ts:42:5 › mobile public MVP › does not horizontally overflow on /trips/dali-slow-5d
+  [chromium] › responsive.spec.ts:42:5 › mobile public MVP › does not horizontally overflow on /partners
+  [chromium] › responsive.spec.ts:42:5 › mobile public MVP › does not horizontally overflow on /assistant
+  [chromium] › responsive.spec.ts:42:5 › mobile public MVP › does not horizontally overflow on /guardian/dali-slow-5d
+Total: 7 tests in 1 file

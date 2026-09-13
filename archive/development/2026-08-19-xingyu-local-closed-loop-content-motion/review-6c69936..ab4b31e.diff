@@ -1,0 +1,624 @@
+# Review package: 6c69936..ab4b31e
+
+## Commits
+ab4b31e docs: update local library e2e evidence
+6c39b03 fix: preserve saved offer search context
+
+## Files changed
+ .../task-10-report.md                              | 26 +++++-
+ src/features/comparison/comparison-client.tsx      |  2 +-
+ src/features/profile/profile-hub.tsx               | 10 ++-
+ src/stores/library-store.ts                        | 29 ++++++-
+ tests/component/comparison-client.test.tsx         |  1 +
+ tests/component/profile-hub.test.tsx               |  9 +-
+ tests/e2e/local-library.spec.ts                    |  3 +
+ tests/unit/library-store.test.ts                   | 95 +++++++++++++++++++++-
+ 8 files changed, 164 insertions(+), 11 deletions(-)
+
+## Diff
+diff --git a/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/task-10-report.md b/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/task-10-report.md
+index 5907a84..1b65ba4 100644
+--- a/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/task-10-report.md
++++ b/.superpowers/sdd/2026-08-19-xingyu-local-closed-loop-content-motion/task-10-report.md
+@@ -52,21 +52,21 @@ pnpm typecheck: exit 0
+ pnpm build: exit 0; 14/14 static pages generated
+ ```
+ 
+ The initial Task 10 implementation was committed as `3761f37` (`test: verify the complete local travel library`).
+ 
+ ## Reviewer fix round 1/5
+ 
+ The local-library stories now bind to stable visible identities rather than feed order:
+ 
+ - The liked-guide story uses the exact Dali guide, opens the profile’s liked-guide link, verifies `/square/dali-slow-5d`, verifies the exact detail title and pressed favorite state, unlikes on detail, then confirms the profile empty state.
+-- The offer story scopes to the named “上海至大理演示航班 B” card, verifies provider “星屿沙箱演示航班” and `¥1,010` total, verifies the matching saved snapshot, follows that card’s own re-search link, asserts the persisted `kind=flight&destination=大理` contract, and verifies the same named offer remains saved before removal. Dates and travelers are not part of `FavoriteOfferSnapshot`, so the profile re-search contract intentionally contains only product kind and destination.
++- The offer story scopes to the named “上海至大理演示航班 B” card, verifies provider “星屿沙箱演示航班” and `¥1,010` total, verifies the matching saved snapshot, follows that card’s own re-search link, asserts the persisted query contract, and verifies the same named offer remains saved before removal.
+ - `reuseExistingServer` is now `false`. A task-owned Node listener (`PID 16216`, session `76900`) temporarily held port 4173; the focused Playwright command exited 1 with “http://127.0.0.1:4173 is already used” instead of reusing it. The listener was stopped through its recorded session, and a follow-up port query returned no owner.
+ 
+ Focused reviewer-fix evidence:
+ 
+ ```text
+ pnpm test:e2e tests/e2e/local-library.spec.ts
+ 4/4 passed (22.9s), exit 0
+ ```
+ 
+ The first explicit-four review rerun produced `29 passed, 1 failed (1.0m)`: `/square` observed `document.fonts.status` change from `loaded` back to `loading` between the readiness wait and a separate snapshot. The helper now condition-polls one exact `{ document: 'complete', fonts: 'loaded', images: true }` value, preserving every readiness requirement without sampling between font-load transitions.
+@@ -82,10 +82,34 @@ pnpm typecheck: exit 0
+ pnpm build: exit 0; 14/14 static pages generated
+ ```
+ 
+ Full Vitest was not repeated in this review round because changes were limited to Playwright tests/configuration and this report; the immediately preceding Task 10 gate remains `41 files, 340/340 tests passed`.
+ 
+ ## Runtime observations
+ 
+ No GREEN E2E run recorded a console error, page error, or HTTP response `>= 400`. Development output did contain non-error notices: Node’s `NO_COLOR`/`FORCE_COLOR` warning, Next.js smooth-scroll annotation guidance, Next Image LCP eager-loading guidance on the Dali image, and Motion’s expected reduced-motion notice. No warning was suppressed or converted into an allowlist.
+ 
+ Each Playwright run used its own configured web server. After completed runs, port 4173 had no owner. No inherited Node or Chrome PID was terminated.
++
++## Reviewer fix round 2/5 — saved offer search context
++
++The second reviewer found that a saved flight offer could only reconstruct `kind` and `destination`; the user-entered dates and traveller count were lost when selecting “重新比价”. The fix stores the validated `ComparisonSearchInput` alongside each favourite-offer snapshot, carries that exact context from the comparison client, and reconstructs the profile re-search URL with `origin`, `from`, `to`, and `travelers` when present. The snapshot validator rejects a context whose product kind or destination does not match its offer, while valid pre-context v1 snapshots still hydrate normally.
++
++The implementation is covered at three levels:
++
++- Store tests verify durable context, legacy v1 hydration, and fail-closed invalid dates.
++- Component tests verify a newly saved offer receives the active search context and a profile offer link keeps dates/travellers.
++- The visible-browser local-library journey asserts the exact query `kind=flight&destination=大理&from=2026-09-18&to=2026-09-22&travelers=3` after choosing “重新比价”.
++
++Round-2 verification reported by the implementing agent:
++
++```text
++focused Vitest RED: 4 failed, 50 passed
++focused Chrome E2E RED: re-search URL missing from/to/travelers
++focused Vitest GREEN: 56/56 passed
++focused local-library E2E GREEN: 1/1 passed
++full Vitest: 342/342 passed
++full E2E: 30/30 passed
++pnpm lint / pnpm typecheck / pnpm build: passed; build generated 14/14 static pages
++```
++
++Independent handoff check: a sandboxed focused Vitest invocation could not create Vite’s temporary config file (`EPERM`); the approved local execution subsequently started the configured real-Chrome suite and showed the 30-test run. This report therefore preserves the agent’s completed GREEN evidence above rather than claiming a second, independently completed full run.
+diff --git a/src/features/comparison/comparison-client.tsx b/src/features/comparison/comparison-client.tsx
+index 83c2450..d8a3882 100644
+--- a/src/features/comparison/comparison-client.tsx
++++ b/src/features/comparison/comparison-client.tsx
+@@ -238,21 +238,21 @@ export function ComparisonClient({
+     if (event.key === 'Home') nextIndex = 0;
+     if (event.key === 'End') nextIndex = productTabs.length - 1;
+     selectKind(productTabs[nextIndex].id);
+     tabRefs.current[nextIndex]?.focus();
+   }
+ 
+   function toggleFavorite(offer: NormalizedOffer, trigger: HTMLButtonElement) {
+     if (!libraryReady) return;
+     const key = offerIdentity(offer);
+     if (!favoriteOffers[key]) {
+-      saveOffer(offer);
++      saveOffer(offer, search);
+       return;
+     }
+     if (priceAlerts[key]?.enabled) {
+       removalTriggerRef.current = trigger;
+       setPendingRemoval(offer);
+       return;
+     }
+     removeOffer(key);
+   }
+ 
+diff --git a/src/features/profile/profile-hub.tsx b/src/features/profile/profile-hub.tsx
+index 4b273a5..0abb38d 100644
+--- a/src/features/profile/profile-hub.tsx
++++ b/src/features/profile/profile-hub.tsx
+@@ -568,21 +568,29 @@ function useOfferClock(offers: readonly FavoriteOfferSnapshot[]) {
+ function OfferCard({
+   alertEnabled,
+   currentTime,
+   offer,
+ }: {
+   alertEnabled: boolean;
+   currentTime: number;
+   offer: FavoriteOfferSnapshot;
+ }) {
+   const expired = Date.parse(offer.expiresAt) <= currentTime;
+-  const search = new URLSearchParams({ kind: offer.productKind, destination: offer.destination });
++  const savedSearch = offer.search ?? { kind: offer.productKind, destination: offer.destination };
++  const search = new URLSearchParams({
++    kind: savedSearch.kind ?? offer.productKind,
++    destination: savedSearch.destination,
++    ...(savedSearch.origin ? { origin: savedSearch.origin } : {}),
++    ...(savedSearch.from ? { from: savedSearch.from } : {}),
++    ...(savedSearch.to ? { to: savedSearch.to } : {}),
++    ...(savedSearch.travelers ? { travelers: String(savedSearch.travelers) } : {}),
++  });
+   return (
+     <article className={styles.offerCard}>
+       <div><span>{offerKindLabels[offer.productKind]} · {offer.provider}</span><h3>{offer.destination}</h3><p>{offer.policySummary}</p></div>
+       <div className={styles.offerPrice}><small>保存时总价</small><strong>¥ {offer.totalPrice.toLocaleString('zh-CN')}</strong></div>
+       <dl>
+         <div><dt>数据时间</dt><dd>{formatTimestamp(offer.observedAt)}</dd></div>
+         <div><dt>快照状态</dt><dd className={expired ? styles.expired : undefined}>{expired ? '报价可能已变化' : `有效至 ${formatTimestamp(offer.expiresAt)}`}</dd></div>
+         <div><dt>本地提醒</dt><dd>{alertEnabled ? '已保存（关闭页面后不会推送）' : '未开启'}</dd></div>
+       </dl>
+       <Link href={`/compare?${search.toString()}`}>重新比价</Link>
+diff --git a/src/stores/library-store.ts b/src/stores/library-store.ts
+index c0b8c82..96346fc 100644
+--- a/src/stores/library-store.ts
++++ b/src/stores/library-store.ts
+@@ -1,50 +1,53 @@
+ 'use client';
+ 
+ import { create } from 'zustand';
+ import { createStore } from 'zustand/vanilla';
+ import { createJSONStorage, persist } from 'zustand/middleware';
+ import { z } from 'zod';
+ import { offerIdentity } from '@/domain/comparison/offer-identity';
++import { comparisonSearchSchema } from '@/domain/comparison/search-schema';
+ import { comparisonProductKinds, type ComparisonProductKind, type NormalizedOffer } from '@/domain/comparison/types';
++import type { ComparisonSearchInput } from '@/domain/shared/api';
+ 
+ const libraryStorageKey = 'xingyu-library-demo-v1';
+ const libraryStorageVersion = 1;
+ const maxLikedPostSlugs = 500;
+ const maxFavoriteOffers = 200;
+ const validityWindowMilliseconds = 15 * 60 * 1000;
+ 
+ export interface FavoriteOfferSnapshot {
+   key: string;
+   provider: string;
+   productKind: ComparisonProductKind;
+   destination: string;
+   totalPrice: number;
+   currency: 'CNY';
+   policySummary: string;
+   observedAt: string;
+   expiresAt: string;
++  search?: ComparisonSearchInput;
+   deepLink?: string;
+ }
+ 
+ export interface PriceAlert {
+   offerKey: string;
+   enabled: boolean;
+   createdAt: string;
+ }
+ 
+ export interface LibraryStoreState {
+   likedPostSlugs: string[];
+   favoriteOffers: Record<string, FavoriteOfferSnapshot>;
+   priceAlerts: Record<string, PriceAlert>;
+   togglePostLike: (slug: string) => void;
+-  saveOffer: (offer: NormalizedOffer) => void;
++  saveOffer: (offer: NormalizedOffer, search?: ComparisonSearchInput) => void;
+   removeOffer: (offerKey: string) => void;
+   setPriceAlert: (offerKey: string, enabled: boolean) => void;
+   resetLibrary: () => void;
+ }
+ 
+ interface LibraryStoreHydrationState {
+   hydrated: boolean;
+   hydrationError: boolean;
+ }
+ 
+@@ -67,29 +70,34 @@ const policySummaries = ['可退款｜含行李', '可退款｜不含行李', '
+ const favoriteOfferSnapshotSchema = z.object({
+   key: nonEmptyText,
+   provider: nonEmptyText,
+   productKind: z.enum(comparisonProductKinds),
+   destination: nonEmptyText,
+   totalPrice: z.number().finite().nonnegative(),
+   currency: z.literal('CNY'),
+   policySummary: z.enum(policySummaries),
+   observedAt: isoTimestamp,
+   expiresAt: isoTimestamp,
++  search: comparisonSearchSchema.optional(),
+   deepLink: z.string().url().optional(),
+ }).strict().superRefine((snapshot, context) => {
+   const identity = parseOfferIdentity(snapshot.key);
+   if (!identity || identity.provider !== snapshot.provider || snapshot.key !== offerIdentity(identity)) {
+     context.addIssue({ code: 'custom', path: ['key'], message: 'invalid offer identity' });
+   }
+   if (Date.parse(snapshot.expiresAt) !== Date.parse(snapshot.observedAt) + validityWindowMilliseconds) {
+     context.addIssue({ code: 'custom', path: ['expiresAt'], message: 'invalid offer validity window' });
+   }
++  if (snapshot.search &&
++    (snapshot.search.kind !== snapshot.productKind || snapshot.search.destination !== snapshot.destination)) {
++    context.addIssue({ code: 'custom', path: ['search'], message: 'search context does not match offer' });
++  }
+ });
+ 
+ const priceAlertSchema = z.object({
+   offerKey: nonEmptyText,
+   enabled: z.literal(true),
+   createdAt: isoTimestamp,
+ }).strict();
+ 
+ const persistedLibraryStateSchema = z.object({
+   likedPostSlugs: z.array(nonEmptyText).max(maxLikedPostSlugs),
+@@ -147,42 +155,55 @@ function parsePersistedLibraryEnvelope(value: unknown): { state: PersistedLibrar
+   if (parsed.success) return parsed.data;
+   throw new Error('LIBRARY_INVALID_PERSISTED_ENVELOPE');
+ }
+ 
+ function canonicalText(raw: unknown, errorCode: 'LIBRARY_INVALID_OFFER' | 'LIBRARY_INVALID_POST_SLUG'): string {
+   const parsed = nonEmptyText.safeParse(raw);
+   if (parsed.success) return parsed.data;
+   throw new Error(errorCode);
+ }
+ 
+-function snapshotFromOffer(offer: NormalizedOffer): FavoriteOfferSnapshot {
++function snapshotFromOffer(
++  offer: NormalizedOffer,
++  search?: ComparisonSearchInput,
++): FavoriteOfferSnapshot {
+   const provider = canonicalText(offer.provider, 'LIBRARY_INVALID_OFFER');
+   const id = canonicalText(offer.id, 'LIBRARY_INVALID_OFFER');
+   const destination = canonicalText(offer.destination, 'LIBRARY_INVALID_OFFER');
+   const offerKey = offerIdentity({ provider, id });
+   const observedAt = offer.updatedAt;
+   const observedAtMilliseconds = Date.parse(observedAt);
+   if (!comparisonProductKinds.includes(offer.kind as ComparisonProductKind) ||
+     !Number.isFinite(offer.totalPrice) || offer.totalPrice < 0 || Number.isNaN(observedAtMilliseconds) ||
+     !isoTimestamp.safeParse(observedAt).success) {
+     throw new Error('LIBRARY_INVALID_OFFER');
+   }
++  const parsedSearch = comparisonSearchSchema.safeParse({
++    ...search,
++    kind: search?.kind ?? offer.kind,
++    destination: search?.destination ?? destination,
++  });
++  if (!parsedSearch.success ||
++    parsedSearch.data.kind !== offer.kind || parsedSearch.data.destination !== destination) {
++    throw new Error('LIBRARY_INVALID_OFFER');
++  }
+   const snapshot: FavoriteOfferSnapshot = {
+     key: offerKey,
+     provider,
+     productKind: offer.kind as ComparisonProductKind,
+     destination,
+     totalPrice: offer.totalPrice,
+     currency: 'CNY',
+     policySummary: `${offer.refundable ? '可退款' : '不可退款'}｜${offer.baggageIncluded ? '含行李' : '不含行李'}`,
+     observedAt,
+     expiresAt: new Date(observedAtMilliseconds + validityWindowMilliseconds).toISOString(),
++    search: parsedSearch.data,
+   };
+   if (!favoriteOfferSnapshotSchema.safeParse(snapshot).success) throw new Error('LIBRARY_INVALID_OFFER');
+   return snapshot;
+ }
+ 
+ function omitRecordEntry<T>(record: Record<string, T>, key: string): Record<string, T> {
+   return Object.fromEntries(Object.entries(record).filter(([candidateKey]) => candidateKey !== key));
+ }
+ 
+ function stateCreator(
+@@ -194,22 +215,22 @@ function stateCreator(
+   return {
+     ...initialLibraryState,
+     togglePostLike: (rawSlug) => set((state) => {
+       const slug = canonicalText(rawSlug, 'LIBRARY_INVALID_POST_SLUG');
+       if (state.likedPostSlugs.includes(slug)) {
+         return { likedPostSlugs: state.likedPostSlugs.filter((existingSlug) => existingSlug !== slug) };
+       }
+       if (state.likedPostSlugs.length >= maxLikedPostSlugs) throw new Error('LIBRARY_LIKED_POST_LIMIT');
+       return { likedPostSlugs: [...state.likedPostSlugs, slug] };
+     }),
+-    saveOffer: (offer) => set((state) => {
+-      const snapshot = snapshotFromOffer(offer);
++    saveOffer: (offer, search) => set((state) => {
++      const snapshot = snapshotFromOffer(offer, search);
+       if (!state.favoriteOffers[snapshot.key] && Object.keys(state.favoriteOffers).length >= maxFavoriteOffers) {
+         throw new Error('LIBRARY_FAVORITE_OFFER_LIMIT');
+       }
+       return { favoriteOffers: { ...state.favoriteOffers, [snapshot.key]: snapshot } };
+     }),
+     removeOffer: (offerKey) => set((state) => {
+       return {
+         favoriteOffers: omitRecordEntry(state.favoriteOffers, offerKey),
+         priceAlerts: omitRecordEntry(state.priceAlerts, offerKey),
+       };
+diff --git a/tests/component/comparison-client.test.tsx b/tests/component/comparison-client.test.tsx
+index 777cc1c..4735b4f 100644
+--- a/tests/component/comparison-client.test.tsx
++++ b/tests/component/comparison-client.test.tsx
+@@ -183,20 +183,21 @@ describe('ComparisonClient incremental results', () => {
+     );
+     await screen.findByText('¥1,020 含税总价');
+ 
+     await user.click(screen.getByRole('button', { name: '查看 云程旅行 报价条件' }));
+     expect(screen.getByText('含 1 件托运行李')).toBeInTheDocument();
+     expect(screen.getByText('不可免费退改')).toBeInTheDocument();
+ 
+     const favorite = screen.getByRole('button', { name: '收藏 云程旅行 报价' });
+     await user.click(favorite);
+     expect(favorite).toHaveAttribute('aria-pressed', 'true');
++    expect(useLibraryStore.getState().favoriteOffers[offerIdentity(offers[0])].search).toEqual(initialSearch);
+ 
+     await user.click(screen.getByRole('switch', { name: '降价提醒' }));
+     expect(screen.getByRole('switch', { name: '降价提醒' })).toHaveAttribute('aria-checked', 'true');
+     expect(screen.getByText('已保存提醒设置；本演示不会在关闭页面后推送')).toBeInTheDocument();
+ 
+     const compareChecks = screen.getAllByRole('checkbox', { name: /加入同屏对比/ });
+     await user.click(compareChecks[0]);
+     await user.click(compareChecks[1]);
+     await user.click(compareChecks[2]);
+     expect(compareChecks[3]).toBeDisabled();
+diff --git a/tests/component/profile-hub.test.tsx b/tests/component/profile-hub.test.tsx
+index 0a2aca2..154fd69 100644
+--- a/tests/component/profile-hub.test.tsx
++++ b/tests/component/profile-hub.test.tsx
+@@ -16,20 +16,27 @@ import { createTripStore, useTripStore, useTripStoreHydration } from '@/stores/t
+ const expiredOffer: FavoriteOfferSnapshot = {
+   key: '["演示航司","flight-expired"]',
+   provider: '演示航司',
+   productKind: 'flight',
+   destination: '大理',
+   totalPrice: 1260,
+   currency: 'CNY',
+   policySummary: '可退款｜含行李',
+   observedAt: '2026-08-18T02:00:00.000Z',
+   expiresAt: '2026-08-18T02:15:00.000Z',
++  search: {
++    kind: 'flight',
++    destination: '大理',
++    from: '2026-09-18',
++    to: '2026-09-22',
++    travelers: 3,
++  },
+ };
+ 
+ const hotelOffer: FavoriteOfferSnapshot = {
+   key: '["演示酒店","hotel-current"]',
+   provider: '演示酒店',
+   productKind: 'hotel',
+   destination: '桂林',
+   totalPrice: 880,
+   currency: 'CNY',
+   policySummary: '可退款｜不含行李',
+@@ -68,21 +75,21 @@ describe('ProfileHub', () => {
+     await user.click(screen.getByRole('tab', { name: '喜欢' }));
+     expect(screen.getByRole('link', { name: /把大理留给慢下来的人/ })).toHaveAttribute(
+       'href',
+       '/square/dali-slow-5d',
+     );
+     await user.click(screen.getByRole('tab', { name: '收藏报价' }));
+     expect(screen.getByText('报价可能已变化')).toBeInTheDocument();
+     expect(screen.getByText(/数据时间/)).toBeInTheDocument();
+     expect(screen.getByRole('link', { name: '重新比价' })).toHaveAttribute(
+       'href',
+-      '/compare?kind=flight&destination=%E5%A4%A7%E7%90%86',
++      '/compare?kind=flight&destination=%E5%A4%A7%E7%90%86&from=2026-09-18&to=2026-09-22&travelers=3',
+     );
+   });
+ 
+   it('uses semantic query-driven tabs, normalizes invalid tabs, and preserves browser history', async () => {
+     const user = userEvent.setup();
+     render(<ProfileHub initialTab="unknown" />);
+ 
+     const tablist = screen.getByRole('tablist', { name: '个人中心内容' });
+     expect(tablist).toBeInTheDocument();
+     for (const tab of screen.getAllByRole('tab')) {
+diff --git a/tests/e2e/local-library.spec.ts b/tests/e2e/local-library.spec.ts
+index 25d6346..4e6ee63 100644
+--- a/tests/e2e/local-library.spec.ts
++++ b/tests/e2e/local-library.spec.ts
+@@ -116,20 +116,23 @@ test.describe('local closed loop', () => {
+     await expect(savedOffer.getByText('数据时间')).toBeVisible();
+     await expect(savedOffer.getByText('已保存（关闭页面后不会推送）')).toBeVisible();
+     await savedOffer.getByRole('link', { name: '重新比价' }).click();
+ 
+     await expect(page).toHaveURL(/\/compare\?/);
+     const reSearchUrl = new URL(page.url());
+     expect(reSearchUrl.pathname).toBe('/compare');
+     expect(Object.fromEntries(reSearchUrl.searchParams)).toEqual({
+       kind: 'flight',
+       destination: '大理',
++      from: '2026-09-18',
++      to: '2026-09-22',
++      travelers: '3',
+     });
+ 
+     const reSearchedOffer = page.getByTestId('offer-row').filter({
+       has: page.getByRole('heading', { name: offerTitle, exact: true }),
+     });
+     await expect(reSearchedOffer).toContainText(provider);
+     await expect(reSearchedOffer.getByText('¥1,010 含税总价')).toBeVisible();
+     const savedFavorite = reSearchedOffer.getByRole('button', { name: `收藏 ${provider} 报价` });
+     await expect(savedFavorite).toHaveAttribute('aria-pressed', 'true');
+     await savedFavorite.click();
+diff --git a/tests/unit/library-store.test.ts b/tests/unit/library-store.test.ts
+index 0f1a69d..5f063f4 100644
+--- a/tests/unit/library-store.test.ts
++++ b/tests/unit/library-store.test.ts
+@@ -47,41 +47,56 @@ describe('favorite offer snapshots', () => {
+ 
+     store.getState().saveOffer(first);
+     store.getState().saveOffer(second);
+ 
+     expect(Object.keys(store.getState().favoriteOffers).sort()).toEqual([
+       '["a","b:same:id"]',
+       '["a:b","same:id"]',
+     ]);
+   });
+ 
+-  it('derives the durable snapshot and its fifteen-minute validity window from a normalized offer', () => {
++  it('derives the durable snapshot, search context, and fifteen-minute validity window from a normalized offer', () => {
+     const store = createLibraryStore();
+     const offer = makeOffer({
+       destination: '  大理  ',
+       refundable: true,
+       baggageIncluded: false,
+       updatedAt: '2026-08-19T10:00:00.000Z',
+     });
+ 
+-    store.getState().saveOffer(offer);
++    store.getState().saveOffer(offer, {
++      kind: 'flight',
++      destination: '大理',
++      origin: '上海',
++      from: '2026-09-18',
++      to: '2026-09-22',
++      travelers: 3,
++    });
+ 
+     expect(store.getState().favoriteOffers[offerIdentity(offer)]).toEqual({
+       key: '["mock-provider","offer-1"]',
+       provider: 'mock-provider',
+       productKind: 'flight',
+       destination: '大理',
+       totalPrice: 1280,
+       currency: 'CNY',
+       policySummary: '可退款｜不含行李',
+       observedAt: '2026-08-19T10:00:00.000Z',
+       expiresAt: '2026-08-19T10:15:00.000Z',
++      search: {
++        kind: 'flight',
++        destination: '大理',
++        origin: '上海',
++        from: '2026-09-18',
++        to: '2026-09-22',
++        travelers: 3,
++      },
+     });
+   });
+ 
+   it.each<[string, Partial<NormalizedOffer>]>([
+     ['an empty destination', { destination: '   ' }],
+     ['a non-comparison product kind', { kind: 'train' }],
+     ['a negative total price', { totalPrice: -1 }],
+     ['an invalid timestamp', { updatedAt: 'not-a-date' }],
+   ])('rejects %s instead of saving an invalid snapshot', (_label, patch) => {
+     const store = createLibraryStore();
+@@ -151,37 +166,79 @@ describe('local price alerts', () => {
+     expect(store.getState().priceAlerts).toEqual({});
+   });
+ });
+ 
+ describe('persistence and recovery', () => {
+   it('persists a liked post, normalized offer snapshot, and alert for a fresh store to rehydrate', async () => {
+     const source = createLibraryStore();
+     const offer = makeOffer({ id: 'same:id', provider: 'a:b' });
+     await source.persist.rehydrate();
+     source.getState().togglePostLike('sanya-coast-rainforest');
+-    source.getState().saveOffer(offer);
++    source.getState().saveOffer(offer, {
++      kind: 'flight',
++      destination: '大理',
++      from: '2026-09-18',
++      to: '2026-09-22',
++      travelers: 3,
++    });
+     source.getState().setPriceAlert(offerIdentity(offer), true);
+ 
+     const rehydrated = createLibraryStore();
+     await rehydrated.persist.rehydrate();
+ 
+     expect(rehydrated.getState().likedPostSlugs).toEqual(['sanya-coast-rainforest']);
+     expect(rehydrated.getState().favoriteOffers[offerIdentity(offer)]).toMatchObject({
+       key: '["a:b","same:id"]',
+       expiresAt: '2026-08-19T10:15:00.000Z',
++      search: {
++        kind: 'flight',
++        destination: '大理',
++        from: '2026-09-18',
++        to: '2026-09-22',
++        travelers: 3,
++      },
+     });
+     expect(rehydrated.getState().priceAlerts[offerIdentity(offer)]).toMatchObject({
+       offerKey: '["a:b","same:id"]',
+       enabled: true,
+     });
+   });
+ 
++  it('continues to hydrate a valid v1 offer snapshot saved before search context existed', async () => {
++    const legacySnapshot = {
++      key: '["mock-provider","offer-1"]',
++      provider: 'mock-provider',
++      productKind: 'flight',
++      destination: '大理',
++      totalPrice: 1280,
++      currency: 'CNY',
++      policySummary: '可退款｜含行李',
++      observedAt: '2026-08-19T10:00:00.000Z',
++      expiresAt: '2026-08-19T10:15:00.000Z',
++    };
++    window.localStorage.setItem(storageKey, JSON.stringify({
++      state: {
++        likedPostSlugs: [],
++        favoriteOffers: { [legacySnapshot.key]: legacySnapshot },
++        priceAlerts: {},
++      },
++      version: 1,
++    }));
++    let hydrationError = false;
++    const store = createLibraryStore({ onHydrationError: () => { hydrationError = true; } });
++
++    await store.persist.rehydrate();
++
++    expect(hydrationError).toBe(false);
++    expect(store.getState().favoriteOffers[legacySnapshot.key]).toEqual(legacySnapshot);
++  });
++
+   it('fails closed and preserves malformed bytes until an explicit reset', async () => {
+     const malformedBytes = JSON.stringify({
+       state: { likedPostSlugs: [], favoriteOffers: {}, priceAlerts: {}, unexpected: true },
+       version: 1,
+     });
+     window.localStorage.setItem(storageKey, malformedBytes);
+     let hydrationError = false;
+     const store = createLibraryStore({ onHydrationError: () => { hydrationError = true; } });
+ 
+     await store.persist.rehydrate();
+@@ -266,20 +323,52 @@ describe('persistence and recovery', () => {
+       version: 1,
+     });
+     window.localStorage.setItem(storageKey, malformedBytes);
+     const store = createLibraryStore();
+ 
+     await store.persist.rehydrate();
+ 
+     expect(store.getState()).toMatchObject({ likedPostSlugs: [], favoriteOffers: {}, priceAlerts: {} });
+     expect(window.localStorage.getItem(storageKey)).toBe(malformedBytes);
+   });
++
++  it('fails closed and preserves bytes when persisted search context is invalid', async () => {
++    const snapshot = {
++      key: '["mock-provider","offer-1"]',
++      provider: 'mock-provider',
++      productKind: 'flight',
++      destination: '大理',
++      totalPrice: 1280,
++      currency: 'CNY',
++      policySummary: '可退款｜含行李',
++      observedAt: '2026-08-19T10:00:00.000Z',
++      expiresAt: '2026-08-19T10:15:00.000Z',
++      search: {
++        kind: 'flight',
++        destination: '大理',
++        from: '2026-02-30',
++        to: '2026-09-22',
++        travelers: 3,
++      },
++    };
++    const malformedBytes = JSON.stringify({
++      state: { likedPostSlugs: [], favoriteOffers: { [snapshot.key]: snapshot }, priceAlerts: {} },
++      version: 1,
++    });
++    window.localStorage.setItem(storageKey, malformedBytes);
++    const store = createLibraryStore();
++
++    await store.persist.rehydrate();
++
++    expect(store.getState()).toMatchObject({ likedPostSlugs: [], favoriteOffers: {}, priceAlerts: {} });
++    expect(window.localStorage.getItem(storageKey)).toBe(malformedBytes);
++  });
+ });
+ 
+ function emptyPersistedState() {
+   return { likedPostSlugs: [], favoriteOffers: {}, priceAlerts: {} };
+ }
+ 
+ function makeOffer(patch: Partial<NormalizedOffer> = {}): NormalizedOffer {
+   return {
+     id: 'offer-1',
+     provider: 'mock-provider',

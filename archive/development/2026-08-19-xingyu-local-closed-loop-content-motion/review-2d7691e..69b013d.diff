@@ -1,0 +1,2240 @@
+# Review package: 2d7691e..69b013d
+
+## Commits
+69b013d docs: record final vercel release evidence
+51818da docs: record final fix design QA
+e77c96e fix: stabilize crawler production origin
+5fe27ea fix: prevent cross-store partner split brain
+bddb826 fix: hydrate assistant trip context safely
+6a60ee2 fix: route discovery cities into comparison
+
+## Files changed
+ .../preview-final-verification.json                | 132 ++++++++++++++
+ .../production-final-verification.json             | 129 ++++++++++++++
+ artifacts/design-qa-2026-08-19/vercel-release.json |  48 ++++--
+ .../verify-vercel-deployment.mjs                   | 124 ++++++++++++--
+ .../assistant-existing-trip-saved.png              | Bin 0 -> 346807 bytes
+ .../assistant-fresh-no-trip.png                    | Bin 0 -> 342003 bytes
+ .../assistant-hydration-error.png                  | Bin 0 -> 217362 bytes
+ .../capture-affected-surfaces.mjs                  | 190 +++++++++++++++++++++
+ .../comparison-affected-surfaces.png               | Bin 0 -> 1715059 bytes
+ .../homepage-beijing-cta.png                       | Bin 0 -> 707668 bytes
+ .../final-fixes-2026-08-21/local-design-qa.json    |  77 +++++++++
+ .../workbench-partner-hydration-error.png          | Bin 0 -> 109224 bytes
+ design-qa.md                                       |  27 ++-
+ docs/reports/2026-08-19-xingyu-closed-loop.md      |  14 ++
+ src/app/assistant/page.tsx                         |  12 +-
+ src/app/robots.ts                                  |   3 +-
+ src/app/sitemap.ts                                 |   3 +-
+ src/features/assistant/alternative-plan.tsx        |  13 +-
+ src/features/assistant/assistant-client.tsx        |  96 +++++++++--
+ src/features/assistant/assistant.module.css        |   8 +
+ src/features/home/destination-film-carousel.tsx    |   3 +-
+ src/features/home/featured-destinations.tsx        |  13 +-
+ src/features/trips/decision-room.tsx               |  20 ++-
+ src/features/trips/trip-workbench.tsx              |  23 ++-
+ src/features/trips/trips.module.css                |   1 +
+ src/lib/site-origin.ts                             |  22 +++
+ src/stores/partner-store.ts                        |  18 +-
+ tests/component/assistant-client.test.tsx          |  58 ++++++-
+ tests/component/destination-film-carousel.test.tsx |  24 +--
+ tests/component/trip-workbench.test.tsx            |  43 +++++
+ tests/e2e/core-journey.spec.ts                     |  10 ++
+ tests/unit/crawler-origin.test.ts                  |  39 +++++
+ tests/unit/partner-eligibility.test.ts             |  17 +-
+ 33 files changed, 1090 insertions(+), 77 deletions(-)
+
+## Diff
+diff --git a/artifacts/design-qa-2026-08-19/preview-final-verification.json b/artifacts/design-qa-2026-08-19/preview-final-verification.json
+new file mode 100644
+index 0000000..bf54941
+--- /dev/null
++++ b/artifacts/design-qa-2026-08-19/preview-final-verification.json
+@@ -0,0 +1,132 @@
++{
++  "targetUrl": "https://xingyu-travel-88ifag4pc-lirongouyang522-3492s-projects.vercel.app",
++  "mode": "protected-preview",
++  "browser": "Google Chrome (Playwright channel: chrome)",
++  "startedAt": "2026-08-21T02:56:12.174Z",
++  "unauthenticated": {
++    "status": 200,
++    "finalOrigin": "https://vercel.com",
++    "finalPath": "/login",
++    "result": "expected Preview SSO login"
++  },
++  "routes": [
++    {
++      "route": "/",
++      "label": "首页",
++      "status": 200,
++      "finalPath": "/"
++    },
++    {
++      "route": "/square",
++      "label": "灵感广场",
++      "status": 200,
++      "finalPath": "/square"
++    },
++    {
++      "route": "/square/dali-slow-5d",
++      "label": "攻略详情",
++      "status": 200,
++      "finalPath": "/square/dali-slow-5d"
++    },
++    {
++      "route": "/profile",
++      "label": "个人中心",
++      "status": 200,
++      "finalPath": "/profile"
++    },
++    {
++      "route": "/trips",
++      "label": "我的行程",
++      "status": 200,
++      "finalPath": "/trips"
++    },
++    {
++      "route": "/compare?kind=flight&destination=%E5%A4%A7%E7%90%86&origin=%E4%B8%8A%E6%B5%B7&from=2026-09-18&to=2026-09-22&travelers=3",
++      "label": "统一比价",
++      "status": 200,
++      "finalPath": "/compare"
++    },
++    {
++      "route": "/partners",
++      "label": "旅游搭子",
++      "status": 200,
++      "finalPath": "/partners"
++    },
++    {
++      "route": "/assistant",
++      "label": "AI 旅行助手",
++      "status": 200,
++      "finalPath": "/assistant"
++    },
++    {
++      "route": "/guardian/dali-slow-5d",
++      "label": "行程守护",
++      "status": 200,
++      "finalPath": "/guardian/dali-slow-5d"
++    }
++  ],
++  "assets": [
++    {
++      "path": "/assets/destinations/dali/01.png",
++      "status": 200,
++      "contentType": "image/png",
++      "byteLength": 2487912
++    },
++    {
++      "path": "/_next/image?url=%2Fassets%2Fdestinations%2Fdali%2F01.png&w=1080&q=75",
++      "status": 200,
++      "contentType": "image/png",
++      "byteLength": 364221
++    }
++  ],
++  "securityHeaders": {
++    "x-content-type-options": "nosniff",
++    "referrer-policy": "strict-origin-when-cross-origin",
++    "permissions-policy": "camera=(), microphone=(), geolocation=()",
++    "x-frame-options": "SAMEORIGIN"
++  },
++  "affectedFlows": [
++    {
++      "name": "discovery city -> comparison destination prefilled",
++      "result": "passed"
++    },
++    {
++      "name": "fresh assistant -> advice only without invented trip",
++      "result": "passed"
++    },
++    {
++      "name": "assistant trip -> explicit selection saves once",
++      "result": "passed"
++    },
++    {
++      "name": "assistant malformed trip store -> fail closed and preserve bytes",
++      "result": "passed"
++    },
++    {
++      "name": "workbench malformed partner store -> publishing disabled without trip marker",
++      "result": "passed"
++    }
++  ],
++  "loops": [
++    {
++      "name": "interest clear -> re-add -> recommendation survives reload",
++      "result": "passed"
++    },
++    {
++      "name": "like guide -> reload -> profile likes -> unlike",
++      "result": "passed"
++    },
++    {
++      "name": "guide conversion -> My Trips -> workbench -> compare",
++      "result": "passed"
++    },
++    {
++      "name": "favorite offer + alert -> profile -> re-search -> remove confirmation",
++      "result": "passed"
++    }
++  ],
++  "runtimeErrors": [],
++  "runtimeWarnings": [],
++  "completedAt": "2026-08-21T02:58:09.025Z",
++  "result": "passed"
++}
+diff --git a/artifacts/design-qa-2026-08-19/production-final-verification.json b/artifacts/design-qa-2026-08-19/production-final-verification.json
+new file mode 100644
+index 0000000..5b9e261
+--- /dev/null
++++ b/artifacts/design-qa-2026-08-19/production-final-verification.json
+@@ -0,0 +1,129 @@
++{
++  "targetUrl": "https://xingyu-travel.vercel.app",
++  "mode": "public-production",
++  "browser": "Google Chrome (Playwright channel: chrome)",
++  "startedAt": "2026-08-21T03:01:03.861Z",
++  "unauthenticated": {
++    "result": "fresh context; no credentials or bypass headers supplied"
++  },
++  "routes": [
++    {
++      "route": "/",
++      "label": "首页",
++      "status": 200,
++      "finalPath": "/"
++    },
++    {
++      "route": "/square",
++      "label": "灵感广场",
++      "status": 200,
++      "finalPath": "/square"
++    },
++    {
++      "route": "/square/dali-slow-5d",
++      "label": "攻略详情",
++      "status": 200,
++      "finalPath": "/square/dali-slow-5d"
++    },
++    {
++      "route": "/profile",
++      "label": "个人中心",
++      "status": 200,
++      "finalPath": "/profile"
++    },
++    {
++      "route": "/trips",
++      "label": "我的行程",
++      "status": 200,
++      "finalPath": "/trips"
++    },
++    {
++      "route": "/compare?kind=flight&destination=%E5%A4%A7%E7%90%86&origin=%E4%B8%8A%E6%B5%B7&from=2026-09-18&to=2026-09-22&travelers=3",
++      "label": "统一比价",
++      "status": 200,
++      "finalPath": "/compare"
++    },
++    {
++      "route": "/partners",
++      "label": "旅游搭子",
++      "status": 200,
++      "finalPath": "/partners"
++    },
++    {
++      "route": "/assistant",
++      "label": "AI 旅行助手",
++      "status": 200,
++      "finalPath": "/assistant"
++    },
++    {
++      "route": "/guardian/dali-slow-5d",
++      "label": "行程守护",
++      "status": 200,
++      "finalPath": "/guardian/dali-slow-5d"
++    }
++  ],
++  "assets": [
++    {
++      "path": "/assets/destinations/dali/01.png",
++      "status": 200,
++      "contentType": "image/png",
++      "byteLength": 2487912
++    },
++    {
++      "path": "/_next/image?url=%2Fassets%2Fdestinations%2Fdali%2F01.png&w=1080&q=75",
++      "status": 200,
++      "contentType": "image/png",
++      "byteLength": 364221
++    }
++  ],
++  "securityHeaders": {
++    "x-content-type-options": "nosniff",
++    "referrer-policy": "strict-origin-when-cross-origin",
++    "permissions-policy": "camera=(), microphone=(), geolocation=()",
++    "x-frame-options": "SAMEORIGIN"
++  },
++  "affectedFlows": [
++    {
++      "name": "discovery city -> comparison destination prefilled",
++      "result": "passed"
++    },
++    {
++      "name": "fresh assistant -> advice only without invented trip",
++      "result": "passed"
++    },
++    {
++      "name": "assistant trip -> explicit selection saves once",
++      "result": "passed"
++    },
++    {
++      "name": "assistant malformed trip store -> fail closed and preserve bytes",
++      "result": "passed"
++    },
++    {
++      "name": "workbench malformed partner store -> publishing disabled without trip marker",
++      "result": "passed"
++    }
++  ],
++  "loops": [
++    {
++      "name": "interest clear -> re-add -> recommendation survives reload",
++      "result": "passed"
++    },
++    {
++      "name": "like guide -> reload -> profile likes -> unlike",
++      "result": "passed"
++    },
++    {
++      "name": "guide conversion -> My Trips -> workbench -> compare",
++      "result": "passed"
++    },
++    {
++      "name": "favorite offer + alert -> profile -> re-search -> remove confirmation",
++      "result": "passed"
++    }
++  ],
++  "runtimeErrors": [],
++  "runtimeWarnings": [],
++  "completedAt": "2026-08-21T03:04:46.377Z",
++  "result": "passed"
++}
+diff --git a/artifacts/design-qa-2026-08-19/vercel-release.json b/artifacts/design-qa-2026-08-19/vercel-release.json
+index b5e0e52..a7a4362 100644
+--- a/artifacts/design-qa-2026-08-19/vercel-release.json
++++ b/artifacts/design-qa-2026-08-19/vercel-release.json
+@@ -1,28 +1,50 @@
+ {
+-  "deployedCommit": "d58c254",
++  "deployedCommit": "51818da9514cc756f1c01a114570ee8878a46904",
+   "preview": {
+-    "deploymentId": "dpl_8pfLnq33CdM3QNq49yqFj3QTcGvB",
+-    "url": "https://xingyu-travel-nylfzzhu4-lirongouyang522-3492s-projects.vercel.app",
++    "deploymentId": "dpl_AXdEaEHnUubPbBJXbC1x8DRGBXNW",
++    "url": "https://xingyu-travel-88ifag4pc-lirongouyang522-3492s-projects.vercel.app",
+     "target": "preview",
+     "status": "READY",
+-    "unauthenticatedResult": "redirected to https://vercel.com/login in fresh local Chrome",
+-    "automationVerification": "protected candidate verified with an internally held Vercel automation-bypass secret; the secret was never printed or persisted"
++    "unauthenticatedResult": "fresh local Chrome redirected to https://vercel.com/login",
++    "automationVerification": "existing default Vercel Automation Bypass was read in process memory; no secret was printed or persisted",
++    "browserVerification": "preview-final-verification.json"
+   },
+   "production": {
+-    "deploymentId": "dpl_7tBjfSPxfbJXzwTX7PGGBUWCwgoE",
+-    "deploymentUrl": "https://xingyu-travel-c6zd0kuwa-lirongouyang522-3492s-projects.vercel.app",
++    "deploymentId": "dpl_JCoM3n81ch8oogaaj85KKLonKaZj",
++    "deploymentUrl": "https://xingyu-travel-nqssihr6y-lirongouyang522-3492s-projects.vercel.app",
+     "publicAlias": "https://xingyu-travel.vercel.app",
+     "target": "production",
+     "status": "READY",
+-    "unauthenticatedResult": "200 responses on the public alias in a fresh local Chrome context",
+-    "browserVerification": "production-verification.json",
+-    "errorLogs": "No error-level entries returned for this deployment in the one-hour bounded query"
++    "unauthenticatedResult": "200 responses on the public alias in a fresh local Chrome context without credentials or bypass headers",
++    "browserVerification": "production-final-verification.json",
++    "errorLogs": "No error-level entry returned for this deployment in the bounded one-hour query"
++  },
++  "verification": {
++    "routes": "9/9 returned 200",
++    "assets": "2/2 returned 200 image/png",
++    "affectedFlows": "5/5 passed",
++    "closedLoops": "4/4 passed",
++    "runtimeErrors": 0,
++    "runtimeWarnings": 0,
++    "securityHeaders": {
++      "x-content-type-options": "nosniff",
++      "referrer-policy": "strict-origin-when-cross-origin",
++      "permissions-policy": "camera=(), microphone=(), geolocation=()",
++      "x-frame-options": "SAMEORIGIN"
++    }
++  },
++  "automationBypassCleanup": {
++    "before": 10,
++    "removedTaskCreated": 2,
++    "after": 8,
++    "defaultPreserved": true,
++    "ssoProtectionChanged": false
+   },
+   "previousKnownGoodProduction": {
+-    "deploymentId": "dpl_3GZmsZn1tZmdJvr2xmDtKM9wdawV",
+-    "url": "https://xingyu-travel-5upep3p2h-lirongouyang522-3492s-projects.vercel.app",
++    "deploymentId": "dpl_7tBjfSPxfbJXzwTX7PGGBUWCwgoE",
++    "url": "https://xingyu-travel-c6zd0kuwa-lirongouyang522-3492s-projects.vercel.app",
+     "status": "READY"
+   },
+-  "rollbackCommand": "pnpm dlx vercel@59.1.4 rollback https://xingyu-travel-5upep3p2h-lirongouyang522-3492s-projects.vercel.app",
++  "rollbackCommand": "pnpm dlx vercel@59.1.4 rollback https://xingyu-travel-c6zd0kuwa-lirongouyang522-3492s-projects.vercel.app --scope lirongouyang522-3492s-projects",
+   "rollbackExecuted": false
+ }
+diff --git a/artifacts/design-qa-2026-08-19/verify-vercel-deployment.mjs b/artifacts/design-qa-2026-08-19/verify-vercel-deployment.mjs
+index 61b8867..31c3bca 100644
+--- a/artifacts/design-qa-2026-08-19/verify-vercel-deployment.mjs
++++ b/artifacts/design-qa-2026-08-19/verify-vercel-deployment.mjs
+@@ -14,20 +14,21 @@ if (!targetUrl) throw new Error('XINGYU_TARGET_URL is required');
+ const normalizedTarget = new URL(targetUrl);
+ const result = {
+   targetUrl: normalizedTarget.origin,
+   mode: usePreviewBypass ? 'protected-preview' : 'public-production',
+   browser: 'Google Chrome (Playwright channel: chrome)',
+   startedAt: new Date().toISOString(),
+   unauthenticated: null,
+   routes: [],
+   assets: [],
+   securityHeaders: {},
++  affectedFlows: [],
+   loops: [],
+   runtimeErrors: [],
+   runtimeWarnings: [],
+ };
+ 
+ function assert(condition, message) {
+   if (!condition) throw new Error(message);
+ }
+ 
+ async function getPreviewBypassSecret() {
+@@ -37,40 +38,36 @@ async function getPreviewBypassSecret() {
+   const authPath = [
+     join(appData, 'xdg.data', 'com.vercel.cli', 'auth.json'),
+     join(appData, 'com.vercel.cli', 'auth.json'),
+   ].find((candidate) => existsSync(candidate));
+   assert(authPath, 'Vercel CLI auth.json unavailable');
+   const auth = JSON.parse(readFileSync(authPath, 'utf8'));
+   assert(typeof auth.token === 'string' && auth.token.length > 0, 'Vercel CLI token unavailable');
+ 
+   const projectId = 'prj_IeyWF8pZrE35C9Sp6eJWHcFpIiCl';
+   const teamId = 'team_GXUbEGjD0inFlQqufnaKsSVQ';
+-  const response = await fetch(
+-    `https://api.vercel.com/v1/projects/${projectId}/protection-bypass?teamId=${teamId}`,
+-    {
+-      method: 'PATCH',
+-      headers: {
+-        authorization: `Bearer ${auth.token}`,
+-        'content-type': 'application/json',
+-      },
+-      body: '{}',
+-    },
++  const projectResponse = await fetch(
++    `https://api.vercel.com/v9/projects/${projectId}?teamId=${teamId}`,
++    { headers: { authorization: `Bearer ${auth.token}` } },
+   );
+-  assert(response.ok, `Vercel bypass API returned ${response.status}`);
+-  const payload = await response.json();
+-  const protectionBypass = payload.protectionBypass;
+-  assert(protectionBypass && typeof protectionBypass === 'object', 'No protection bypass map returned');
+-  const secret = Object.keys(protectionBypass).find(
+-    (candidate) => protectionBypass[candidate]?.scope === 'automation-bypass',
++  assert(projectResponse.ok, `Vercel project API returned ${projectResponse.status}`);
++  const project = await projectResponse.json();
++  const existingBypass = project.protectionBypass;
++  assert(existingBypass && typeof existingBypass === 'object', 'No existing protection bypass map returned');
++  const existingSecret = Object.keys(existingBypass).find(
++    (candidate) => existingBypass[candidate]?.scope === 'automation-bypass'
++      && existingBypass[candidate]?.isEnvVar === true,
++  ) ?? Object.keys(existingBypass).find(
++    (candidate) => existingBypass[candidate]?.scope === 'automation-bypass',
+   );
+-  assert(secret, 'No automation bypass token returned');
+-  return secret;
++  assert(existingSecret, 'No existing automation bypass token returned');
++  return existingSecret;
+ }
+ 
+ function monitorPage(page, label) {
+   page.on('console', (message) => {
+     if (message.type() === 'error') {
+       result.runtimeErrors.push(`${label}: console.error: ${message.text()}`);
+     } else if (message.type() === 'warning') {
+       result.runtimeWarnings.push(`${label}: console.warn: ${message.text()}`);
+     }
+   });
+@@ -223,35 +220,125 @@ try {
+     const context = await newContext(browser, extraHTTPHeaders);
+     const page = await context.newPage();
+     page.setDefaultTimeout(30_000);
+     monitorPage(page, `loop ${name}`);
+     await callback(page);
+     result.loops.push({ name, result: 'passed' });
+     console.log(JSON.stringify({ stage: 'loop', name, result: 'passed' }));
+     await context.close();
+   }
+ 
++  async function runAffectedFlow(name, callback, initScript) {
++    const context = await newContext(browser, extraHTTPHeaders);
++    if (initScript) await context.addInitScript(initScript);
++    const page = await context.newPage();
++    page.setDefaultTimeout(30_000);
++    monitorPage(page, `affected ${name}`);
++    await callback(page);
++    result.affectedFlows.push({ name, result: 'passed' });
++    console.log(JSON.stringify({ stage: 'affected', name, result: 'passed' }));
++    await context.close();
++  }
++
+   async function navigate(page, path) {
+     const response = await page.goto(new URL(path, normalizedTarget.origin).href, {
+       waitUntil: 'domcontentloaded',
+       timeout: 60_000,
+     });
+     assert(response?.status() === 200, `${path} returned ${response?.status()}`);
+   }
+ 
+   async function clickAndWaitForUrl(page, locator, url) {
+     await Promise.all([
+       page.waitForURL(url, { waitUntil: 'domcontentloaded', timeout: 60_000 }),
+       locator.click(),
+     ]);
+   }
+ 
++  async function createDaliTrip(page) {
++    await navigate(page, '/square/dali-slow-5d');
++    await page.getByRole('button', { name: '转为行程' }).click();
++    await expect(page.getByRole('dialog', { name: '确认行程草稿' })).toBeVisible();
++    await clickAndWaitForUrl(
++      page,
++      page.getByRole('button', { name: '确认并保存行程' }),
++      /\/trips\/dali-slow-5d$/,
++    );
++    await expect(page.getByRole('heading', { name: '大理慢行计划' })).toBeVisible();
++  }
++
++  await runAffectedFlow('discovery city -> comparison destination prefilled', async (page) => {
++    await navigate(page, '/');
++    await waitForReady(page);
++    const beijing = page.getByRole('button', { name: '查看北京' });
++    await expect.poll(async () => {
++      await beijing.click();
++      return beijing.getAttribute('aria-pressed');
++    }, { timeout: 60_000 }).toBe('true');
++    await expect(page.getByRole('link', { name: '比价北京行程' })).toBeVisible();
++    await clickAndWaitForUrl(
++      page,
++      page.getByRole('link', { name: '比价北京行程' }),
++      /\/compare\?kind=hotel&destination=%E5%8C%97%E4%BA%AC$/,
++    );
++    await expect(page.getByText('北京 · 沙箱演示报价', { exact: true })).toBeVisible();
++    await expect(page.getByRole('tab', { name: '酒店' })).toHaveAttribute('aria-selected', 'true');
++  });
++
++  await runAffectedFlow('fresh assistant -> advice only without invented trip', async (page) => {
++    await navigate(page, '/assistant');
++    await expect(page.getByText('当前为通用旅行咨询')).toBeVisible();
++    await page.getByRole('button', { name: '人身安全' }).click();
++    const answer = page.getByRole('region', { name: '旅行助手回答' });
++    await expect(answer).toBeVisible();
++    await expect(answer.getByRole('article', { name: /方案 Plan/ })).toHaveCount(3);
++    await expect(answer.getByRole('button', { name: /选择.+方案/ })).toHaveCount(0);
++    await expect(answer).toContainText('这些建议不会保存到行程');
++    await expect(page.getByText('方案已保存到本浏览器的旅行决策，未创建订单')).toHaveCount(0);
++  });
++
++  await runAffectedFlow('assistant trip -> explicit selection saves once', async (page) => {
++    await createDaliTrip(page);
++    await navigate(page, '/assistant?tripId=draft-dali-slow-5d');
++    await expect(page.getByText('已关联本地行程')).toBeVisible();
++    await page.getByRole('button', { name: '人身安全' }).click();
++    const selection = page.getByRole('button', { name: '选择立即联系公安机关方案' });
++    await expect(selection).toBeVisible();
++    await expect(page.getByText('方案已保存到本浏览器的旅行决策，未创建订单')).toHaveCount(0);
++    await selection.click();
++    await expect(selection).toHaveAttribute('aria-pressed', 'true');
++    await expect(page.getByRole('status')).toContainText('方案已保存到本浏览器的旅行决策');
++  });
++
++  await runAffectedFlow(
++    'assistant malformed trip store -> fail closed and preserve bytes',
++    async (page) => {
++      await navigate(page, '/assistant?tripId=dali-slow-5d');
++      await expect(page.getByRole('alert').filter({ hasText: '本地行程无法安全读取' })).toBeVisible();
++      await expect(page.getByRole('link', { name: '从攻略创建行程' })).toBeVisible();
++      assert(await page.evaluate(() => localStorage.getItem('xingyu-demo-v1')) === '{malformed-trip-store', 'Malformed trip bytes were overwritten');
++    },
++    () => localStorage.setItem('xingyu-demo-v1', '{malformed-trip-store'),
++  );
++
++  await runAffectedFlow('workbench malformed partner store -> publishing disabled without trip marker', async (page) => {
++    await createDaliTrip(page);
++    await page.evaluate(() => localStorage.setItem('xingyu-partner-demo-v1', '{malformed-partner-store'));
++    await page.reload({ waitUntil: 'domcontentloaded', timeout: 60_000 });
++    const publish = page.getByRole('button', { name: '发布搭子意愿' });
++    await expect(publish).toBeDisabled();
++    await expect(page.getByRole('alert').filter({ hasText: '搭子意愿存储无法安全读取' })).toBeVisible();
++    assert(await page.evaluate(() => localStorage.getItem('xingyu-partner-demo-v1')) === '{malformed-partner-store', 'Malformed partner bytes were overwritten');
++    const tripEnvelope = await page.evaluate(() => JSON.parse(localStorage.getItem('xingyu-demo-v1')));
++    assert(!tripEnvelope.state.partnerIntents['draft-dali-slow-5d'], 'Trip marker mutated during partner hydration error');
++  });
++
+   await runLoop('interest clear -> re-add -> recommendation survives reload', async (page) => {
+     await navigate(page, '/profile?tab=preferences');
+     await expect(page.getByRole('heading', { name: '推荐与兴趣偏好' })).toBeVisible();
+     await page.getByRole('button', { name: '清除全部兴趣' }).click();
+     await page.getByRole('button', { name: '确认清除' }).click();
+     await expect(page.getByRole('switch', { name: '个性化推荐' })).toBeDisabled();
+     await page.getByRole('button', { name: '海岛', exact: true }).click();
+     await page.getByRole('button', { name: '城市漫游', exact: true }).click();
+     const recommendation = page.getByRole('switch', { name: '个性化推荐' });
+     await expect(recommendation).toBeEnabled();
+@@ -342,16 +429,17 @@ try {
+   result.completedAt = new Date().toISOString();
+   result.result = 'passed';
+   writeFileSync(new URL(resultName, artifactDir), `${JSON.stringify(result, null, 2)}\n`);
+   console.log(JSON.stringify({
+     result: result.result,
+     targetUrl: result.targetUrl,
+     mode: result.mode,
+     routeCount: result.routes.length,
+     assetCount: result.assets.length,
+     loopCount: result.loops.length,
++    affectedFlowCount: result.affectedFlows.length,
+     runtimeErrors: result.runtimeErrors.length,
+     runtimeWarnings: result.runtimeWarnings.length,
+   }));
+ } finally {
+   await browser.close();
+ }
+diff --git a/artifacts/final-fixes-2026-08-21/assistant-existing-trip-saved.png b/artifacts/final-fixes-2026-08-21/assistant-existing-trip-saved.png
+new file mode 100644
+index 0000000..1ce2428
+Binary files /dev/null and b/artifacts/final-fixes-2026-08-21/assistant-existing-trip-saved.png differ
+diff --git a/artifacts/final-fixes-2026-08-21/assistant-fresh-no-trip.png b/artifacts/final-fixes-2026-08-21/assistant-fresh-no-trip.png
+new file mode 100644
+index 0000000..a3427b5
+Binary files /dev/null and b/artifacts/final-fixes-2026-08-21/assistant-fresh-no-trip.png differ
+diff --git a/artifacts/final-fixes-2026-08-21/assistant-hydration-error.png b/artifacts/final-fixes-2026-08-21/assistant-hydration-error.png
+new file mode 100644
+index 0000000..fc0034e
+Binary files /dev/null and b/artifacts/final-fixes-2026-08-21/assistant-hydration-error.png differ
+diff --git a/artifacts/final-fixes-2026-08-21/capture-affected-surfaces.mjs b/artifacts/final-fixes-2026-08-21/capture-affected-surfaces.mjs
+new file mode 100644
+index 0000000..024c191
+--- /dev/null
++++ b/artifacts/final-fixes-2026-08-21/capture-affected-surfaces.mjs
+@@ -0,0 +1,190 @@
++import { chromium, expect as baseExpect } from '@playwright/test';
++import { mkdir, readFile, writeFile } from 'node:fs/promises';
++import path from 'node:path';
++
++const expect = baseExpect.configure({ timeout: 30_000 });
++const root = process.cwd();
++const outputDir = path.join(root, 'artifacts', 'final-fixes-2026-08-21');
++const baseURL = 'http://127.0.0.1:4173';
++const desktop = { width: 1440, height: 1024 };
++const evidence = [];
++const runtimeErrors = [];
++const runtimeWarnings = [];
++
++await mkdir(outputDir, { recursive: true });
++const browser = await chromium.launch({ channel: 'chrome', headless: true });
++
++function observe(page, label) {
++  page.on('console', (message) => {
++    const value = `${label} console.${message.type()}: ${message.text()}`;
++    if (message.type() === 'error') runtimeErrors.push(value);
++    if (message.type() === 'warning') runtimeWarnings.push(value);
++  });
++  page.on('pageerror', (error) => runtimeErrors.push(`${label} pageerror: ${error.message}`));
++  page.on('response', (response) => {
++    if (response.status() >= 400) runtimeErrors.push(`${label} http ${response.status()}: ${response.url()}`);
++  });
++}
++
++async function ready(page) {
++  await page.locator('main').waitFor({ state: 'visible' });
++  await page.waitForFunction(() => document.readyState === 'complete' && document.fonts.status === 'loaded');
++  await page.waitForFunction(() => [...document.images]
++    .filter((image) => {
++      const rect = image.getBoundingClientRect();
++      return rect.bottom > 0 && rect.right > 0 && rect.top < innerHeight && rect.left < innerWidth;
++    })
++    .every((image) => image.complete && image.naturalWidth > 0));
++  await page.waitForFunction(() => document.getAnimations()
++    .filter((animation) => animation.effect?.getTiming().iterations !== Infinity)
++    .every((animation) => animation.playState !== 'running'), null, { timeout: 5_000 }).catch(() => undefined);
++}
++
++async function newPage(label, initScript) {
++  const context = await browser.newContext({
++    deviceScaleFactor: 1,
++    reducedMotion: 'no-preference',
++    viewport: desktop,
++  });
++  if (initScript) await context.addInitScript(initScript);
++  const page = await context.newPage();
++  observe(page, label);
++  return { context, page };
++}
++
++async function record(page, name, route, state, options = {}) {
++  await ready(page);
++  if (options.fullPage) {
++    await page.evaluate(() => scrollTo(0, 0));
++    await page.waitForFunction(() => scrollY === 0);
++  }
++  const output = path.join(outputDir, `${name}.png`);
++  await page.screenshot({ animations: 'disabled', fullPage: options.fullPage ?? false, path: output });
++  const metrics = await page.evaluate(() => ({
++    cssViewport: { width: innerWidth, height: innerHeight },
++    density: devicePixelRatio,
++    documentWidth: document.documentElement.scrollWidth,
++    documentHeight: document.documentElement.scrollHeight,
++  }));
++  evidence.push({ name, route, state, output: path.relative(root, output).replaceAll('\\', '/'), ...metrics });
++}
++
++async function createDaliTrip(page) {
++  await page.goto(`${baseURL}/square/dali-slow-5d`, { waitUntil: 'commit' });
++  await expect(page.getByRole('button', { name: '转为行程' })).toBeEnabled();
++  await page.getByRole('button', { name: '转为行程' }).click();
++  await expect(page.getByRole('dialog', { name: '确认行程草稿' })).toBeVisible();
++  await page.getByRole('button', { name: '确认并保存行程' }).click();
++  await expect(page).toHaveURL(/\/trips\/dali-slow-5d$/);
++  await expect(page.getByRole('heading', { name: '大理慢行计划' })).toBeVisible();
++}
++
++{
++  const { context, page } = await newPage('homepage-beijing-cta');
++  await page.goto(baseURL, { waitUntil: 'commit' });
++  await expect(page.getByRole('button', { name: '查看北京' })).toBeVisible();
++  await page.getByRole('button', { name: '查看北京' }).click();
++  const cta = page.getByRole('link', { name: '比价北京行程' });
++  await expect(cta).toHaveAttribute('href', '/compare?kind=hotel&destination=%E5%8C%97%E4%BA%AC');
++  await cta.scrollIntoViewIfNeeded();
++  await record(page, 'homepage-beijing-cta', '/', '北京取景窗选中，真实比价 CTA 可见');
++  await context.close();
++}
++
++{
++  const { context, page } = await newPage('assistant-fresh-no-trip');
++  await page.goto(`${baseURL}/assistant`, { waitUntil: 'commit' });
++  await expect(page.getByText('当前为通用旅行咨询')).toBeVisible();
++  await page.getByRole('button', { name: '人身安全' }).click();
++  await expect(page.getByRole('region', { name: '旅行助手回答' })).toBeVisible();
++  await expect(page.getByText('这些建议不会保存到行程；你可以直接参考并自行决定下一步。')).toBeVisible();
++  await expect(page.getByRole('button', { name: /选择.+方案/ })).toHaveCount(0);
++  await record(page, 'assistant-fresh-no-trip', '/assistant', '全新浏览器：通用咨询、Plan A/B/C 只读', { fullPage: true });
++  await context.close();
++}
++
++{
++  const { context, page } = await newPage('assistant-hydration-error', () => {
++    localStorage.setItem('xingyu-demo-v1', '{malformed-trip-store');
++  });
++  await page.goto(`${baseURL}/assistant?tripId=dali-slow-5d`, { waitUntil: 'commit' });
++  await expect(page.getByRole('alert').filter({ hasText: '本地行程无法安全读取' })).toContainText('本地行程无法安全读取');
++  await expect(page.getByRole('link', { name: '从攻略创建行程' })).toBeVisible();
++  await record(page, 'assistant-hydration-error', '/assistant?tripId=dali-slow-5d', '行程存储损坏：失败关闭、保留恢复入口');
++  await context.close();
++}
++
++{
++  const { context, page } = await newPage('assistant-existing-trip-saved');
++  await createDaliTrip(page);
++  await page.goto(`${baseURL}/assistant?tripId=draft-dali-slow-5d`, { waitUntil: 'commit' });
++  await expect(page.getByText('已关联本地行程')).toBeVisible();
++  await page.getByRole('button', { name: '人身安全' }).click();
++  const select = page.getByRole('button', { name: '选择立即联系公安机关方案' });
++  await expect(select).toBeVisible();
++  await select.click();
++  await expect(select).toHaveAttribute('aria-pressed', 'true');
++  await expect(page.getByRole('status')).toContainText('方案已保存到本浏览器的旅行决策');
++  await record(page, 'assistant-existing-trip-saved', '/assistant?tripId=draft-dali-slow-5d', '真实本地行程：用户选择后才显示保存成功', { fullPage: true });
++  await context.close();
++}
++
++{
++  const { context, page } = await newPage('workbench-partner-hydration-error');
++  await createDaliTrip(page);
++  await page.evaluate(() => localStorage.setItem('xingyu-partner-demo-v1', '{malformed-partner-store'));
++  await page.reload({ waitUntil: 'commit' });
++  const publish = page.getByRole('button', { name: '发布搭子意愿' });
++  await expect(publish).toBeDisabled();
++  await expect(page.getByRole('alert').filter({ hasText: '搭子意愿存储无法安全读取' })).toContainText('搭子意愿存储无法安全读取');
++  await publish.scrollIntoViewIfNeeded();
++  await record(page, 'workbench-partner-hydration-error', '/trips/dali-slow-5d', '搭子存储损坏：发布停用且解释原因');
++  await context.close();
++}
++
++async function dataUrl(file) {
++  const buffer = await readFile(file);
++  return `data:image/png;base64,${buffer.toString('base64')}`;
++}
++
++async function createBoard() {
++  const sourceHome = await dataUrl(path.join(root, 'docs', 'design', 'selected-homepage-option-1.png'));
++  const sourceHub = await dataUrl(path.join(root, 'docs', 'design', 'xingyu-content-hub-target.png'));
++  const captures = await Promise.all(evidence.map(async (item) => ({
++    ...item,
++    src: await dataUrl(path.join(root, item.output)),
++  })));
++  const context = await browser.newContext({ viewport: { width: 1920, height: 2600 }, deviceScaleFactor: 1 });
++  const page = await context.newPage();
++  await page.setContent(`<!doctype html><style>
++    *{box-sizing:border-box}body{margin:0;padding:24px;background:#10100f;color:#f4f0e8;font:20px Arial,sans-serif}
++    h1{margin:0 0 18px;font:34px Georgia,serif}.truth,.states{display:grid;grid-template-columns:1fr 1fr;gap:18px}
++    .truth{margin-bottom:24px}.card{padding:12px;border:1px solid #b79a68;background:#191918}.card strong{display:block;margin-bottom:9px;color:#d8c79b}
++    .truth img{display:block;width:100%;height:520px;object-fit:contain;background:#0b0b0a}.states img{display:block;width:100%;height:610px;object-fit:contain;background:#0b0b0a}
++    .card p{margin:9px 0 0;color:#c8c0b4;font-size:16px;line-height:1.5}.wide{grid-column:1/-1}
++  </style><h1>行屿最终修复 · 同输入 Design QA</h1>
++  <section class="truth"><article class="card"><strong>SOURCE · homepage visual truth</strong><img src="${sourceHome}"></article><article class="card"><strong>SOURCE · content-hub visual truth</strong><img src="${sourceHub}"></article></section>
++  <section class="states">${captures.map((item, index) => `<article class="card ${index === captures.length - 1 ? 'wide' : ''}"><strong>IMPLEMENTATION · ${item.name}</strong><img src="${item.src}"><p>${item.state} · Chrome 1440×1024 CSS px @1x</p></article>`).join('')}</section>`);
++  await page.waitForFunction(() => [...document.images].every((image) => image.complete && image.naturalWidth > 0));
++  const output = path.join(outputDir, 'comparison-affected-surfaces.png');
++  await page.screenshot({ fullPage: true, path: output });
++  await context.close();
++}
++
++await createBoard();
++await writeFile(path.join(outputDir, 'local-design-qa.json'), `${JSON.stringify({
++  browser: 'Google Chrome via Playwright channel=chrome',
++  sourceVisualTruth: [
++    'docs/design/selected-homepage-option-1.png',
++    'docs/design/xingyu-content-hub-target.png',
++  ],
++  evidence,
++  runtimeErrors,
++  runtimeWarnings,
++  result: runtimeErrors.length === 0 ? 'passed' : 'failed',
++}, null, 2)}\n`);
++
++await browser.close();
++
++if (runtimeErrors.length > 0) throw new Error(runtimeErrors.join('\n'));
++console.log(JSON.stringify({ captures: evidence.length, runtimeErrors, runtimeWarnings }));
+diff --git a/artifacts/final-fixes-2026-08-21/comparison-affected-surfaces.png b/artifacts/final-fixes-2026-08-21/comparison-affected-surfaces.png
+new file mode 100644
+index 0000000..7f0f428
+Binary files /dev/null and b/artifacts/final-fixes-2026-08-21/comparison-affected-surfaces.png differ
+diff --git a/artifacts/final-fixes-2026-08-21/homepage-beijing-cta.png b/artifacts/final-fixes-2026-08-21/homepage-beijing-cta.png
+new file mode 100644
+index 0000000..7712046
+Binary files /dev/null and b/artifacts/final-fixes-2026-08-21/homepage-beijing-cta.png differ
+diff --git a/artifacts/final-fixes-2026-08-21/local-design-qa.json b/artifacts/final-fixes-2026-08-21/local-design-qa.json
+new file mode 100644
+index 0000000..1303603
+--- /dev/null
++++ b/artifacts/final-fixes-2026-08-21/local-design-qa.json
+@@ -0,0 +1,77 @@
++{
++  "browser": "Google Chrome via Playwright channel=chrome",
++  "sourceVisualTruth": [
++    "docs/design/selected-homepage-option-1.png",
++    "docs/design/xingyu-content-hub-target.png"
++  ],
++  "evidence": [
++    {
++      "name": "homepage-beijing-cta",
++      "route": "/",
++      "state": "北京取景窗选中，真实比价 CTA 可见",
++      "output": "artifacts/final-fixes-2026-08-21/homepage-beijing-cta.png",
++      "cssViewport": {
++        "width": 1440,
++        "height": 1024
++      },
++      "density": 1,
++      "documentWidth": 1440,
++      "documentHeight": 5514
++    },
++    {
++      "name": "assistant-fresh-no-trip",
++      "route": "/assistant",
++      "state": "全新浏览器：通用咨询、Plan A/B/C 只读",
++      "output": "artifacts/final-fixes-2026-08-21/assistant-fresh-no-trip.png",
++      "cssViewport": {
++        "width": 1440,
++        "height": 1024
++      },
++      "density": 1,
++      "documentWidth": 1440,
++      "documentHeight": 1649
++    },
++    {
++      "name": "assistant-hydration-error",
++      "route": "/assistant?tripId=dali-slow-5d",
++      "state": "行程存储损坏：失败关闭、保留恢复入口",
++      "output": "artifacts/final-fixes-2026-08-21/assistant-hydration-error.png",
++      "cssViewport": {
++        "width": 1440,
++        "height": 1024
++      },
++      "density": 1,
++      "documentWidth": 1440,
++      "documentHeight": 1024
++    },
++    {
++      "name": "assistant-existing-trip-saved",
++      "route": "/assistant?tripId=draft-dali-slow-5d",
++      "state": "真实本地行程：用户选择后才显示保存成功",
++      "output": "artifacts/final-fixes-2026-08-21/assistant-existing-trip-saved.png",
++      "cssViewport": {
++        "width": 1440,
++        "height": 1024
++      },
++      "density": 1,
++      "documentWidth": 1440,
++      "documentHeight": 1634
++    },
++    {
++      "name": "workbench-partner-hydration-error",
++      "route": "/trips/dali-slow-5d",
++      "state": "搭子存储损坏：发布停用且解释原因",
++      "output": "artifacts/final-fixes-2026-08-21/workbench-partner-hydration-error.png",
++      "cssViewport": {
++        "width": 1440,
++        "height": 1024
++      },
++      "density": 1,
++      "documentWidth": 1440,
++      "documentHeight": 3602
++    }
++  ],
++  "runtimeErrors": [],
++  "runtimeWarnings": [],
++  "result": "passed"
++}
+diff --git a/artifacts/final-fixes-2026-08-21/workbench-partner-hydration-error.png b/artifacts/final-fixes-2026-08-21/workbench-partner-hydration-error.png
+new file mode 100644
+index 0000000..d8543ae
+Binary files /dev/null and b/artifacts/final-fixes-2026-08-21/workbench-partner-hydration-error.png differ
+diff --git a/design-qa.md b/design-qa.md
+index 98f15f6..3a7a7ab 100644
+--- a/design-qa.md
++++ b/design-qa.md
+@@ -1,70 +1,87 @@
+-# 行屿 XINGYU — Design QA（2026-08-20）
++# 行屿 XINGYU — Design QA（2026-08-21）
+ 
+ ## Comparison target
+ 
+ - Source visual truth: `docs/design/selected-homepage-option-1.png` and `docs/design/xingyu-content-hub-target.png`.
+ - Browser implementation: local production build at `http://127.0.0.1:4173`.
+ - Browser: locally installed Google Chrome through Playwright `channel: "chrome"`; this run did not use the in-app browser.
+-- Primary routes/states: `/`, `/square`, `/square/dali-slow-5d`, `/profile`, hover, focus, selected favorite, empty likes, expired offer, and malformed-library hydration error.
+-- Capture manifest: `artifacts/design-qa-2026-08-19/capture-manifest.json`.
++- Primary routes/states: `/`, `/square`, `/square/dali-slow-5d`, `/profile`, hover, focus, selected favorite, empty likes, expired offer, malformed-library hydration error, Beijing discovery CTA, assistant with no trip, assistant trip-hydration error, assistant saved-plan success, and workbench partner-hydration error.
++- Capture manifests: `artifacts/design-qa-2026-08-19/capture-manifest.json` and `artifacts/final-fixes-2026-08-21/local-design-qa.json`.
+ 
+ ## Normalization
+ 
+ - Homepage source pixels: 1487 × 1058; normalized to 1440 × 1024 beside a 1440 × 1024 CSS-pixel Chrome capture.
+ - Content-hub source pixels: 1705 × 923; the triptych is a directional composition board rather than a browser viewport. The full board preserves it in one input with three 1440 × 1024 implementation captures, normalized to 900 × 640 for the lower row.
+ - Desktop implementation: 1440 × 1024 CSS px at `deviceScaleFactor: 1`; screenshot pixels are 1440 × 1024.
+ - Mobile implementation: 390 × 844 CSS px at `deviceScaleFactor: 1`; screenshot pixels are 390 × 844.
++- Final-fix spot captures: 1440 × 1024 CSS px at `deviceScaleFactor: 1`; viewport screenshots are 1440 × 1024 pixels and the two assistant full-page states are 1440 × 1649 and 1440 × 1634 pixels. The combined comparison board is 1920 × 2846 pixels.
+ - Every capture waited for route-specific content, `document.readyState === "complete"`, `document.fonts.status === "loaded"`, visible images with non-zero natural width, and the finite entrance motion to reach its settled state.
+ 
+ ## Full-view comparison evidence
+ 
+ - Homepage: `artifacts/design-qa-2026-08-19/comparison-home-full.png`.
+ - Content hub: `artifacts/design-qa-2026-08-19/comparison-content-hub-full.png`.
+ - Responsive quartet: `artifacts/design-qa-2026-08-19/comparison-mobile-responsiveness.png`.
++- Final affected surfaces beside both visual-truth inputs: `artifacts/final-fixes-2026-08-21/comparison-affected-surfaces.png`.
+ 
+ ## Focused comparison evidence
+ 
+ - Navigation, Hero hierarchy, route cue, search controls, and trust line: `artifacts/design-qa-2026-08-19/comparison-home-focus.png`.
+ - Square, guide detail, and profile target-panel comparisons: `artifacts/design-qa-2026-08-19/comparison-content-hub-focus.png`.
+ - Hover, selected, focus, empty, expired, and hydration-error states: `artifacts/design-qa-2026-08-19/comparison-interaction-states.png`.
++- Affected-state readable captures: `artifacts/final-fixes-2026-08-21/homepage-beijing-cta.png`, `assistant-fresh-no-trip.png`, `assistant-hydration-error.png`, `assistant-existing-trip-saved.png`, and `workbench-partner-hydration-error.png` in the same artifact directory. The source boards do not prescribe assistant/workbench null or persistence-error states, so these were judged against the established typography, spacing, tokens, copy, recovery, and control-state system rather than claiming pixel identity to an absent source state.
+ 
+ ## Findings
+ 
+ No actionable P0, P1, or P2 finding remains in the valid route-ready comparison.
+ 
++- [Passed · final-fix spot check] The Beijing film keeps the dark editorial treatment while the visible CTA truthfully says `比价北京行程`; the destination is no longer presented as a nonexistent guide.
++- [Passed · final-fix spot check] Fresh-user and hydration-error assistant states clearly separate advice-only use from trip persistence. Plan A/B/C remains readable, selection controls appear only for a real trip, and saved status appears only after a successful selection.
++- [Passed · final-fix spot check] The partner-store error appears adjacent to the disabled publish action in the decision room, preserves the established error color, and explains the recovery boundary without collapsing the surrounding layout.
++
+ - [P3 · accepted] The generated Hero places the brightest sun and water reflection farther right than the homepage concept. The delivered asset keeps the same dark-left/bright-right mountain-lake art direction and avoids copied hotel-brand photography.
+ - [P3 · accepted] The implementation adds an explicit public-MVP disclosure, real date fields, a complete navigation inventory, and local-library entry points. These are required product and safety semantics; they preserve the reference hierarchy while making the standalone prototype honest and operable.
+ - [P3 · accepted] The content-hub target is a directional triptych with generated microcopy and a dark canvas. The implementation preserves its editorial serif hierarchy, sand/ink/pine tokens, image density, three-part information architecture, and dark identity header, while using ivory reading surfaces for accurate long-form copy, form controls, and recoverable browser-local states.
+ - [P3 · follow-up] The 390 px profile tab rail intentionally scrolls horizontally and leaves the next label partially visible as a continuation cue. A future polish pass may add a subtle end fade, provided it does not hide focus or reduce tab contrast.
+ 
+ ## Required fidelity surfaces
+ 
+ - Fonts and typography: Noto Serif SC carries display hierarchy and Noto Sans SC carries controls, data, and body copy. The manifest confirms fonts were loaded before capture; headings, labels, dates, and long Chinese strings remain readable without truncation.
+ - Spacing and layout rhythm: the homepage retains the overlay navigation, left-weighted Hero, central planning surface, and editorial handoff. Square, detail, and profile use stable content widths, consistent section rules, restrained radii, and 390 px reflow with document width equal to viewport width.
+ - Colors and visual tokens: ink `#10100F`, ivory `#F4F0E8`, sand `#B79A68`, pine `#26312B`, lake jade `#4D6B63`, and cinnabar `#A94032` remain legible across normal, selected, warning, and error states.
+ - Image quality and asset fidelity: visible generated photography is sharp, location-specific, consistently cropped, and complete in the manifest. No placeholder, emoji, CSS drawing, inline SVG imitation, watermark, logo, or recognizable face substitutes source imagery.
+ - Copy and content: interface text is coherent outside the design board, names the browser-local boundary, distinguishes snapshot prices from live inventory, and gives every empty/error state a recovery action.
++- Final-fix state fidelity: the new context/error panels reuse the existing ivory, sand, pine, and cinnabar tokens; display/body type roles, grid rhythm, button hierarchy, and focus semantics remain consistent. The homepage keeps location-specific sharp imagery; the assistant and decision-room changes require no new image asset and introduce no placeholder or improvised iconography.
+ - Icons and interactions: Phosphor icons retain one stroke family. Hover lift/glow, favorite fill, carousel selection, gallery focus, tabs, empty/expired/error states, touch-sized controls, keyboard navigation, and reduced motion are covered by screenshots and E2E.
+ 
+ ## Interaction, accessibility, and runtime evidence
+ 
+-- Local Chrome capture: 15 route/state screenshots; zero `console.error`, page errors, HTTP responses ≥400, or console warnings in the capture manifest.
+-- `pnpm test:e2e`: 30/30 passed in 1.2 minutes using local Chrome, including four browser-local closed loops, nine 390 × 844 routes, six Axe scans, keyboard focus, dialogs, and reduced motion.
++- Local Chrome capture: the original 15 route/state screenshots and the final five affected-state screenshots recorded zero `console.error`, page errors, HTTP responses ≥400, or console warnings in their manifests.
++- `pnpm test:e2e`: 31/31 passed in 1.4 minutes using local Chrome, including the discovery-city prefill contract, four browser-local closed loops, nine 390 × 844 routes, six Axe scans, keyboard focus, dialogs, and reduced motion.
+ - Axe: no critical or serious violations on home, square, detail, profile, trips, and compare.
+ - Responsive evidence: all four primary captures report `documentWidth === viewportWidth`; the broader E2E route matrix also passed closed/open navigation overflow checks.
+ 
+ ## Comparison history
+ 
+ 1. Evidence preflight found that an early automated homepage capture sampled the 800 ms Motion entrance before the Hero copy settled. This was a capture-readiness defect, not a product finding.
+ 2. The capture script added a computed-opacity readiness condition, then recaptured at the identical route, viewport, density, and state.
+ 3. The rebuilt full and focused same-input boards show the settled implementation. Inspection found no actionable P0/P1/P2 mismatch, so no production source change was made during Design QA.
++4. The first final-fix spot script used an overly broad `alert` locator that also matched Next.js's empty route announcer; the locator was narrowed to visible product copy. A subsequent full-page capture retained a prior scroll position and placed the sticky header mid-image; the capture was normalized to `scrollY === 0` and rebuilt. These were evidence-readiness defects, not product defects.
++5. The normalized `comparison-affected-surfaces.png` was opened and inspected with both source visual-truth inputs in the same comparison. No actionable P0/P1/P2 difference remained, so no post-comparison production CSS or component change was required.
++
++## Remote release evidence
++
++- Protected Preview `dpl_AXdEaEHnUubPbBJXbC1x8DRGBXNW` passed `preview-final-verification.json`: 9/9 routes, 2/2 assets, 5/5 affected flows, and 4/4 closed loops; zero runtime errors or warnings. A fresh unauthenticated Chrome context still reached Vercel login.
++- The exact candidate artifact was promoted to public Production `dpl_JCoM3n81ch8oogaaj85KKLonKaZj`. `production-final-verification.json` repeated the same matrix through `https://xingyu-travel.vercel.app` in a fresh context without credentials or bypass headers and passed with zero runtime errors or warnings.
++- The bounded one-hour Production error-log query returned no entry. Security headers remained `nosniff`, strict-origin referrer policy, camera/microphone/geolocation denial, and `SAMEORIGIN` framing.
+ 
+ ## Implementation checklist
+ 
+ - [x] Source and implementation appear in the same full and focused comparison inputs.
+ - [x] Desktop and mobile captures use the required CSS viewports and density.
+ - [x] Route readiness, fonts, visible images, states, interactions, console, accessibility, and overflow are evidenced.
++- [x] Beijing CTA, assistant no-trip/error/saved, and workbench partner-error states are captured at identical desktop viewport and density with zero runtime errors.
+ - [x] Objective deviations are classified as required product constraints or P3 follow-up, not silently ignored.
+ - [x] No actionable P0/P1/P2 remains.
+ 
+ final result: passed
+diff --git a/docs/reports/2026-08-19-xingyu-closed-loop.md b/docs/reports/2026-08-19-xingyu-closed-loop.md
+index d5eedd6..d8cb01d 100644
+--- a/docs/reports/2026-08-19-xingyu-closed-loop.md
++++ b/docs/reports/2026-08-19-xingyu-closed-loop.md
+@@ -78,10 +78,24 @@ Evidence: `artifacts/design-qa-2026-08-19/production-verification.json`.
+ | Runtime health | 0 `console.error`, 0 console warnings, 0 page errors, 0 HTTP responses ≥400. |
+ 
+ The production verifier initially over-constrained dynamic and lazy images by waiting for every dimensioned document image, including offscreen lazy content and a carousel source swap. A focused Chrome inspection proved the requested images returned 200 and rendered with non-zero natural dimensions. The final evidence uses viewport-intersection readiness, matching the route-ready Design QA rule; this changed only the evidence harness, not production code.
+ 
+ ## Rollback boundary
+ 
+ - Previous known-good Production: `dpl_3GZmsZn1tZmdJvr2xmDtKM9wdawV` / `https://xingyu-travel-5upep3p2h-lirongouyang522-3492s-projects.vercel.app`, READY.
+ - Prepared command: `pnpm dlx vercel@59.1.4 rollback https://xingyu-travel-5upep3p2h-lirongouyang522-3492s-projects.vercel.app`.
+ - The rollback command was recorded only and was not executed.
+ - Structured release metadata: `artifacts/design-qa-2026-08-19/vercel-release.json`.
++
++## Final review release — 2026-08-21
++
++This section supersedes the deployment identifiers above while preserving the earlier release history.
++
++- Exact deployed source commit: `51818da9514cc756f1c01a114570ee8878a46904`.
++- Preview: `dpl_AXdEaEHnUubPbBJXbC1x8DRGBXNW`, `https://xingyu-travel-88ifag4pc-lirongouyang522-3492s-projects.vercel.app`, Preview, READY, unauthenticated Chrome redirected to Vercel login.
++- Preview verification: `preview-final-verification.json`; 9 routes and 2 assets returned 200, all 5 final-review flows and all 4 closed loops passed, security headers passed, and runtime errors/warnings were both zero.
++- Exact-artifact Production promotion: `dpl_JCoM3n81ch8oogaaj85KKLonKaZj`, `https://xingyu-travel-nqssihr6y-lirongouyang522-3492s-projects.vercel.app`, Production, READY.
++- Public alias: `https://xingyu-travel.vercel.app`; `production-final-verification.json` repeated the full Preview matrix in a fresh Chrome context without credentials or bypass headers and passed.
++- Bounded one-hour Production `--level error` query: no entry returned.
++- Preview-only SSO remained unchanged. The verifier was corrected to read the existing default Automation Bypass in memory instead of creating one. Two non-default entries accidentally created by this final-review task were precisely revoked; the count returned from 10 to 8 and the original default remained selected.
++- Previous known-good Production: `dpl_7tBjfSPxfbJXzwTX7PGGBUWCwgoE` / `https://xingyu-travel-c6zd0kuwa-lirongouyang522-3492s-projects.vercel.app`, READY.
++- Prepared rollback command: `pnpm dlx vercel@59.1.4 rollback https://xingyu-travel-c6zd0kuwa-lirongouyang522-3492s-projects.vercel.app --scope lirongouyang522-3492s-projects`; recorded only, not executed.
+diff --git a/src/app/assistant/page.tsx b/src/app/assistant/page.tsx
+index 85150d7..12ee967 100644
+--- a/src/app/assistant/page.tsx
++++ b/src/app/assistant/page.tsx
+@@ -1,6 +1,14 @@
+ import { SiteHeader } from '@/components/site-header';
+ import { AssistantClient } from '@/features/assistant/assistant-client';
+ 
+-export default function AssistantPage() {
+-return <><SiteHeader activePath="/assistant" variant="solid" /><AssistantClient /></>;
++export default async function AssistantPage({
++  searchParams,
++}: {
++  searchParams: Promise<{ tripId?: string | string[] }>;
++}) {
++  const params = await searchParams;
++  const tripId = Array.isArray(params.tripId) ? params.tripId[0] : params.tripId;
++  const safeTripId = tripId?.trim().slice(0, 120) || undefined;
++
++  return <><SiteHeader activePath="/assistant" variant="solid" /><AssistantClient tripId={safeTripId} /></>;
+ }
+diff --git a/src/app/robots.ts b/src/app/robots.ts
+index 6706377..c8d15e7 100644
+--- a/src/app/robots.ts
++++ b/src/app/robots.ts
+@@ -1,11 +1,12 @@
+ import type { MetadataRoute } from 'next';
++import { resolveSiteOrigin } from '@/lib/site-origin';
+ 
+-const origin = (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://xingyu-travel.vercel.app').replace(/\/$/, '');
++const origin = resolveSiteOrigin();
+ 
+ export default function robots(): MetadataRoute.Robots {
+   return {
+     rules: { userAgent: '*', allow: '/' },
+     sitemap: `${origin}/sitemap.xml`,
+     host: origin,
+   };
+ }
+diff --git a/src/app/sitemap.ts b/src/app/sitemap.ts
+index 2b5cd26..f0338af 100644
+--- a/src/app/sitemap.ts
++++ b/src/app/sitemap.ts
+@@ -1,11 +1,12 @@
+ import type { MetadataRoute } from 'next';
++import { resolveSiteOrigin } from '@/lib/site-origin';
+ 
+-const origin = (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://xingyu-travel.vercel.app').replace(/\/$/, '');
++const origin = resolveSiteOrigin();
+ const paths = ['/', '/compare', '/square', '/trips', '/partners', '/assistant', '/profile'] as const;
+ 
+ export default function sitemap(): MetadataRoute.Sitemap {
+   return paths.map((path) => ({
+     url: `${origin}${path}`,
+     lastModified: new Date('2026-08-16T00:00:00.000Z'),
+   }));
+ }
+diff --git a/src/features/assistant/alternative-plan.tsx b/src/features/assistant/alternative-plan.tsx
+index d5221aa..7b43637 100644
+--- a/src/features/assistant/alternative-plan.tsx
++++ b/src/features/assistant/alternative-plan.tsx
+@@ -1,25 +1,32 @@
+ import type { AssistantAlternative } from '@/domain/assistant/schema';
+ import styles from './assistant.module.css';
+ 
+ interface AlternativePlanProps {
+   alternative: AssistantAlternative;
+   index: number;
+-  onSelect: (alternative: AssistantAlternative) => void;
++  onSelect?: (alternative: AssistantAlternative) => void;
++  selected?: boolean;
+ }
+ 
+-export function AlternativePlan({ alternative, index, onSelect }: AlternativePlanProps) {
++export function AlternativePlan({ alternative, index, onSelect, selected = false }: AlternativePlanProps) {
+   const label = String.fromCharCode(65 + index);
+   return (
+     <article aria-label={`方案 Plan ${label}`} className={styles.planCard}>
+       <p>PLAN {label}</p>
+       <h3>{alternative.title}</h3>
+       <dl>
+         <div><dt>成本</dt><dd>{alternative.cost}</dd></div>
+         <div><dt>耗时</dt><dd>{alternative.duration}</dd></div>
+         <div><dt>风险</dt><dd>{alternative.risk}</dd></div>
+       </dl>
+       <ul>{alternative.actions.map((action) => <li key={action}>{action}</li>)}</ul>
+-      <button onClick={() => onSelect(alternative)} type="button">选择{alternative.title}方案</button>
++      {onSelect ? (
++        <button
++          aria-pressed={selected}
++          onClick={() => onSelect(alternative)}
++          type="button"
++        >选择{alternative.title}方案</button>
++      ) : <p className={styles.planReadOnly}>仅查看建议</p>}
+     </article>
+   );
+ }
+diff --git a/src/features/assistant/assistant-client.tsx b/src/features/assistant/assistant-client.tsx
+index 88cc15d..0706698 100644
+--- a/src/features/assistant/assistant-client.tsx
++++ b/src/features/assistant/assistant-client.tsx
+@@ -1,16 +1,21 @@
+ 'use client';
+ 
+ import { PaperPlaneTilt, ShieldWarning, Sparkle } from '@phosphor-icons/react';
+-import { useRef, useState } from 'react';
++import Link from 'next/link';
++import { useEffect, useRef, useState } from 'react';
+ import type { AssistantAlternative, AssistantResponse } from '@/domain/assistant/schema';
+-import { useTripStore } from '@/stores/trip-store';
++import {
++  hydrateWorkbenchTripStore,
++  useTripStore,
++  useTripStoreHydration,
++} from '@/stores/trip-store';
+ import { AlternativePlan } from './alternative-plan';
+ import { createLatestRequestGate } from './request-sequence';
+ import styles from './assistant.module.css';
+ 
+ const quickQuestions = [
+   { label: '规划建议', question: '请为我的行程给出规划建议。' },
+   { label: '航班变化', question: '航班变化时我应该如何调整行程？' },
+   { label: '天气提醒', question: '下雨天气有哪些安全的备选安排？' },
+   { label: '证件准备', question: '出发前需要核对哪些证件？' },
+   { label: '人身安全', question: '同行者失联且可能有人身危险，我现在应该怎么做？' },
+@@ -29,79 +34,150 @@ async function requestFromApi(request: AssistantRequest): Promise<AssistantRespo
+     headers: { 'content-type': 'application/json' },
+     body: JSON.stringify(request),
+   });
+   const payload = await response.json() as AssistantResponse | { error?: { message?: string } };
+   if (!response.ok || !('risk_level' in payload)) {
+     throw new Error('error' in payload ? payload.error?.message || '助手暂时不可用' : '助手暂时不可用');
+   }
+   return payload;
+ }
+ 
+-export function AssistantClient({ tripId = 'dali-slow-5d', requestAssistant = requestFromApi }: AssistantClientProps) {
++export function AssistantClient({ tripId, requestAssistant = requestFromApi }: AssistantClientProps) {
+   const [question, setQuestion] = useState('');
+   const [result, setResult] = useState<AssistantResponse>();
+   const [error, setError] = useState<string>();
+   const [loading, setLoading] = useState(false);
++  const [selectedPlanId, setSelectedPlanId] = useState<string>();
++  const [selectionError, setSelectionError] = useState<string>();
+   const requestGate = useRef(createLatestRequestGate());
++  const hydrated = useTripStoreHydration((state) => state.hydrated);
++  const hydrationError = useTripStoreHydration((state) => state.hydrationError);
++  const contextTrip = useTripStore((state) => {
++    if (!tripId) return undefined;
++    return state.trips[tripId] ?? Object.values(state.trips).find(
++      (trip) => trip.sourcePostSlug === tripId,
++    );
++  });
+   const selectGuardianPlan = useTripStore((state) => state.selectGuardianPlan);
++  const canPersistSelection = hydrated && !hydrationError && Boolean(contextTrip);
++
++  useEffect(() => {
++    void hydrateWorkbenchTripStore();
++  }, []);
+ 
+   const ask = async (nextQuestion: string) => {
+     if (!nextQuestion.trim() || loading) return;
+     const request = requestGate.current.start();
+     setLoading(true);
+     setError(undefined);
++    setSelectedPlanId(undefined);
++    setSelectionError(undefined);
+     try {
+-      const response = await requestAssistant({ tripId, question: nextQuestion });
++      const response = await requestAssistant({
++        tripId: contextTrip?.id ?? 'general-travel-advice',
++        question: nextQuestion,
++      });
+       if (requestGate.current.isLatest(request)) setResult(response);
+     } catch (caught) {
+       if (requestGate.current.isLatest(request)) {
+         setError(caught instanceof Error ? caught.message : '助手暂时不可用，请稍后重试。');
+       }
+     } finally {
+       if (requestGate.current.isLatest(request)) setLoading(false);
+     }
+   };
+ 
+   const selectPlan = (alternative: AssistantAlternative) => {
+-    selectGuardianPlan(tripId, { id: alternative.id, title: alternative.title });
++    if (!canPersistSelection || !contextTrip) return;
++    try {
++      selectGuardianPlan(contextTrip.id, { id: alternative.id, title: alternative.title });
++      setSelectedPlanId(alternative.id);
++      setSelectionError(undefined);
++    } catch {
++      setSelectedPlanId(undefined);
++      setSelectionError('关联行程已不存在，方案未保存。你仍可直接参考本次建议。');
++    }
+   };
+ 
+   return (
+     <main className={styles.page}>
+       <section className={styles.hero} aria-labelledby="assistant-title">
+         <p>AI TRAVEL ASSISTANT / DEMO</p>
+         <h1 id="assistant-title">把不确定，整理成下一步</h1>
+         <span>默认使用清晰标注的本地演示引擎；不会伪造实时航班、天气或官方救援结果。</span>
+       </section>
+ 
+       <section className={styles.askPanel} aria-label="咨询旅行助手">
++        <div className={styles.contextCard}>
++          {!hydrated ? <p role="status">正在读取本地行程上下文…</p> : null}
++          {hydrated && hydrationError ? (
++            <div role="alert">
++              <strong>本地行程无法安全读取</strong>
++              <span>原数据未被覆盖；建议仍可查看，但不会保存到行程。</span>
++            </div>
++          ) : null}
++          {hydrated && !hydrationError && contextTrip ? (
++            <div>
++              <strong>已关联本地行程</strong>
++              <span>{contextTrip.title} · {contextTrip.destination}</span>
++            </div>
++          ) : null}
++          {hydrated && !hydrationError && tripId && !contextTrip ? (
++            <div role="status">
++              <strong>未找到要关联的本地行程</strong>
++              <span>本次按通用旅行问题回答，建议不会保存。</span>
++            </div>
++          ) : null}
++          {hydrated && !hydrationError && !tripId ? (
++            <div>
++              <strong>当前为通用旅行咨询</strong>
++              <span>可直接使用建议，不会自动写入任何行程。</span>
++            </div>
++          ) : null}
++          {hydrated && !canPersistSelection ? (
++            <nav aria-label="建立行程上下文">
++              <Link href="/square">从攻略创建行程</Link>
++              <Link href="/trips">查看我的行程</Link>
++            </nav>
++          ) : null}
++        </div>
+         <div className={styles.quickQuestions} aria-label="快捷问题">
+           {quickQuestions.map((item) => (
+-            <button disabled={loading} key={item.label} onClick={() => void ask(item.question)} type="button">{item.label}</button>
++            <button disabled={loading || !hydrated} key={item.label} onClick={() => void ask(item.question)} type="button">{item.label}</button>
+           ))}
+         </div>
+         <form onSubmit={(event) => { event.preventDefault(); void ask(question); }}>
+           <label htmlFor="assistant-question">你的问题</label>
+           <div>
+-            <input id="assistant-question" onChange={(event) => setQuestion(event.target.value)} placeholder="例如：下雨后如何调整苍山行程？" value={question} />
+-            <button disabled={loading || !question.trim()} type="submit"><PaperPlaneTilt aria-hidden size={18} />{loading ? '整理中…' : '获取建议'}</button>
++            <input id="assistant-question" onChange={(event) => setQuestion(event.target.value)} placeholder="例如：下雨后如何调整今天的户外行程？" value={question} />
++            <button disabled={loading || !hydrated || !question.trim()} type="submit"><PaperPlaneTilt aria-hidden size={18} />{loading ? '整理中…' : '获取建议'}</button>
+           </div>
+         </form>
+         {error ? <p className={styles.error} role="alert">{error}</p> : null}
+       </section>
+ 
+       {result ? (
+         <section aria-label="旅行助手回答" className={styles.result} role="region">
+           <div className={styles.resultMeta}>
+             <span className={result.risk_level === 'critical' ? styles.critical : undefined}>{result.risk_level === 'critical' ? <ShieldWarning aria-hidden size={18} /> : <Sparkle aria-hidden size={18} />}{result.risk_level === 'critical' ? '需立即人工/官方协助' : '结构化建议'}</span>
+             <span>{result.demo_mode ? `演示引擎：${result.model}` : `模型：${result.model}`}</span>
+           </div>
+           <p className={styles.answer}>{result.answer}</p>
+           <p className={styles.freshness}>数据新鲜度：{result.data_freshness}</p>
+           <div className={styles.evidence}><strong>证据与时间</strong>{result.evidence.map((item) => <span key={`${item.source}-${item.observed_at}`}>{item.source} · 证据时间：{item.observed_at}</span>)}</div>
+-          <div className={styles.plans}>{result.alternatives.map((alternative, index) => <AlternativePlan alternative={alternative} index={index} key={alternative.id} onSelect={selectPlan} />)}</div>
+-          <p className={styles.localStatus} role="status">方案已保存到本浏览器的旅行决策，未创建订单</p>
++          <div className={styles.plans}>{result.alternatives.map((alternative, index) => (
++            <AlternativePlan
++              alternative={alternative}
++              index={index}
++              key={alternative.id}
++              onSelect={canPersistSelection ? selectPlan : undefined}
++              selected={selectedPlanId === alternative.id}
++            />
++          ))}</div>
++          {!canPersistSelection ? <p className={styles.adviceOnly}>这些建议不会保存到行程；你可以直接参考并自行决定下一步。</p> : null}
++          {selectionError ? <p className={styles.error} role="alert">{selectionError}</p> : null}
++          {selectedPlanId ? <p className={styles.localStatus} role="status">方案已保存到本浏览器的旅行决策，未创建订单</p> : null}
+         </section>
+       ) : null}
+     </main>
+   );
+ }
+diff --git a/src/features/assistant/assistant.module.css b/src/features/assistant/assistant.module.css
+index ce76b1f..98520fa 100644
+--- a/src/features/assistant/assistant.module.css
++++ b/src/features/assistant/assistant.module.css
+@@ -1,16 +1,22 @@
+ .page { width: min(100% - 40px, var(--content-max)); margin: 0 auto; padding: 126px 0 80px; }
+ .hero { padding: 52px; color: var(--ivory); background: linear-gradient(122deg, #17221d, #344238); border-radius: 2px 2px 30px 2px; }
+ .hero p, .planCard > p { margin: 0 0 12px; color: var(--sand); font-size: 11px; font-weight: 700; letter-spacing: .16em; }
+ .hero h1 { max-width: 680px; margin: 0; font-family: var(--font-display); font-size: clamp(38px, 5vw, 64px); font-weight: 500; line-height: 1.12; }
+ .hero > span { display: block; max-width: 650px; margin-top: 22px; color: rgb(244 240 232 / 74%); line-height: 1.75; }
+ .askPanel { margin-top: 26px; padding: 25px; background: #e8e1d5; border: 1px solid #d1c7b9; }
++.contextCard { display: grid; gap: 10px; margin-bottom: 20px; padding: 15px 17px; color: #4f493f; background: #fffdf8; border-left: 3px solid var(--sand); }
++.contextCard > p, .contextCard div { margin: 0; }
++.contextCard div { display: grid; gap: 3px; }
++.contextCard span { color: #6b645b; font-size: 13px; line-height: 1.55; }
++.contextCard nav { display: flex; flex-wrap: wrap; gap: 14px; }
++.contextCard a { color: #385c4c; font-size: 13px; font-weight: 700; text-underline-offset: 3px; }
+ .quickQuestions { display: flex; flex-wrap: wrap; gap: 9px; margin-bottom: 22px; }
+ .quickQuestions button, .planCard button { min-height: 38px; padding: 8px 12px; color: #443d33; background: transparent; border: 1px solid #b9ad9c; border-radius: 6px; cursor: pointer; }
+ .askPanel label { display: block; margin-bottom: 8px; font-size: 12px; font-weight: 700; }
+ .askPanel form > div { display: flex; gap: 10px; }
+ .askPanel input { width: 100%; min-height: 45px; padding: 10px 13px; color: var(--ink); border: 1px solid #b9ad9c; border-radius: 6px; background: #fffdf8; }
+ .askPanel form button { display: inline-flex; flex: none; align-items: center; gap: 7px; min-height: 45px; padding: 10px 15px; color: var(--ivory); border: 0; border-radius: 6px; background: var(--pine); cursor: pointer; }
+ .askPanel form button:disabled { cursor: not-allowed; opacity: .55; }
+ .error { margin: 12px 0 0; color: #932e2a; }
+ .result { margin-top: 34px; padding: 30px; background: #fffdf8; border: 1px solid #d5ccc0; border-radius: 2px 18px 2px 2px; }
+ .resultMeta { display: flex; flex-wrap: wrap; gap: 10px; }
+@@ -21,13 +27,15 @@
+ .evidence { display: grid; gap: 4px; padding: 15px 0; border-block: 1px solid #e1d9ce; }
+ .evidence strong { color: var(--ink); }
+ .plans { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 24px; }
+ .planCard { padding: 20px; background: #f3eee5; border: 1px solid #d7cec1; }
+ .planCard h3 { min-height: 54px; margin: 0 0 15px; font-family: var(--font-display); font-size: 20px; }
+ .planCard dl { display: grid; gap: 8px; margin: 0; }
+ .planCard dl div { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; }
+ .planCard dt { color: #746b60; }.planCard dd { margin: 0; text-align: right; }
+ .planCard ul { min-height: 64px; margin: 16px 0; padding-left: 17px; color: #5f5850; font-size: 12px; line-height: 1.65; }
+ .planCard button { width: 100%; color: var(--ivory); border-color: var(--pine); background: var(--pine); }
++.planReadOnly { margin: 0; color: #6b645b; font-size: 12px; text-align: center; }
++.adviceOnly { margin: 17px 0 0; color: #6b645b; font-size: 13px; }
+ .localStatus { margin: 17px 0 0; color: #41634e; font-size: 13px; }
+ .page :is(button, input):focus-visible { outline: 3px solid var(--sand); outline-offset: 3px; }
+ @media (max-width: 760px) { .page { width: min(100% - 24px, var(--content-max)); padding-top: 102px; }.hero { padding: 36px 24px; }.askPanel form > div { flex-direction: column; }.askPanel form button { justify-content: center; }.plans { grid-template-columns: 1fr; }.result { padding: 22px 18px; } }
+diff --git a/src/features/home/destination-film-carousel.tsx b/src/features/home/destination-film-carousel.tsx
+index 5c3b973..c6716ea 100644
+--- a/src/features/home/destination-film-carousel.tsx
++++ b/src/features/home/destination-film-carousel.tsx
+@@ -19,20 +19,21 @@ import type { PostMedia } from '@/data/posts';
+ import styles from './featured-destinations.module.css';
+ 
+ export interface DestinationFilmItem {
+   destination: string;
+   title: string;
+   description: string;
+   days: number;
+   season: string;
+   image: PostMedia;
+   href: string;
++  ctaLabel: string;
+ }
+ 
+ interface DestinationFilmCarouselProps {
+   destinations: readonly DestinationFilmItem[];
+   intervalMs?: number;
+ }
+ 
+ interface DragOrigin {
+   captured: boolean;
+   pointerId: number;
+@@ -265,21 +266,21 @@ export function DestinationFilmCarousel({
+                 <div aria-hidden className={styles.filmScrim} />
+                 <div className={styles.filmCopy}>
+                   <p>{destination.days} 天 · {destination.season}</p>
+                   <h3>{destination.destination}</h3>
+                   <span>{destination.description}</span>
+                   <Link
+                     aria-current={active ? 'true' : undefined}
+                     href={destination.href}
+                     tabIndex={active ? 0 : -1}
+                   >
+-                    打开{destination.destination}攻略
++                    {destination.ctaLabel}
+                     <CaretRight aria-hidden size={18} weight="light" />
+                   </Link>
+                 </div>
+               </motion.article>
+             );
+           })}
+         </div>
+       </div>
+ 
+       <div className={styles.filmControls}>
+diff --git a/src/features/home/featured-destinations.tsx b/src/features/home/featured-destinations.tsx
+index 371aab9..4d7fe4a 100644
+--- a/src/features/home/featured-destinations.tsx
++++ b/src/features/home/featured-destinations.tsx
+@@ -17,78 +17,83 @@ const seasons: Record<string, string> = {
+ };
+ 
+ const guideDestinations: readonly DestinationFilmItem[] = posts.map((post) => ({
+   destination: post.destination,
+   title: post.title,
+   description: post.excerpt,
+   days: post.days,
+   season: seasons[post.destination] ?? '当季',
+   image: post.media[0],
+   href: `/square/${post.slug}`,
++  ctaLabel: `打开${post.destination}攻略`,
+ }));
+ 
+ const discoveryDestinations: readonly DestinationFilmItem[] = [
+   {
+     destination: '北京',
+     title: '沿中轴线读懂北京的清晨',
+     description: '从景山晨光望向故宫，再沿中轴线走进胡同与城门之间的历史层次。',
+     days: 4,
+     season: '春秋',
+     image: {
+       src: '/assets/home-film/beijing-forbidden-city-dawn.png',
+       width: 1536,
+       height: 1024,
+       alt: '晨光中的北京故宫建筑群与城市中轴线',
+     },
+-    href: '/square?destination=%E5%8C%97%E4%BA%AC',
++    href: '/compare?kind=hotel&destination=%E5%8C%97%E4%BA%AC',
++    ctaLabel: '比价北京行程',
+   },
+   {
+     destination: '西安',
+     title: '在城墙暮色里走近长安',
+     description: '从明城墙的砖石与角楼出发，把博物馆、坊巷和关中味道放进四天。',
+     days: 4,
+     season: '暮春',
+     image: {
+       src: '/assets/home-film/xian-city-wall-dusk.png',
+       width: 1536,
+       height: 1024,
+       alt: '蓝调暮色中的西安明城墙与角楼',
+     },
+-    href: '/square?destination=%E8%A5%BF%E5%AE%89',
++    href: '/compare?kind=hotel&destination=%E8%A5%BF%E5%AE%89',
++    ctaLabel: '比价西安行程',
+   },
+   {
+     destination: '重庆',
+     title: '顺着山城的高低与江流穿行',
+     description: '用轨道、步道和轮渡连接立体街区，在蓝调时刻看两江与山城亮起。',
+     days: 4,
+     season: '初冬',
+     image: {
+       src: '/assets/home-film/chongqing-river-city-blue-hour.png',
+       width: 1536,
+       height: 1024,
+       alt: '蓝调时刻的重庆山城建筑与江面桥梁',
+     },
+-    href: '/square?destination=%E9%87%8D%E5%BA%86',
++    href: '/compare?kind=hotel&destination=%E9%87%8D%E5%BA%86',
++    ctaLabel: '比价重庆行程',
+   },
+   {
+     destination: '厦门',
+     title: '把海风留在鼓浪屿的早晨',
+     description: '从鼓浪屿老别墅与树影慢慢走到海边，隔着鹭江看城市在晨雾里醒来。',
+     days: 4,
+     season: '晚秋',
+     image: {
+       src: '/assets/home-film/xiamen-gulangyu-morning.png',
+       width: 1536,
+       height: 1024,
+       alt: '晨光中的厦门鼓浪屿红屋顶与鹭江海岸',
+     },
+-    href: '/square?destination=%E5%8E%A6%E9%97%A8',
++    href: '/compare?kind=hotel&destination=%E5%8E%A6%E9%97%A8',
++    ctaLabel: '比价厦门行程',
+   },
+ ];
+ 
+ const destinations: readonly DestinationFilmItem[] = [
+   ...guideDestinations,
+   ...discoveryDestinations,
+ ];
+ 
+ export function FeaturedDestinations() {
+   return (
+diff --git a/src/features/trips/decision-room.tsx b/src/features/trips/decision-room.tsx
+index ae3f0aa..99affb9 100644
+--- a/src/features/trips/decision-room.tsx
++++ b/src/features/trips/decision-room.tsx
+@@ -6,28 +6,34 @@ import { isKnownGuardianTrip } from '@/data/risk-events';
+ import { useDialogFocus } from '@/features/comparison/use-dialog-focus';
+ import { demoMembers, type WorkbenchTrip } from '@/stores/trip-store';
+ import styles from './trips.module.css';
+ 
+ interface DecisionRoomProps {
+   trip: WorkbenchTrip;
+   partnerIntentPublished: boolean;
+   onEnableGuardian: (consent: boolean) => void;
+   onPublishPartnerIntent: () => void;
+   onVote: (memberId: string, candidateId: string) => void;
++  partnerPublishingAvailable: boolean;
++  partnerPublishingMessage?: string;
++  partnerPublishingError?: boolean;
+ }
+ 
+ export function DecisionRoom({
+   trip,
+   partnerIntentPublished,
+   onEnableGuardian,
+   onPublishPartnerIntent,
+   onVote,
++  partnerPublishingAvailable,
++  partnerPublishingMessage,
++  partnerPublishingError = false,
+ }: DecisionRoomProps) {
+   const [guardianDialogOpen, setGuardianDialogOpen] = useState(false);
+   const [consent, setConsent] = useState(false);
+   const guardianSupported = isKnownGuardianTrip(trip.sourcePostSlug);
+   const triggerRef = useRef<HTMLButtonElement>(null);
+   const dialogRef = useRef<HTMLDivElement>(null);
+   const closeGuardianDialog = () => {
+     setGuardianDialogOpen(false);
+     setConsent(false);
+   };
+@@ -97,25 +103,37 @@ export function DecisionRoom({
+             ))}</ul>
+           </div>
+           <div aria-live="polite" className={styles.consensusCard}>
+             {consensus ? <><CheckCircle aria-hidden size={22} weight="fill" /><strong>已形成共识：{consensus.title}</strong></> : <><span className={styles.pulseDot} /><strong>等待更多意见</strong></>}
+           </div>
+         </aside>
+       </div>
+ 
+       <div className={styles.localActions}>
+         <div><UsersThree aria-hidden size={21} /><span><strong>寻找同行</strong><small>仅创建浏览器本地演示意愿</small></span></div>
+-        <button disabled={partnerIntentPublished} onClick={onPublishPartnerIntent} type="button">
++        <button
++          aria-describedby={partnerPublishingMessage ? 'partner-publishing-message' : undefined}
++          disabled={partnerIntentPublished || !partnerPublishingAvailable}
++          onClick={onPublishPartnerIntent}
++          type="button"
++        >
+           {partnerIntentPublished ? '已保存搭子意愿' : '发布搭子意愿'}
+         </button>
+       </div>
+       {partnerIntentPublished && <p className={styles.localConfirmation} role="status">搭子意愿已保存到本浏览器，未发布到平台。</p>}
++      {!partnerIntentPublished && partnerPublishingMessage ? (
++        <p
++          className={partnerPublishingError ? styles.formError : styles.localActionMessage}
++          id="partner-publishing-message"
++          role={partnerPublishingError ? 'alert' : 'status'}
++        >{partnerPublishingMessage}</p>
++      ) : null}
+ 
+       <div className={styles.localActions}>
+         <div><ShieldCheck aria-hidden size={21} /><span><strong>行程守护</strong><small>{guardianSupported ? '不读取实时坐标，不连接真实监测服务' : '当前守护沙箱只支持大理慢行示例'}</small></span></div>
+         <button
+           aria-checked={trip.guardianEnabled}
+           aria-label="行程守护演示"
+           className={styles.switch}
+           disabled={!guardianSupported}
+           onClick={toggleGuardian}
+           ref={triggerRef}
+diff --git a/src/features/trips/trip-workbench.tsx b/src/features/trips/trip-workbench.tsx
+index fdcf165..5967d88 100644
+--- a/src/features/trips/trip-workbench.tsx
++++ b/src/features/trips/trip-workbench.tsx
+@@ -15,34 +15,36 @@ import { ItineraryEditor } from './itinerary-editor';
+ import styles from './trips.module.css';
+ import { demoViewerProfile } from '@/data/partners';
+ import { postHrefForSlug } from '@/data/posts';
+ import { tripToPartnerIntent } from '@/features/partners/trip-to-partner-intent';
+ import { hydratePartnerStore, usePartnerStore, usePartnerStoreHydration } from '@/stores/partner-store';
+ 
+ export function TripWorkbench({ slug }: { slug: string }) {
+   const workbenchHydrated = useTripStoreHydration((state) => state.hydrated);
+   const workbenchHydrationError = useTripStoreHydration((state) => state.hydrationError);
+   const partnerHydrated = usePartnerStoreHydration((state) => state.hydrated);
++  const partnerHydrationError = usePartnerStoreHydration((state) => state.hydrationError);
+   const partnerIntent = usePartnerStore((state) => state.intents[demoViewerProfile.id]);
+   const publishPartnerMatchIntent = usePartnerStore((state) => state.publishIntent);
+   const tripId = useTripStore((state) =>
+     Object.keys(state.trips).find((id) => state.trips[id].sourcePostSlug === slug),
+   );
+   const trip = useTripStore((state) => tripId ? state.trips[tripId] : undefined);
+   const partnerIntentPublished = useTripStore((state) => tripId ? Boolean(state.partnerIntents[tripId]) : false);
+   const updateTrip = useTripStore((state) => state.updateTrip);
+   const updateItem = useTripStore((state) => state.updateItem);
+   const reorderItem = useTripStore((state) => state.reorderItem);
+   const toggleAlternative = useTripStore((state) => state.toggleAlternative);
+   const vote = useTripStore((state) => state.vote);
+   const enableGuardian = useTripStore((state) => state.enableGuardian);
+   const publishPartnerIntent = useTripStore((state) => state.publishPartnerIntent);
++  const [partnerPublishingError, setPartnerPublishingError] = useState('');
+   useEffect(() => {
+     void Promise.all([hydrateWorkbenchTripStore(), hydratePartnerStore()]);
+   }, []);
+ 
+   const compareHref = useMemo(() => {
+     if (!trip) return '/compare';
+     const query = new URLSearchParams({
+       destination: trip.destination,
+       from: trip.startDate,
+       to: trip.endDate,
+@@ -57,20 +59,34 @@ export function TripWorkbench({ slug }: { slug: string }) {
+ 
+   if (!trip && workbenchHydrationError) {
+     return <WorkbenchState title="本地行程暂时无法读取" message="浏览器中的数据未被覆盖。请返回原攻略，稍后再试。" sourceHref={postHrefForSlug(slug)} />;
+   }
+ 
+   if (!trip) {
+     return <WorkbenchState title="未找到本地行程" message="行程只保存在创建它的浏览器中。请返回攻略重新保存。" sourceHref={postHrefForSlug(slug)} />;
+   }
+ 
+   const budgetSummary = getBudgetSummary(trip);
++  const partnerPublishingAvailable = partnerHydrated && !partnerHydrationError;
++  const publishPartnerIntentSafely = () => {
++    if (!partnerPublishingAvailable) return;
++    setPartnerPublishingError('');
++    try {
++      publishPartnerMatchIntent(demoViewerProfile, tripToPartnerIntent(trip, partnerIntent));
++      if (!usePartnerStore.getState().intents[demoViewerProfile.id]) {
++        throw new Error('PARTNER_INTENT_NOT_COMMITTED');
++      }
++      publishPartnerIntent(trip.id);
++    } catch {
++      setPartnerPublishingError('搭子意愿未能保存，行程未标记为已发布。请稍后重试。');
++    }
++  };
+   return (
+     <main className={styles.page}>
+       {workbenchHydrationError && <p className={styles.hydrationWarning} role="status">工作台存储校验失败，继续使用当前安全的内存状态；原存储未被覆盖。</p>}
+       <header className={styles.hero}>
+         <div className={styles.eyebrow}>
+           <span>LOCAL TRIP / {trip.destination}</span>
+           <span className={styles.eyebrowActions}>
+             <Link href={postHrefForSlug(trip.sourcePostSlug)}>返回原攻略</Link>
+             <span>本地演示工作台</span>
+           </span>
+@@ -105,23 +121,28 @@ export function TripWorkbench({ slug }: { slug: string }) {
+         <div className={styles.budgetNumbers}>
+           <span><small>{trip.items.length} 项预计花费</small><strong>¥{budgetSummary.overall.toLocaleString('zh-CN')}</strong></span>
+           <span><small>行程总预算</small><strong>¥{trip.budget.toLocaleString('zh-CN')}</strong></span>
+           <span><small>剩余弹性</small><strong>¥{Math.max(0, trip.budget - budgetSummary.overall).toLocaleString('zh-CN')}</strong></span>
+         </div>
+         <ol className={styles.costList}>{trip.items.map((item, index) => <li key={item.id}><span>{String(index + 1).padStart(2, '0')} · {item.title}</span><strong>¥{budgetSummary.itemTotals[index].toLocaleString('zh-CN')}</strong></li>)}</ol>
+       </section>
+ 
+       <DecisionRoom
+         onEnableGuardian={(consent) => enableGuardian(trip.id, consent)}
+-        onPublishPartnerIntent={() => { publishPartnerMatchIntent(demoViewerProfile, tripToPartnerIntent(trip, partnerIntent)); publishPartnerIntent(trip.id); }}
++        onPublishPartnerIntent={publishPartnerIntentSafely}
+         onVote={(memberId, candidateId) => vote(trip.id, memberId, candidateId)}
+         partnerIntentPublished={partnerIntentPublished}
++        partnerPublishingAvailable={partnerPublishingAvailable}
++        partnerPublishingError={partnerHydrationError || Boolean(partnerPublishingError)}
++        partnerPublishingMessage={partnerHydrationError
++          ? '搭子意愿存储无法安全读取，发布已停用；原数据未被覆盖。请前往寻找搭子页显式重置后再试。'
++          : partnerPublishingError || undefined}
+         trip={trip}
+       />
+ 
+       <section className={styles.compareCta}>
+         <div><Coins aria-hidden size={26} /><span><p>NEXT STEP</p><h2>把决定交给真实比价</h2><small>将目的地、日期和人数带入现有比价页，不进行预订。</small></span></div>
+         <Link href={compareHref}>进入比价 <ArrowRight aria-hidden size={18} /></Link>
+       </section>
+     </main>
+   );
+ }
+diff --git a/src/features/trips/trips.module.css b/src/features/trips/trips.module.css
+index 8f1776b..bf11357 100644
+--- a/src/features/trips/trips.module.css
++++ b/src/features/trips/trips.module.css
+@@ -297,20 +297,21 @@
+   padding: 18px 22px;
+   background: rgb(255 255 255 / 42%);
+   border: 1px solid #d3cabd;
+ }
+ .localActions > div { display: flex; align-items: center; gap: 12px; }
+ .localActions > div span { display: grid; gap: 3px; }
+ .localActions small { color: #776f65; }
+ .localActions > button:disabled { cursor: default; opacity: .65; }
+ .localConfirmation,
+ .guardianNotice { margin: 8px 0 0; color: #45604e; font-size: 12px; }
++.localActionMessage { margin: 8px 0 0; color: #6b645b; font-size: 12px; }
+ .switch { position: relative; width: 48px; height: 27px; padding: 0 !important; background: #a9a298 !important; border-radius: 999px !important; }
+ .switch span { position: absolute; top: 4px; left: 4px; width: 19px; height: 19px; background: white; border-radius: 50%; transition: transform .18s ease; }
+ .switch[aria-checked="true"] { background: #486351 !important; }
+ .switch[aria-checked="true"] span { transform: translateX(21px); }
+ 
+ .compareCta { justify-content: space-between; gap: 30px; margin-top: 56px; padding: 34px 38px; color: #f6f0e5; background: #181d1a; }
+ .compareCta > div { display: flex; align-items: center; gap: 18px; }
+ .compareCta small { color: rgb(246 240 229 / 62%); }
+ .compareCta a { display: inline-flex; flex: none; align-items: center; gap: 8px; padding: 13px 18px; color: #1c211d; background: #d6c495; border-radius: 6px; font-size: 13px; font-weight: 700; text-decoration: none; }
+ 
+diff --git a/src/lib/site-origin.ts b/src/lib/site-origin.ts
+new file mode 100644
+index 0000000..95a5e71
+--- /dev/null
++++ b/src/lib/site-origin.ts
+@@ -0,0 +1,22 @@
++const fallbackOrigin = 'https://xingyu-travel.vercel.app';
++
++type SiteEnvironment = Readonly<Record<string, string | undefined>>;
++
++function normalizeOrigin(value: string | undefined): string | undefined {
++  const trimmed = value?.trim();
++  if (!trimmed) return undefined;
++  try {
++    const url = new URL(/^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`);
++    if (url.protocol !== 'https:') return undefined;
++    return url.origin;
++  } catch {
++    return undefined;
++  }
++}
++
++export function resolveSiteOrigin(env: SiteEnvironment = process.env): string {
++  return normalizeOrigin(env.NEXT_PUBLIC_SITE_URL)
++    ?? normalizeOrigin(env.SITE_URL)
++    ?? normalizeOrigin(env.VERCEL_PROJECT_PRODUCTION_URL)
++    ?? fallbackOrigin;
++}
+diff --git a/src/stores/partner-store.ts b/src/stores/partner-store.ts
+index 4a58675..95029bd 100644
+--- a/src/stores/partner-store.ts
++++ b/src/stores/partner-store.ts
+@@ -172,21 +172,37 @@ function stateCreator(
+   set: (recipe: (state: PartnerStoreState) => Partial<PartnerStoreState>) => void,
+   get: () => PartnerStoreState,
+   allowPersistence: () => void = () => {},
+ ): PartnerStoreState {
+   return {
+     ...initialPartnerState,
+     publishIntent: (profile, intent) => {
+       requireEligibility(profile);
+       const parsed = validatePartnerIntent(intent);
+       if (!parsed.success) throw new Error('PARTNER_INVALID_INTENT');
+-      set((state) => ({ intents: { ...state.intents, [profile.id]: parsed.data } }));
++      const previousIntent = get().intents[profile.id];
++      try {
++        set((state) => ({ intents: { ...state.intents, [profile.id]: parsed.data } }));
++      } catch (error) {
++        try {
++          set((state) => {
++            const intents = { ...state.intents };
++            if (previousIntent) intents[profile.id] = previousIntent;
++            else delete intents[profile.id];
++            return { intents };
++          });
++        } catch {
++          // State changes before persistence is attempted, so this still restores
++          // the owner-domain memory when storage fails again during rollback.
++        }
++        throw error;
++      }
+     },
+     requestMatch: (profile, candidateId) => {
+       requireEligibility(profile);
+       const state = get();
+       const intent = state.intents[profile.id];
+       if (!intent) throw new Error('PARTNER_INTENT_REQUIRED');
+       const candidates = filterPartnerCandidates(intent, demoPartnerCandidates, {
+         viewerId: profile.id, blockedCandidateIds: state.blockedCandidateIds,
+       });
+       if (!candidates.some((candidate) => candidate.id === candidateId)) throw new Error('PARTNER_HARD_FILTERED');
+diff --git a/tests/component/assistant-client.test.tsx b/tests/component/assistant-client.test.tsx
+index 081d61d..ca95d42 100644
+--- a/tests/component/assistant-client.test.tsx
++++ b/tests/component/assistant-client.test.tsx
+@@ -1,75 +1,125 @@
+-import { render, screen, within } from '@testing-library/react';
++import { render, screen, waitFor, within } from '@testing-library/react';
+ import userEvent from '@testing-library/user-event';
+ import { beforeEach, describe, expect, it } from 'vitest';
+ import { AssistantClient } from '@/features/assistant/assistant-client';
+ import { postsBySlug } from '@/data/posts';
+ import { extractTripDraft } from '@/domain/trips/extract-draft';
+-import { useTripStore } from '@/stores/trip-store';
++import { useTripStore, useTripStoreHydration } from '@/stores/trip-store';
+ 
+ const emergencyResponse = {
+   risk_level: 'critical' as const,
+   answer: '请立即拨打 110，并按现场官方人员指引行动。',
+   alternatives: [
+     { id: 'EMERGENCY-110', title: '联系公安机关', cost: '以官方处置为准', duration: '立即执行', risk: '极高', actions: ['拨打 110'] },
+     { id: 'EMERGENCY-120', title: '请求医疗急救', cost: '以官方处置为准', duration: '立即执行', risk: '极高', actions: ['拨打 120'] },
+     { id: 'EMERGENCY-119', title: '请求消防救援', cost: '以官方处置为准', duration: '立即执行', risk: '极高', actions: ['拨打 119'] },
+   ],
+   evidence: [{ source: '星屿沙箱应急指引', observed_at: '2026-08-16T09:00:00+08:00' }],
+   data_freshness: '固定沙箱快照：2026-08-16 09:00 CST',
+   requires_human_help: true,
+   demo_mode: true,
+   model: 'xingyu-local-demo',
+ };
+ 
+ beforeEach(() => {
++  window.localStorage.clear();
+   useTripStore.setState({ trips: {}, partnerIntents: {}, guardianPlans: {} });
++  useTripStoreHydration.setState({ hydrated: false, hydrationError: false });
+   useTripStore.getState().acceptDraft(extractTripDraft(postsBySlug['dali-slow-5d']));
+ });
+ 
+ describe('AssistantClient', () => {
+   it('shows structured emergency advice with model and evidence labels, then saves a selected plan locally', async () => {
+     const user = userEvent.setup();
+     const requests: Array<{ tripId: string; question: string }> = [];
+     render(
+       <AssistantClient
+         requestAssistant={async (request) => {
+           requests.push(request);
+           return emergencyResponse;
+         }}
+         tripId="dali-slow-5d"
+       />,
+     );
+ 
+     await user.click(screen.getByRole('button', { name: '人身安全' }));
+     expect(await screen.findByText('请立即拨打 110，并按现场官方人员指引行动。')).toBeInTheDocument();
+-    expect(requests).toEqual([{ tripId: 'dali-slow-5d', question: '同行者失联且可能有人身危险，我现在应该怎么做？' }]);
++    expect(requests).toEqual([{ tripId: 'draft-dali-slow-5d', question: '同行者失联且可能有人身危险，我现在应该怎么做？' }]);
+ 
+     const result = screen.getByRole('region', { name: '旅行助手回答' });
+     expect(result).toHaveTextContent('演示引擎：xingyu-local-demo');
+     expect(result).toHaveTextContent('证据时间：2026-08-16T09:00:00+08:00');
+     expect(result).toHaveTextContent('110');
+     expect(within(result).getAllByRole('article', { name: /方案/ })).toHaveLength(3);
++    expect(screen.queryByText('方案已保存到本浏览器的旅行决策，未创建订单')).not.toBeInTheDocument();
+ 
+     await user.click(within(result).getByRole('button', { name: '选择联系公安机关方案' }));
+     expect(screen.getByRole('status')).toHaveTextContent('方案已保存到本浏览器的旅行决策，未创建订单');
+     expect(useTripStore.getState().guardianPlans['draft-dali-slow-5d']).toEqual({
+       id: 'EMERGENCY-110',
+       title: '联系公安机关',
+     });
+   });
+ 
++  it('answers a fresh user without inventing Dali context or offering persistence controls', async () => {
++    const user = userEvent.setup();
++    const requests: Array<{ tripId: string; question: string }> = [];
++    window.localStorage.clear();
++    useTripStore.setState({ trips: {}, partnerIntents: {}, guardianPlans: {} });
++    useTripStoreHydration.setState({ hydrated: false, hydrationError: false });
++
++    render(<AssistantClient requestAssistant={async (request) => {
++      requests.push(request);
++      return emergencyResponse;
++    }} />);
++
++    expect(await screen.findByText('当前为通用旅行咨询')).toBeInTheDocument();
++    await user.click(screen.getByRole('button', { name: '人身安全' }));
++    const result = await screen.findByRole('region', { name: '旅行助手回答' });
++
++    expect(requests).toEqual([{
++      tripId: 'general-travel-advice',
++      question: '同行者失联且可能有人身危险，我现在应该怎么做？',
++    }]);
++    expect(within(result).getAllByRole('article', { name: /方案/ })).toHaveLength(3);
++    expect(within(result).queryByRole('button', { name: /选择.+方案/ })).not.toBeInTheDocument();
++    expect(result).toHaveTextContent('这些建议不会保存到行程');
++    expect(screen.getByRole('link', { name: '从攻略创建行程' })).toHaveAttribute('href', '/square');
++    expect(screen.getByRole('link', { name: '查看我的行程' })).toHaveAttribute('href', '/trips');
++    expect(screen.queryByText('方案已保存到本浏览器的旅行决策，未创建订单')).not.toBeInTheDocument();
++  });
++
++  it('fails closed on malformed trip persistence and preserves the original bytes', async () => {
++    const malformedBytes = '{broken-trip-store';
++    window.localStorage.clear();
++    useTripStore.setState({ trips: {}, partnerIntents: {}, guardianPlans: {} });
++    useTripStoreHydration.setState({ hydrated: false, hydrationError: false });
++    window.localStorage.setItem('xingyu-demo-v1', malformedBytes);
++
++    render(<AssistantClient requestAssistant={async () => emergencyResponse} tripId="dali-slow-5d" />);
++
++    expect(await screen.findByRole('alert')).toHaveTextContent('本地行程无法安全读取');
++    expect(screen.getByText(/建议仍可查看，但不会保存到行程/)).toBeInTheDocument();
++    expect(screen.getByRole('link', { name: '从攻略创建行程' })).toHaveAttribute('href', '/square');
++    await waitFor(() => expect(useTripStoreHydration.getState()).toEqual({
++      hydrated: true,
++      hydrationError: true,
++    }));
++    expect(window.localStorage.getItem('xingyu-demo-v1')).toBe(malformedBytes);
++  });
++
+   it('blocks a second shortcut while the current request is pending', async () => {
+     const user = userEvent.setup();
+     const requests: Array<{ tripId: string; question: string }> = [];
+     render(<AssistantClient requestAssistant={(request) => {
+       requests.push(request);
+       return new Promise(() => undefined);
+     }} tripId="dali-slow-5d" />);
+ 
+     await user.click(screen.getByRole('button', { name: '规划建议' }));
+     expect(screen.getByRole('button', { name: '人身安全' })).toBeDisabled();
+     expect(screen.getByRole('button', { name: '整理中…' })).toBeDisabled();
+     await user.click(screen.getByRole('button', { name: '人身安全' }));
+-    expect(requests).toEqual([{ tripId: 'dali-slow-5d', question: '请为我的行程给出规划建议。' }]);
++    expect(requests).toEqual([{ tripId: 'draft-dali-slow-5d', question: '请为我的行程给出规划建议。' }]);
+   });
+ });
+diff --git a/tests/component/destination-film-carousel.test.tsx b/tests/component/destination-film-carousel.test.tsx
+index cf7d095..74ef280 100644
+--- a/tests/component/destination-film-carousel.test.tsx
++++ b/tests/component/destination-film-carousel.test.tsx
+@@ -29,20 +29,21 @@ vi.mock('motion/react', async (importOriginal) => {
+ });
+ 
+ const destinations: readonly DestinationFilmItem[] = posts.slice(0, 4).map((post) => ({
+   destination: post.destination,
+   title: post.title,
+   description: post.excerpt,
+   days: post.days,
+   season: '初秋',
+   image: post.media[0],
+   href: `/square/${post.slug}`,
++  ctaLabel: `打开${post.destination}攻略`,
+ }));
+ 
+ function position() {
+   return screen.getByRole('status', { name: '目的地位置' });
+ }
+ 
+ beforeEach(() => {
+   reduceMotion = false;
+   vi.useRealTimers();
+   Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+@@ -287,39 +288,40 @@ describe('DestinationFilmCarousel', () => {
+     const images = screen.getAllByRole('img', { hidden: true });
+     expect(images).toHaveLength(3);
+     for (const image of images) {
+       expect(image).toHaveAttribute('fetchpriority', 'high');
+     }
+   });
+ 
+   it('maps eight guides and four discovery cities to complete valid routes', () => {
+     render(<FeaturedDestinations />);
+ 
+-    const destinationNames = [
+-      '大理', '桂林', '川西', '三亚', '杭州', '南京', '上海', '贵州',
+-      '北京', '西安', '重庆', '厦门',
+-    ];
++    const guideNames = ['大理', '桂林', '川西', '三亚', '杭州', '南京', '上海', '贵州'];
++    const discoveryNames = ['北京', '西安', '重庆', '厦门'];
++    const destinationNames = [...guideNames, ...discoveryNames];
+     expect(screen.getByRole('status', { name: '目的地位置' })).toHaveTextContent('1 / 12');
+     for (const destination of destinationNames) {
+       expect(screen.getByRole('button', { name: `查看${destination}` })).toBeInTheDocument();
+-      const link = screen.getByRole('link', { name: `打开${destination}攻略`, hidden: true });
+-      expect(link.getAttribute('href')).toMatch(/^\/(square(?:\/[^?]+|\?destination=)|compare\?)/);
++      const action = guideNames.includes(destination)
++        ? `打开${destination}攻略`
++        : `比价${destination}行程`;
++      const link = screen.getByRole('link', { name: action, hidden: true });
+       const article = link.closest('article');
+       expect(article).not.toBeNull();
+       expect(within(article as HTMLElement).getByText(/\d+ 天 · \S+/)).toBeInTheDocument();
+       expect(within(article as HTMLElement).getByText(/。$/)).toBeInTheDocument();
+     }
+ 
+     const discoveryRoutes = {
+-      北京: '/square?destination=%E5%8C%97%E4%BA%AC',
+-      西安: '/square?destination=%E8%A5%BF%E5%AE%89',
+-      重庆: '/square?destination=%E9%87%8D%E5%BA%86',
+-      厦门: '/square?destination=%E5%8E%A6%E9%97%A8',
++      北京: '/compare?kind=hotel&destination=%E5%8C%97%E4%BA%AC',
++      西安: '/compare?kind=hotel&destination=%E8%A5%BF%E5%AE%89',
++      重庆: '/compare?kind=hotel&destination=%E9%87%8D%E5%BA%86',
++      厦门: '/compare?kind=hotel&destination=%E5%8E%A6%E9%97%A8',
+     } as const;
+     for (const [destination, href] of Object.entries(discoveryRoutes)) {
+       expect(screen.getByRole('link', {
+-        name: `打开${destination}攻略`,
++        name: `比价${destination}行程`,
+         hidden: true,
+       })).toHaveAttribute('href', href);
+     }
+   });
+ });
+diff --git a/tests/component/trip-workbench.test.tsx b/tests/component/trip-workbench.test.tsx
+index 497cf03..d3ee143 100644
+--- a/tests/component/trip-workbench.test.tsx
++++ b/tests/component/trip-workbench.test.tsx
+@@ -1,35 +1,46 @@
+ import { render, screen, waitFor, within } from '@testing-library/react';
+ import userEvent from '@testing-library/user-event';
+ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+ import { postsBySlug } from '@/data/posts';
+ import { extractTripDraft } from '@/domain/trips/extract-draft';
+ import { TripWorkbench } from '@/features/trips/trip-workbench';
+ import { createTripStore, useTripStore, useTripStoreHydration } from '@/stores/trip-store';
++import {
++  createPartnerStore,
++  usePartnerStore,
++  usePartnerStoreHydration,
++} from '@/stores/partner-store';
++import { demoViewerProfile } from '@/data/partners';
+ 
+ const draft = extractTripDraft(postsBySlug['dali-slow-5d']);
+ 
+ function readyStores() {
++  usePartnerStore.getState().resetPartnerStore();
+   useTripStore.setState({ trips: {}, partnerIntents: {}, guardianPlans: {} });
+   useTripStore.getState().savePostAsTrip(draft, postsBySlug['dali-slow-5d'].media[0].src);
+   useTripStoreHydration.setState({ hydrated: true, hydrationError: false });
++  usePartnerStoreHydration.setState({ hydrated: true, hydrationError: false });
+ }
+ 
+ beforeEach(() => {
+   window.localStorage.clear();
+   readyStores();
+ });
+ 
+ afterEach(() => {
+   window.localStorage.clear();
+   useTripStore.setState({ trips: {}, partnerIntents: {}, guardianPlans: {} });
+   useTripStoreHydration.setState({ hydrated: false, hydrationError: false });
++  usePartnerStore.getState().resetPartnerStore();
++  usePartnerStoreHydration.setState({ hydrated: false, hydrationError: false });
++  window.localStorage.clear();
+ });
+ 
+ describe('TripWorkbench', () => {
+   it('renders the hydrated canonical trip with all five editable itinerary nodes', async () => {
+     render(<TripWorkbench slug="dali-slow-5d" />);
+ 
+     expect(await screen.findByRole('heading', { name: /大理慢行计划/ })).toBeInTheDocument();
+     expect(screen.getAllByRole('group', { name: /第 [1-5] 天行程/ })).toHaveLength(5);
+     expect(screen.getByText('本地演示工作台')).toBeInTheDocument();
+   });
+@@ -147,20 +158,52 @@ describe('TripWorkbench', () => {
+   });
+ 
+   it('publishes only a visible browser-local partner intent', async () => {
+     const user = userEvent.setup();
+     render(<TripWorkbench slug="dali-slow-5d" />);
+     await screen.findByRole('heading', { name: /大理慢行计划/ });
+ 
+     await user.click(screen.getByRole('button', { name: '发布搭子意愿' }));
+     expect(screen.getByRole('status')).toHaveTextContent('搭子意愿已保存到本浏览器');
+     expect(screen.getByRole('status')).toHaveTextContent('未发布到平台');
++    expect(usePartnerStore.getState().intents[demoViewerProfile.id]).toBeDefined();
++    expect(useTripStore.getState().partnerIntents[draft.id]).toBe(true);
++
++    const reloadedPartner = createPartnerStore();
++    const reloadedTrip = createTripStore();
++    await Promise.all([
++      reloadedPartner.persist.rehydrate(),
++      reloadedTrip.persist.rehydrate(),
++    ]);
++    expect(reloadedPartner.getState().intents[demoViewerProfile.id]).toBeDefined();
++    expect(reloadedTrip.getState().partnerIntents[draft.id]).toBe(true);
++  });
++
++  it('disables partner publishing after malformed partner hydration without mutating the trip marker', async () => {
++    const user = userEvent.setup();
++    const malformedBytes = '{broken-partner-store';
++    usePartnerStore.setState({
++      intents: {}, matches: {}, visibleMatchIds: [], blockedCandidateIds: [],
++    });
++    usePartnerStoreHydration.setState({ hydrated: false, hydrationError: false });
++    window.localStorage.setItem('xingyu-partner-demo-v1', malformedBytes);
++
++    render(<TripWorkbench slug="dali-slow-5d" />);
++
++    const publish = await screen.findByRole('button', { name: '发布搭子意愿' });
++    await waitFor(() => expect(publish).toBeDisabled());
++    expect(screen.getByRole('alert')).toHaveTextContent('搭子意愿存储无法安全读取');
++    await user.click(publish);
++
++    expect(usePartnerStore.getState().intents[demoViewerProfile.id]).toBeUndefined();
++    expect(useTripStore.getState().partnerIntents[draft.id]).toBeUndefined();
++    expect(window.localStorage.getItem('xingyu-partner-demo-v1')).toBe(malformedBytes);
+   });
+ 
+   it('requires explicit guardian consent and can turn the local demo off again', async () => {
+     const user = userEvent.setup();
+     render(<TripWorkbench slug="dali-slow-5d" />);
+     await screen.findByRole('heading', { name: /大理慢行计划/ });
+ 
+     const guardian = screen.getByRole('switch', { name: '行程守护演示' });
+     await user.click(guardian);
+     const dialog = screen.getByRole('dialog', { name: '授权行程守护演示' });
+diff --git a/tests/e2e/core-journey.spec.ts b/tests/e2e/core-journey.spec.ts
+index c08e4b0..507fe84 100644
+--- a/tests/e2e/core-journey.spec.ts
++++ b/tests/e2e/core-journey.spec.ts
+@@ -11,20 +11,30 @@ const unexpectedConsoleMessages = (page: import('@playwright/test').Page) => {
+   page.on('response', (response) => {
+     if (response.status() >= 400) {
+       messages.push(`http ${response.status()}: ${response.url()}`);
+     }
+   });
+   return messages;
+ };
+ 
+ test.use({ viewport: { width: 1440, height: 1024 } });
+ 
++test('discovery-only destination enters comparison with the city prefilled', async ({ page }) => {
++  await page.goto('/');
++  await page.getByRole('button', { name: '查看北京' }).click();
++  await page.getByRole('link', { name: '比价北京行程' }).click();
++
++  await expect(page).toHaveURL('/compare?kind=hotel&destination=%E5%8C%97%E4%BA%AC');
++  await expect(page.getByText('北京 · 沙箱演示报价', { exact: true })).toBeVisible();
++  await expect(page.getByRole('tab', { name: '酒店' })).toHaveAttribute('aria-selected', 'true');
++});
++
+ test('guide to guarded alternative plan through the public UI', async ({ page }) => {
+   const errors = unexpectedConsoleMessages(page);
+ 
+   await page.goto('/');
+   await page.getByRole('tab', { name: '机票' }).click();
+   await page.getByRole('textbox', { name: '到达地' }).fill('大理');
+   await page.getByLabel('出发日期').fill('2026-09-18');
+   await page.getByLabel('返程日期').fill('2026-09-22');
+   await page.getByLabel('乘机人').selectOption('3');
+   const quoteStream = page.waitForResponse((response) => response.url().includes('/api/v1/comparison/searches/') && response.url().endsWith('/events'));
+diff --git a/tests/unit/crawler-origin.test.ts b/tests/unit/crawler-origin.test.ts
+new file mode 100644
+index 0000000..3ea98d1
+--- /dev/null
++++ b/tests/unit/crawler-origin.test.ts
+@@ -0,0 +1,39 @@
++import { afterEach, describe, expect, it, vi } from 'vitest';
++
++afterEach(() => {
++  vi.unstubAllEnvs();
++  vi.resetModules();
++});
++
++describe('crawler origin', () => {
++  it('prefers the stable Vercel production hostname over a preview deployment hostname', async () => {
++    vi.stubEnv('VERCEL_URL', 'xingyu-preview-abc.vercel.app');
++    vi.stubEnv('VERCEL_PROJECT_PRODUCTION_URL', 'xingyu-travel.vercel.app');
++    vi.resetModules();
++
++    const [{ default: sitemap }, { default: robots }] = await Promise.all([
++      import('@/app/sitemap'),
++      import('@/app/robots'),
++    ]);
++
++    expect(sitemap().every((entry) => entry.url.startsWith('https://xingyu-travel.vercel.app/'))).toBe(true);
++    expect(robots()).toMatchObject({
++      host: 'https://xingyu-travel.vercel.app',
++      sitemap: 'https://xingyu-travel.vercel.app/sitemap.xml',
++    });
++  });
++
++  it('uses an explicit public site URL before Vercel-derived hostnames', async () => {
++    vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'https://travel.example.cn/');
++    vi.stubEnv('VERCEL_PROJECT_PRODUCTION_URL', 'xingyu-travel.vercel.app');
++    vi.resetModules();
++
++    const [{ default: sitemap }, { default: robots }] = await Promise.all([
++      import('@/app/sitemap'),
++      import('@/app/robots'),
++    ]);
++
++    expect(sitemap()[0].url).toBe('https://travel.example.cn/');
++    expect(robots().host).toBe('https://travel.example.cn');
++  });
++});
+diff --git a/tests/unit/partner-eligibility.test.ts b/tests/unit/partner-eligibility.test.ts
+index 0ba3841..ebf67c7 100644
+--- a/tests/unit/partner-eligibility.test.ts
++++ b/tests/unit/partner-eligibility.test.ts
+@@ -1,11 +1,11 @@
+-import { beforeEach, describe, expect, it } from 'vitest';
++import { beforeEach, describe, expect, it, vi } from 'vitest';
+ import {
+   defaultPartnerIntent,
+   demoPartnerCandidates,
+   filterPartnerCandidates,
+   isPartnerEligible,
+   scorePartnerCandidate,
+   validatePartnerIntent,
+   type PartnerCandidate,
+   type PartnerIntent,
+ } from '@/data/partners';
+@@ -42,20 +42,35 @@ describe('partner eligibility', () => {
+     (age) => {
+       expect(isPartnerEligible({ ...eligibleProfile, age } as typeof eligibleProfile)).toEqual({
+         allowed: false,
+         code: 'AGE_RESTRICTED',
+       });
+     },
+   );
+ });
+ 
+ describe('partner intent and hard filters', () => {
++  it('rolls back owner memory when browser persistence rejects an intent write', async () => {
++    const store = createPartnerStore();
++    await store.persist.rehydrate();
++    const originalSetItem = window.localStorage.setItem.bind(window.localStorage);
++    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation((key, value) => {
++      if (key === 'xingyu-partner-demo-v1') throw new Error('QUOTA_EXCEEDED');
++      originalSetItem(key, value);
++    });
++
++    expect(() => store.getState().publishIntent(eligibleProfile, daliPartnerIntent)).toThrow('QUOTA_EXCEEDED');
++    expect(store.getState().intents[eligibleProfile.id]).toBeUndefined();
++
++    setItem.mockRestore();
++  });
++
+   it('requires every intent field and a valid date, budget, interest, and capacity', () => {
+     expect(validatePartnerIntent({
+       ...defaultPartnerIntent,
+       destination: '',
+       endDate: '2026-09-01',
+       budget: 0,
+       interests: [],
+       capacity: 0,
+     })).toEqual({
+       success: false,
